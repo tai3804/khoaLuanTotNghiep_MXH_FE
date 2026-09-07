@@ -1,29 +1,19 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Outlet, RouterProvider, createBrowserRouter } from 'react-router';
+import './index.css';
+import App from './App';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 
-import App from './app';
-import { routesSection } from './routes/sections';
-import { ErrorBoundary } from './routes/components';
-
-// ----------------------------------------------------------------------
-
-const router = createBrowserRouter([
-  {
-    Component: () => (
-      <App>
-        <Outlet />
-      </App>
-    ),
-    errorElement: <ErrorBoundary />,
-    children: routesSection,
-  },
-]);
-
-const root = createRoot(document.getElementById('root')!);
-
-root.render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
+      </ThemeProvider>
+    </AuthProvider>
   </StrictMode>
 );
