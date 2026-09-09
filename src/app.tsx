@@ -183,7 +183,7 @@ export const App: React.FC = () => {
           />
         </div>
       ) : (
-        <div className="flex pt-14 justify-between w-full">
+        <div className="flex pt-14 justify-center lg:justify-between w-full max-w-[1920px] mx-auto">
           {/* Left Sidebar - Only rendered if authenticated */}
           {isAuthenticated && (
             <SidebarLeft
@@ -216,7 +216,7 @@ export const App: React.FC = () => {
           )}
 
           {/* Main Feed Center Content with Facebook proportions */}
-          <main className="flex-1 min-w-0 max-w-[590px] xl:max-w-[680px] px-2 sm:px-3 py-4 mx-auto w-full space-y-4">
+          <main className="flex-1 min-w-0 max-w-[680px] px-2 sm:px-4 py-4 mx-auto w-full space-y-4">
             {/* Non-authenticated Guest Welcome Bar */}
             {!isAuthenticated && (
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 mb-4 text-white shadow-md flex items-center justify-between">
@@ -268,11 +268,11 @@ export const App: React.FC = () => {
                 <CreatePostBox onPostCreated={handlePostCreated} />
 
                 {/* 3. Feed Filter Pill Buttons */}
-                <div className="flex items-center justify-between mb-3 bg-white dark:bg-[#242526] p-1.5 rounded-xl border border-gray-200 dark:border-[#393a3b] shadow-sm">
-                  <div className="flex items-center space-x-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-white dark:bg-[#242526] p-1.5 sm:p-2 rounded-xl border border-gray-200 dark:border-[#393a3b] shadow-sm">
+                  <div className="flex items-center space-x-1 overflow-x-auto">
                     <button
                       onClick={() => setFeedCategory('all')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                         feedCategory === 'all'
                           ? 'bg-[#1877f2] text-white shadow-sm'
                           : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
@@ -283,7 +283,7 @@ export const App: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setFeedCategory('recent')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                         feedCategory === 'recent'
                           ? 'bg-[#1877f2] text-white shadow-sm'
                           : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
@@ -294,7 +294,7 @@ export const App: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setFeedCategory('popular')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                         feedCategory === 'popular'
                           ? 'bg-[#1877f2] text-white shadow-sm'
                           : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
@@ -305,12 +305,12 @@ export const App: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 shrink-0">
                     <span className="hidden sm:inline-flex items-center space-x-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       <span>Trực tiếp</span>
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-semibold bg-gray-100 dark:bg-[#3a3b3c] px-2.5 py-1 rounded-full">
+                    <span className="text-[11px] sm:text-xs text-gray-500 dark:text-[#b0b3b8] font-semibold bg-gray-100 dark:bg-[#3a3b3c] px-2.5 py-1 rounded-full">
                       {displayedPosts.length} bài viết
                     </span>
                     <button

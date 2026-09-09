@@ -52,13 +52,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(JSON.parse(storedUser));
       setTokens({ accessToken: storedToken, refreshToken: storedRefresh || '' });
       setIsGuest(false);
-      // Fetch latest profile from user-service to ensure real name is displayed
       refreshUserProfile();
-    } else if (storedGuest === 'true') {
-      setIsGuest(true);
     } else {
       setIsGuest(true);
     }
+
+    const handleExpired = () => {
+      setUser(null);
+      setTokens(null);
+      setIsGuest(true);
+      setLoginModalOpen(true);
+    };
+    window.addEventListener('auth_session_expired', handleExpired);
+
+    return () => {
+      window.removeEventListener('auth_session_expired', handleExpired);
+    };
   }, []);
 
   const login = async (username?: string, password?: string): Promise<boolean> => {

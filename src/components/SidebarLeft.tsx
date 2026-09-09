@@ -12,7 +12,6 @@ import {
   Tv,
   Users2,
   Settings,
-  Plus,
   Compass,
 } from 'lucide-react';
 
@@ -109,28 +108,6 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
     },
   ];
 
-  // Community shortcuts
-  const defaultShortcuts = [
-    {
-      id: 'sc-1',
-      name: 'Cộng đồng Sinh viên KLTN 2026',
-      icon: '🎓',
-      members: '1.2K thành viên',
-    },
-    {
-      id: 'sc-2',
-      name: 'Giao lưu Lập trình viên & Công nghệ',
-      icon: '💻',
-      members: '4.8K thành viên',
-    },
-    {
-      id: 'sc-3',
-      name: 'Câu lạc bộ Thiết kế & Đồ họa',
-      icon: '🎨',
-      members: '850 thành viên',
-    },
-  ];
-
   const displayedItems = showMore ? menuItems : menuItems.slice(0, 5);
 
   const handleItemClick = (id: string) => {
@@ -200,35 +177,9 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
           <h4 className="text-sm font-semibold text-gray-500 dark:text-[#b0b3b8]">
             Lối tắt của bạn
           </h4>
-          <button
-            onClick={() => onFilterChange && onFilterChange('groups')}
-            className="text-xs text-[#2d88ff] hover:underline cursor-pointer"
-          >
-            Chỉnh sửa
-          </button>
         </div>
 
         <div className="space-y-0.5">
-          {defaultShortcuts.map((sc) => (
-            <div
-              key={sc.id}
-              onClick={() => onFilterChange && onFilterChange('groups')}
-              className="flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center text-lg shrink-0 border border-gray-200/60 dark:border-[#4e4f50]">
-                {sc.icon}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-gray-900 dark:text-[#e4e6eb] truncate leading-snug">
-                  {sc.name}
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">
-                  {sc.members}
-                </p>
-              </div>
-            </div>
-          ))}
-
           <button
             onClick={() => onFilterChange && onFilterChange('groups')}
             className="w-full flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 text-[#2d88ff] text-xs font-semibold cursor-pointer transition"
@@ -236,7 +187,7 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
             <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-[#2d88ff]/20 flex items-center justify-center shrink-0">
               <Compass className="w-4 h-4 text-[#2d88ff]" />
             </div>
-            <span>Khám phá thêm nhóm & cộng đồng</span>
+            <span>Khám phá nhóm & cộng đồng</span>
           </button>
         </div>
       </div>

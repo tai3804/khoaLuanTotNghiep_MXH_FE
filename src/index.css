@@ -18,10 +18,12 @@
   --fb-text-secondary: #b0b3b8;
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: #f0f2f5;
   color: #050505;
   transition: background-color 0.15s ease, color 0.15s ease;

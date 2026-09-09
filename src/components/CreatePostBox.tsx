@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { Post } from '../types';
 import { UserAvatar } from './UserAvatar';
 import { postService } from '../services/api';
@@ -13,6 +14,7 @@ interface CreatePostBoxProps {
 export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
+  const toast = useToast();
 
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [content, setContent] = useState('');
@@ -81,6 +83,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
       setSelectedFeeling(null);
       setShowImageInput(false);
       setIsOpenModal(false);
+      toast.showSuccess('Đã đăng bài viết mới thành công!');
     } catch (err: any) {
       console.error('Failed to create post:', err);
       // Even if backend upload encounters an edge case, create local post so user isn't stuck
@@ -135,86 +138,86 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
           </div>
         </div>
 
-        <div className="border-t border-gray-200 dark:border-[#393a3b] pt-2 mt-3 flex items-center justify-around">
+        <div className="border-t border-gray-200 dark:border-[#393a3b] pt-2 mt-3 flex items-center justify-around gap-1">
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
+            className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
           >
-            <Video className="w-5 h-5 text-[#f3425f]" />
-            <span>Video trực tiếp</span>
+            <Video className="w-4 h-4 sm:w-5 sm:h-5 text-[#f3425f] shrink-0" />
+            <span className="truncate">Video trực tiếp</span>
           </button>
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
+            className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
           >
-            <Image className="w-5 h-5 text-[#45bd62]" />
-            <span>Ảnh/video</span>
+            <Image className="w-4 h-4 sm:w-5 sm:h-5 text-[#45bd62] shrink-0" />
+            <span className="truncate">Ảnh/video</span>
           </button>
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
+            className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
           >
-            <Smile className="w-5 h-5 text-[#f7b125]" />
-            <span>Cảm xúc/hoạt động</span>
+            <Smile className="w-4 h-4 sm:w-5 sm:h-5 text-[#f7b125] shrink-0" />
+            <span className="truncate">Cảm xúc/hoạt động</span>
           </button>
         </div>
       </div>
 
       {/* Expanded Create Post Modal */}
       {isOpenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transition-all transform scale-100">
+        <div onClick={() => setIsOpenModal(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-fadeIn cursor-pointer">
+          <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transition-all transform scale-100 cursor-default">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700">
-              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Tạo bài viết</h3>
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 dark:border-[#393a3b]">
+              <h3 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">Tạo bài viết</h3>
               <button
                 onClick={() => setIsOpenModal(false)}
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 transition"
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-500 dark:text-[#b0b3b8] transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 space-y-3.5">
               {/* User info & Audience selector */}
               <div className="flex items-center space-x-3">
                 <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="lg" />
                 <div>
-                  <h4 className="font-bold text-sm text-gray-900 dark:text-slate-100">
+                  <h4 className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb]">
                     {user?.fullName || user?.username || 'Người dùng'}
                   </h4>
                   {/* Privacy Selector Pills */}
-                  <div className="flex items-center space-x-1 mt-1">
+                  <div className="flex items-center space-x-1.5 mt-0.5">
                     <button
                       type="button"
                       onClick={() =>
                         setPrivacy(privacy === 'public' ? 'friends' : privacy === 'friends' ? 'private' : 'public')
                       }
-                      className="flex items-center space-x-1 bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded-md text-[11px] font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition"
+                      className="flex items-center space-x-1.5 bg-gray-100 dark:bg-[#3a3b3c] px-2.5 py-1 rounded-md text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-200 dark:hover:bg-[#4e4f50] border border-gray-200 dark:border-[#4e4f50] transition cursor-pointer"
                     >
                       {privacy === 'public' && (
                         <>
-                          <Globe className="w-3 h-3 text-blue-500" />
+                          <Globe className="w-3.5 h-3.5 text-[#1877f2]" />
                           <span>Công khai</span>
                         </>
                       )}
                       {privacy === 'friends' && (
                         <>
-                          <Users className="w-3 h-3 text-green-500" />
+                          <Users className="w-3.5 h-3.5 text-[#45bd62]" />
                           <span>Bạn bè</span>
                         </>
                       )}
                       {privacy === 'private' && (
                         <>
-                          <Lock className="w-3 h-3 text-red-500" />
+                          <Lock className="w-3.5 h-3.5 text-[#f3425f]" />
                           <span>Chỉ mình tôi</span>
                         </>
                       )}
                     </button>
 
                     {selectedFeeling && (
-                      <span className="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                      <span className="bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 text-[11px] font-bold px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
                         {selectedFeeling}
                       </span>
                     )}
@@ -228,22 +231,22 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={`${t('whatsOnYourMind') || 'Bạn đang nghĩ gì thế'}, ${user?.fullName || user?.username || ''}?`}
                 rows={4}
-                className="w-full bg-transparent text-gray-900 dark:text-slate-100 text-sm focus:outline-none resize-none placeholder-gray-400 dark:placeholder-slate-500 leading-relaxed"
+                className="w-full bg-transparent text-gray-900 dark:text-[#e4e6eb] text-sm focus:outline-none resize-none placeholder-gray-400 dark:placeholder-[#b0b3b8] leading-relaxed"
                 autoFocus
               />
 
               {/* Image URL Input or Preview */}
               {showImageInput && (
-                <div className="relative p-3 bg-gray-50 dark:bg-slate-900/60 rounded-2xl border border-gray-200 dark:border-slate-700 space-y-2">
+                <div className="relative p-3 bg-gray-50 dark:bg-[#18191a] rounded-xl border border-gray-200 dark:border-[#393a3b] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-600 dark:text-slate-300">Thêm liên kết hình ảnh</span>
+                    <span className="text-xs font-bold text-gray-600 dark:text-[#b0b3b8]">Thêm liên kết hình ảnh</span>
                     <button
                       type="button"
                       onClick={() => {
                         setShowImageInput(false);
                         setImageUrl('');
                       }}
-                      className="text-gray-400 hover:text-red-500 text-xs"
+                      className="text-gray-400 hover:text-red-500 text-xs font-medium cursor-pointer"
                     >
                       Xóa ảnh
                     </button>
@@ -253,10 +256,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="Dán đường dẫn ảnh hoặc chọn tệp bên dưới..."
-                    className="w-full bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-xs p-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-white dark:bg-[#242526] text-gray-900 dark:text-[#e4e6eb] text-xs p-2.5 rounded-lg border border-gray-200 dark:border-[#393a3b] focus:outline-none focus:ring-1 focus:ring-[#1877f2]"
                   />
                   {imageUrl.trim() && (
-                    <div className="relative rounded-xl overflow-hidden max-h-48 bg-black/5">
+                    <div className="relative rounded-lg overflow-hidden max-h-48 bg-black/5">
                       <img src={imageUrl} alt="Preview" className="w-full h-48 object-cover" />
                     </div>
                   )}
@@ -265,7 +268,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
 
               {/* Local File Attachment Preview */}
               {filePreview && (
-                <div className="relative rounded-2xl overflow-hidden max-h-52 bg-black/5 border border-gray-200 dark:border-slate-700">
+                <div className="relative rounded-xl overflow-hidden max-h-52 bg-black/5 border border-gray-200 dark:border-[#393a3b]">
                   <img src={filePreview} alt="Selected attachment" className="w-full h-52 object-cover" />
                   <button
                     type="button"
@@ -273,7 +276,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
                       setSelectedFile(null);
                       setFilePreview(null);
                     }}
-                    className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition"
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -296,10 +299,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
                     key={idx}
                     type="button"
                     onClick={() => setSelectedFeeling(selectedFeeling === f ? null : f)}
-                    className={`text-[11px] px-2.5 py-1 rounded-full transition font-medium ${
+                    className={`text-[11px] px-2.5 py-1 rounded-full transition font-medium cursor-pointer ${
                       selectedFeeling === f
-                        ? 'bg-amber-500 text-white font-bold'
-                        : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200'
+                        ? 'bg-[#1877f2] text-white font-bold'
+                        : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-200 dark:hover:bg-[#4e4f50]'
                     }`}
                   >
                     {f}
@@ -308,13 +311,13 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
               </div>
 
               {/* Additional Options Container */}
-              <div className="border border-gray-200 dark:border-slate-700 rounded-2xl p-3 flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-700 dark:text-slate-200">Thêm vào bài viết của bạn</span>
-                <div className="flex items-center space-x-2">
+              <div className="border border-gray-200 dark:border-[#393a3b] rounded-xl p-3 flex items-center justify-between bg-white dark:bg-[#242526] shadow-sm">
+                <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-[#e4e6eb]">Thêm vào bài viết của bạn</span>
+                <div className="flex items-center space-x-1">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 hover:bg-green-50 dark:hover:bg-slate-700 rounded-full text-green-500 transition cursor-pointer"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-[#45bd62] transition cursor-pointer"
                     title="Tải ảnh từ máy"
                   >
                     <Image className="w-5 h-5" />
@@ -322,21 +325,21 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
                   <button
                     type="button"
                     onClick={() => setShowImageInput(!showImageInput)}
-                    className="p-2 hover:bg-teal-50 dark:hover:bg-slate-700 rounded-full text-teal-500 transition cursor-pointer"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-[#20caf2] transition cursor-pointer"
                     title="Chèn link ảnh"
                   >
                     <Paperclip className="w-5 h-5" />
                   </button>
                   <button
                     type="button"
-                    className="p-2 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-full text-blue-500 transition"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-[#1877f2] transition cursor-pointer"
                     title="Gắn thẻ"
                   >
                     <Tag className="w-5 h-5" />
                   </button>
                   <button
                     type="button"
-                    className="p-2 hover:bg-amber-50 dark:hover:bg-slate-700 rounded-full text-amber-500 transition"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-[#f7b125] transition cursor-pointer"
                     title="Cảm xúc"
                   >
                     <Smile className="w-5 h-5" />
@@ -348,10 +351,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
               <button
                 type="submit"
                 disabled={isSubmitting || (!content.trim() && !imageUrl.trim() && !selectedFile)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3 rounded-2xl shadow-lg disabled:opacity-40 transition flex items-center justify-center space-x-2 cursor-pointer"
+                className="w-full bg-[#1877f2] hover:bg-[#166fe5] active:bg-[#1464d2] text-white font-semibold text-sm py-2.5 rounded-lg disabled:opacity-50 disabled:bg-[#1877f2] dark:disabled:bg-[#3a3b3c] dark:disabled:text-[#737578] transition flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
               >
                 {isSubmitting ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
