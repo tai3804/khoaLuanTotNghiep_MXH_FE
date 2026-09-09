@@ -15,7 +15,7 @@ import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
 import { postService } from './services/api';
 import { Post } from './types';
-import { Home, Tv, Store, Users, Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, LogIn } from 'lucide-react';
+import { Home, Tv, Store, Users, Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, LogIn, Gamepad2 } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -125,7 +125,7 @@ export const App: React.FC = () => {
     if (tab === 'home') {
       setActiveSidebarFilter('all');
       setProfileUserId(null);
-    } else if (tab === 'friends' || tab === 'groups') {
+    } else if (tab === 'friends') {
       setActiveSidebarFilter('friends');
       setProfileUserId(null);
     }
@@ -149,7 +149,7 @@ export const App: React.FC = () => {
   const isFriendsView = activeNavTab === 'friends' || activeSidebarFilter === 'friends' || activeNavTab === 'groups';
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-200 pb-16 md:pb-0">
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-[#050505] dark:text-[#e4e6eb] transition-colors duration-150 pb-16 md:pb-0">
       {/* Top Fixed Header */}
       <Header
         activeTab={activeNavTab}
@@ -176,28 +176,50 @@ export const App: React.FC = () => {
           />
         </div>
       ) : isFriendsView ? (
-        <div className="pt-14 w-full min-h-screen bg-[#f0f2f5] dark:bg-slate-900">
+        <div className="pt-14 w-full min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
           <FriendsView
             onSelectChatUser={handleSelectChatUser}
             onViewProfile={handleViewProfile}
           />
         </div>
       ) : (
-        <div className="flex pt-14 justify-between max-w-7xl mx-auto px-0 md:px-4">
+        <div className="flex pt-14 justify-between w-full">
           {/* Left Sidebar - Only rendered if authenticated */}
           {isAuthenticated && (
             <SidebarLeft
               activeFilter={activeSidebarFilter}
-              onFilterChange={(filter) => setActiveSidebarFilter(filter)}
+              onFilterChange={(filter) => {
+                if (filter === 'friends') {
+                  handleTabChange('friends');
+                } else if (filter === 'watch') {
+                  handleTabChange('watch');
+                } else if (filter === 'marketplace') {
+                  handleTabChange('marketplace');
+                } else if (filter === 'groups') {
+                  handleTabChange('groups');
+                } else if (filter === 'gaming') {
+                  handleTabChange('gaming');
+                } else if (filter === 'settings') {
+                  setViewMode('app');
+                  setActiveNavTab('settings');
+                } else {
+                  setActiveSidebarFilter(filter);
+                  setActiveNavTab('home');
+                }
+              }}
               onNavigateProfile={() => handleViewProfile()}
+              onNavigateSettings={() => {
+                setViewMode('app');
+                setActiveNavTab('settings');
+              }}
             />
           )}
 
-          {/* Main Feed Center Content */}
-          <main className="flex-1 min-w-0 max-w-2xl px-3 sm:px-4 py-6 mx-auto w-full">
+          {/* Main Feed Center Content with Facebook proportions */}
+          <main className="flex-1 min-w-0 max-w-[590px] xl:max-w-[680px] px-2 sm:px-3 py-4 mx-auto w-full space-y-4">
             {/* Non-authenticated Guest Welcome Bar */}
             {!isAuthenticated && (
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 mb-4 text-white shadow-lg flex items-center justify-between">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 mb-4 text-white shadow-md flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl">
                     👋
@@ -223,7 +245,7 @@ export const App: React.FC = () => {
 
             {/* Backend Connection Warning Notice */}
             {backendError && (
-              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-4 mb-4 flex items-center justify-between text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-sm">
+              <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl p-4 mb-4 flex items-center justify-between text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-sm">
                 <div className="flex items-center space-x-3">
                   <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                   <span>{backendError}</span>
@@ -239,23 +261,21 @@ export const App: React.FC = () => {
 
             {activeNavTab === 'home' && (
               <>
-                {/* Stories Carousel */}
+                {/* 1. Stories Bar matching Facebook */}
                 <StoriesBar />
 
-                {/* Create Post Box */}
-                <div className="mt-4">
-                  <CreatePostBox onPostCreated={handlePostCreated} />
-                </div>
+                {/* 2. Create Post Box */}
+                <CreatePostBox onPostCreated={handlePostCreated} />
 
-                {/* Feed Filter Pill Buttons */}
-                <div className="flex items-center justify-between mb-4 bg-white dark:bg-slate-800 p-2 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                {/* 3. Feed Filter Pill Buttons */}
+                <div className="flex items-center justify-between mb-3 bg-white dark:bg-[#242526] p-1.5 rounded-xl border border-gray-200 dark:border-[#393a3b] shadow-sm">
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => setFeedCategory('all')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                         feedCategory === 'all'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                          ? 'bg-[#1877f2] text-white shadow-sm'
+                          : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
                       }`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
@@ -263,10 +283,10 @@ export const App: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setFeedCategory('recent')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                         feedCategory === 'recent'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                          ? 'bg-[#1877f2] text-white shadow-sm'
+                          : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
                       }`}
                     >
                       <Clock className="w-3.5 h-3.5" />
@@ -274,10 +294,10 @@ export const App: React.FC = () => {
                     </button>
                     <button
                       onClick={() => setFeedCategory('popular')}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                         feedCategory === 'popular'
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                          ? 'bg-[#1877f2] text-white shadow-sm'
+                          : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
                       }`}
                     >
                       <Flame className="w-3.5 h-3.5" />
@@ -290,12 +310,12 @@ export const App: React.FC = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       <span>Trực tiếp</span>
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold bg-gray-100 dark:bg-slate-700/60 px-2.5 py-1 rounded-full">
+                    <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-semibold bg-gray-100 dark:bg-[#3a3b3c] px-2.5 py-1 rounded-full">
                       {displayedPosts.length} bài viết
                     </span>
                     <button
                       onClick={() => fetchFeed(false)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-slate-200 transition rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
+                      className="p-1.5 text-gray-400 hover:text-[#1877f2] dark:hover:text-[#e4e6eb] transition rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] cursor-pointer"
                       title="Làm mới bảng tin từ API"
                     >
                       <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -305,15 +325,15 @@ export const App: React.FC = () => {
 
                 {/* Feed Posts Listing */}
                 {loading ? (
-                  <div className="flex items-center justify-center py-16 space-x-3 text-gray-500 dark:text-slate-400 text-sm">
-                    <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center justify-center py-16 space-x-3 text-gray-500 dark:text-[#b0b3b8] text-sm">
+                    <div className="w-6 h-6 border-3 border-[#1877f2] border-t-transparent rounded-full animate-spin" />
                     <span className="font-semibold">Đang tải bảng tin từ Backend API...</span>
                   </div>
                 ) : displayedPosts.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-800 p-10 rounded-3xl text-center border border-gray-200 dark:border-slate-700 shadow-sm space-y-3">
-                    <FileQuestion className="w-12 h-12 text-gray-300 mx-auto" />
-                    <h3 className="text-base font-bold text-gray-800 dark:text-slate-200">Chưa có bài viết nào</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 max-w-sm mx-auto">
+                  <div className="bg-white dark:bg-[#242526] p-10 rounded-2xl text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
+                    <FileQuestion className="w-12 h-12 text-gray-400 dark:text-[#b0b3b8] mx-auto" />
+                    <h3 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">Chưa có bài viết nào</h3>
+                    <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-sm mx-auto">
                       Hiện tại bảng tin chưa có dữ liệu từ Backend. Hãy là người đầu tiên tạo bài viết!
                     </p>
                   </div>
@@ -333,31 +353,41 @@ export const App: React.FC = () => {
             )}
 
             {activeNavTab === 'watch' && (
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl text-center border border-gray-200 dark:border-slate-700 shadow-sm my-6">
-                <Tv className="w-16 h-16 text-blue-600 mx-auto mb-3 animate-pulse" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Kênh Watch & Video</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl text-center border border-gray-200 dark:border-[#393a3b] shadow-sm my-4">
+                <Tv className="w-16 h-16 text-[#1877f2] mx-auto mb-3 animate-pulse" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-[#e4e6eb]">Kênh Watch & Video</h3>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1 max-w-md mx-auto">
                   Khám phá các video ngắn, livestream và chương trình giải trí hấp dẫn.
                 </p>
               </div>
             )}
 
             {activeNavTab === 'marketplace' && (
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl text-center border border-gray-200 dark:border-slate-700 shadow-sm my-6">
-                <Store className="w-16 h-16 text-blue-600 mx-auto mb-3 animate-pulse" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Chợ Mua Bán Marketplace</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl text-center border border-gray-200 dark:border-[#393a3b] shadow-sm my-4">
+                <Store className="w-16 h-16 text-[#1877f2] mx-auto mb-3 animate-pulse" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-[#e4e6eb]">Chợ Mua Bán Marketplace</h3>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1 max-w-md mx-auto">
                   Mua bán đồ dùng, thiết bị điện tử trong khu vực của bạn.
                 </p>
               </div>
             )}
 
             {activeNavTab === 'groups' && (
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl text-center border border-gray-200 dark:border-slate-700 shadow-sm my-6">
-                <Users className="w-16 h-16 text-blue-600 mx-auto mb-3 animate-pulse" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Cộng Đồng & Nhóm</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl text-center border border-gray-200 dark:border-[#393a3b] shadow-sm my-4">
+                <Users className="w-16 h-16 text-[#1877f2] mx-auto mb-3 animate-pulse" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-[#e4e6eb]">Cộng Đồng & Nhóm</h3>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1 max-w-md mx-auto">
                   Gia nhập các nhóm sở thích và học tập.
+                </p>
+              </div>
+            )}
+
+            {activeNavTab === 'gaming' && (
+              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl text-center border border-gray-200 dark:border-[#393a3b] shadow-sm my-4">
+                <Gamepad2 className="w-16 h-16 text-[#1877f2] mx-auto mb-3 animate-pulse" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-[#e4e6eb]">Trò Chơi & Giải Trí</h3>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1 max-w-md mx-auto">
+                  Chơi game cùng bạn bè và kết nối với cộng đồng.
                 </p>
               </div>
             )}

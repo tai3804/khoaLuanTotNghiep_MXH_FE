@@ -48,18 +48,7 @@ api.interceptors.response.use(
   }
 );
 
-export const authorProfileCache: Record<string, { name: string; avatar: string }> = {
-  '0d0455f2-c0bf-4e88-beb3-ada9096331cb': { name: 'Nguyễn Văn An', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150' },
-  '65184771-2b30-491e-8a1c-a54253125ba6': { name: 'Trần Thị Bình', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150' },
-  '49f4c3d5-c9a6-4c60-abeb-ee8739771a92': { name: 'Lê Hoàng Cường', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150' },
-  '04728d5e-9d52-437f-88d7-36d856f73ccd': { name: 'Phạm Minh Đức', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' },
-  '7d0804f8-5582-4497-9409-e9b7b45d6985': { name: 'Hoàng Thu Hà', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150' },
-  'f165579d-0a38-4c3a-b9e1-d4f34277bad4': { name: 'Đặng Quốc Huy', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150' },
-  '261c0e7c-5eae-4f94-93d7-1ee7dbf01c19': { name: 'Vũ Thị Mai', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150' },
-  '7ac740f1-635b-434c-8919-ac9002b9edc6': { name: 'Bùi Tuấn Nam', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150' },
-  '7f123ae7-243d-45f0-99a5-fbe2dbf8b2be': { name: 'Đỗ Phương Thảo', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150' },
-  'ea5d0f19-8417-461e-8777-45fcd7b7567c': { name: 'Ngô Quang Vinh', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150' },
-};
+export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
 
 export const fetchAuthorProfile = async (userId: string) => {
   if (!userId || userId === 'me') return null;
@@ -402,26 +391,8 @@ export const userService = {
     }
   },
   getSuggestedFriends: async () => {
-    let currentUserId = '';
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
-      currentUserId = u.id || '';
-    } catch {}
-
-    const seedUsers = [
-      { id: '0d0455f2-c0bf-4e88-beb3-ada9096331cb', name: 'Nguyễn Văn An', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', bio: 'Nghiên cứu Microservices & Cloud Architecture' },
-      { id: '65184771-2b30-491e-8a1c-a54253125ba6', name: 'Trần Thị Bình', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', bio: 'Frontend Developer @ Tech Corp' },
-      { id: '49f4c3d5-c9a6-4c60-abeb-ee8739771a92', name: 'Lê Hoàng Cường', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', bio: 'DevOps & Kubernetes Specialist' },
-      { id: '04728d5e-9d52-437f-88d7-36d856f73ccd', name: 'Phạm Minh Đức', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', bio: 'Data Science & Machine Learning Engineer' },
-      { id: '7d0804f8-5582-4497-9409-e9b7b45d6985', name: 'Hoàng Thu Hà', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', bio: 'UI/UX Designer | Yêu thiết kế sáng tạo' },
-      { id: 'f165579d-0a38-4c3a-b9e1-d4f34277bad4', name: 'Đặng Quốc Huy', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', bio: 'Chuyên gia An toàn thông tin & CTF' },
-      { id: '261c0e7c-5eae-4f94-93d7-1ee7dbf01c19', name: 'Vũ Thị Mai', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150', bio: 'Product Manager | Tech Lead' },
-      { id: '7ac740f1-635b-434c-8919-ac9002b9edc6', name: 'Bùi Tuấn Nam', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150', bio: 'Fullstack Engineer | React & Spring Boot' },
-      { id: '7f123ae7-243d-45f0-99a5-fbe2dbf8b2be', name: 'Đỗ Phương Thảo', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', bio: 'Content Creator & Marketing Specialist' },
-      { id: 'ea5d0f19-8417-461e-8777-45fcd7b7567c', name: 'Ngô Quang Vinh', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150', bio: 'Sinh viên CNTT - KLTN 2026' },
-    ];
-
-    return seedUsers.filter((u) => u.id !== currentUserId);
+    // Only return real data if backend provides a suggested friends endpoint
+    return [];
   },
   sendFriendRequest: async (targetId: string) => {
     try {

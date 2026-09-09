@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Post } from '../types';
 import { UserAvatar } from './UserAvatar';
 import { postService } from '../services/api';
-import { Image, Tag, Smile, Globe, Users, Lock, X, Send, Paperclip } from 'lucide-react';
+import { Image, Tag, Smile, Globe, Users, Lock, X, Send, Paperclip, Video } from 'lucide-react';
 
 interface CreatePostBoxProps {
   onPostCreated: (newPost: Post) => void;
@@ -27,6 +27,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const feelings = ['😊 Đang cảm thấy vui vẻ', '☕ Đang uống cà phê', '🚀 Đang hào hứng', '💻 Đang lập trình', '🎧 Đang nghe nhạc'];
+
+  const userFirstName = user?.fullName
+    ? user.fullName.trim().split(' ').pop()
+    : user?.username || 'bạn';
 
   const handleOpen = () => {
     if (!isAuthenticated) {
@@ -110,41 +114,48 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
 
   return (
     <>
-      {/* Quick trigger box on feed */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-4 mb-4 border border-gray-200 dark:border-slate-700 transition-colors">
-        <div className="flex items-center space-x-3 mb-3">
-          <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="md" />
-          <button
+      {/* Quick trigger box on feed matching Facebook */}
+      <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm p-3 mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors select-none">
+        <div className="flex items-center space-x-2.5">
+          <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="md" className="w-10 h-10 rounded-full" />
+          <div
             onClick={handleOpen}
-            className="w-full bg-gray-100 dark:bg-slate-700/70 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-300 text-left rounded-full py-2.5 px-4 text-xs md:text-sm font-medium transition-colors cursor-pointer"
+            className="flex-1 bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-500 dark:text-[#b0b3b8] rounded-full py-2.5 px-4 text-sm font-normal flex items-center justify-between cursor-pointer transition"
           >
-            {!isAuthenticated
-              ? 'Đăng nhập để chia sẻ trạng thái của bạn...'
-              : (t('whatsOnYourMind') || 'Bạn đang nghĩ gì thế') + ', ' + (user?.fullName || user?.username || 'bạn') + '?'}
-          </button>
+            <span>
+              {!isAuthenticated
+                ? 'Đăng nhập để chia sẻ trạng thái của bạn...'
+                : `${userFirstName} ơi, bạn đang nghĩ gì thế?`}
+            </span>
+            <div className="hidden sm:flex items-center space-x-2 shrink-0">
+              <Video className="w-4 h-4 text-[#f3425f]" />
+              <Image className="w-4 h-4 text-[#45bd62]" />
+              <Smile className="w-4 h-4 text-[#f7b125]" />
+            </div>
+          </div>
         </div>
 
-        <div className="border-t border-gray-100 dark:border-slate-700 pt-2 flex items-center justify-around">
+        <div className="border-t border-gray-200 dark:border-[#393a3b] pt-2 mt-3 flex items-center justify-around">
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-semibold transition"
+            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
           >
-            <Image className="w-5 h-5 text-green-500" />
-            <span>{t('photoVideo') || 'Ảnh/video'}</span>
+            <Video className="w-5 h-5 text-[#f3425f]" />
+            <span>Video trực tiếp</span>
           </button>
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-semibold transition"
+            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
           >
-            <Tag className="w-5 h-5 text-blue-500" />
-            <span>{t('tagFriends') || 'Gắn thẻ bạn bè'}</span>
+            <Image className="w-5 h-5 text-[#45bd62]" />
+            <span>Ảnh/video</span>
           </button>
           <button
             onClick={handleOpen}
-            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-semibold transition"
+            className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-sm font-semibold transition cursor-pointer"
           >
-            <Smile className="w-5 h-5 text-amber-500" />
-            <span>{t('feelingActivity') || 'Cảm xúc/hoạt động'}</span>
+            <Smile className="w-5 h-5 text-[#f7b125]" />
+            <span>Cảm xúc/hoạt động</span>
           </button>
         </div>
       </div>
