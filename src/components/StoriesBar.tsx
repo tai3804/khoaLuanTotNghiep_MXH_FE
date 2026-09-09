@@ -6,11 +6,12 @@ import { useToast } from '../context/ToastContext';
 import { storyService, authorProfileCache } from '../services/api';
 
 export const StoriesBar: React.FC = () => {
-  const { user, isAuthenticated, openLoginModal } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
   const [userStoriesList, setUserStoriesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -48,14 +49,6 @@ export const StoriesBar: React.FC = () => {
     }
   };
 
-  const handleCreateClick = () => {
-    if (!isAuthenticated) {
-      openLoginModal();
-      return;
-    }
-    setShowCreateModal(true);
-  };
-
   const handleCreateStorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imageUrl.trim()) return;
@@ -77,14 +70,14 @@ export const StoriesBar: React.FC = () => {
     <div className="relative group/bar mb-4">
       <div
         ref={scrollRef}
-        className="flex space-x-2.5 overflow-x-auto pb-1 scrollbar-none select-none scroll-smooth items-stretch"
+        className="flex space-x-2.5 overflow-x-auto pb-1 scrollbar-none select-none scroll-smooth"
       >
-        {/* 1. Nơi để người dùng bấm ĐĂNG TIN (Create Story Card) */}
+        {/* Create Story Card */}
         <div
-          onClick={handleCreateClick}
+          onClick={() => setShowCreateModal(true)}
           className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] transition flex flex-col justify-between"
         >
-          <div className="h-[72%] w-full overflow-hidden bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center">
+          <div className="h-[72%] w-full overflow-hidden bg-gray-100 dark:bg-[#3a3b3c]">
             <img
               src={user?.avatar || '/default-avatar.png'}
               alt={user?.fullName || 'Tạo tin'}
@@ -101,7 +94,7 @@ export const StoriesBar: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Tin thật từ Backend Database */}
+        {/* Real Stories from Active Backend */}
         {userStoriesList.map((userStoryItem: any) => {
           const authorId = String(userStoryItem.userId);
           const cached = authorProfileCache[authorId];
@@ -128,6 +121,7 @@ export const StoriesBar: React.FC = () => {
               }}
               className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-[#3a3b3c] transition border border-gray-200/40 dark:border-transparent"
             >
+              {/* Background Story Image */}
               <img
                 src={bgImage}
                 alt={authorName}
@@ -138,6 +132,7 @@ export const StoriesBar: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
 
+              {/* Author Avatar with Story Ring */}
               <div className="absolute top-3 left-3 z-10">
                 <img
                   src={avatarSrc}
@@ -146,6 +141,7 @@ export const StoriesBar: React.FC = () => {
                 />
               </div>
 
+              {/* Author Name */}
               <div className="absolute bottom-2 inset-x-2 z-10">
                 <span className="text-[12px] font-semibold text-white drop-shadow-md truncate block">
                   {authorName}
@@ -236,11 +232,13 @@ export const StoriesBar: React.FC = () => {
             <X className="w-6 h-6" />
           </button>
           <div onClick={(e) => e.stopPropagation()} className="relative max-w-sm w-full h-[80vh] rounded-2xl overflow-hidden bg-black flex flex-col justify-between p-4 shadow-2xl cursor-default">
+            {/* Author info */}
             <div className="flex items-center space-x-3 z-10 bg-gradient-to-b from-black/80 to-transparent p-2 rounded-xl">
               <img src={selectedStory.avatarSrc} alt={selectedStory.authorName} className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-500" />
               <span className="font-bold text-white text-sm">{selectedStory.authorName}</span>
             </div>
 
+            {/* Media Image */}
             <img
               src={selectedStory.firstStory?.mediaUrl || selectedStory.avatarSrc}
               alt={selectedStory.authorName}
