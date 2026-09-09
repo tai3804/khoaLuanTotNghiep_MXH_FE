@@ -261,10 +261,10 @@ export const App: React.FC = () => {
 
             {activeNavTab === 'home' && (
               <>
-                {/* 1. Stories Bar matching Facebook */}
+                {/* 1. Stories Bar (Tạo tin & hiển thị tin thật) */}
                 <StoriesBar />
 
-                {/* 2. Create Post Box */}
+                {/* 2. Create Post Box on Top */}
                 <CreatePostBox onPostCreated={handlePostCreated} />
 
                 {/* 3. Feed Filter Pill Buttons */}
