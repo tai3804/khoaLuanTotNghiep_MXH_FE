@@ -8,6 +8,8 @@ import { PostCard } from './components/PostCard';
 import { LoginModal } from './components/LoginModal';
 import { ChatBox, ChatUser } from './components/ChatBox';
 import { SettingsView } from './components/SettingsView';
+import { FriendsView } from './components/FriendsView';
+import { ProfileView } from './components/ProfileView';
 import { AuthPage } from './components/AuthPage';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
@@ -22,38 +24,95 @@ export const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'app' | 'auth'>('app');
   const [activeNavTab, setActiveNavTab] = useState<string>('home');
   const [activeSidebarFilter, setActiveSidebarFilter] = useState<string>('all');
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [feedCategory, setFeedCategory] = useState<'all' | 'recent' | 'popular'>('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendError, setBackendError] = useState<string | null>(null);
   const [activeChatUser, setActiveChatUser] = useState<ChatUser | null>(null);
 
-  const fetchFeed = async () => {
-    setLoading(true);
-    setBackendError(null);
+  const fetchFeed = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+      setBackendError(null);
+    }
     try {
       const feedData = await postService.getFeed();
-      setPosts(feedData);
+      if (Array.isArray(feedData) && feedData.length > 0) {
+        setPosts((prevPosts) => {
+          if (prevPosts.length === 0) return feedData;
+          // Merge in-place to preserve scroll position and update like/comment counts in real-time
+          const prevMap = new Map(prevPosts.map((p) => [p.id, p]));
+          const merged = feedData.map((newP) => {
+            const existing = prevMap.get(newP.id);
+            if (!existing) return newP;
+            return {
+              ...existing,
+              likesCount: newP.likesCount,
+              commentsCount: newP.commentsCount,
+              sharesCount: newP.sharesCount,
+              content: newP.content,
+              authorName: newP.authorName || existing.authorName,
+              authorAvatar: newP.authorAvatar || existing.authorAvatar,
+            };
+          });
+          // Also include any optimistic posts created locally that haven't appeared in feedData yet
+          const newIds = new Set(feedData.map((p) => p.id));
+          const localOnly = prevPosts.filter((p) => !newIds.has(p.id) && String(p.id).startsWith('post-'));
+          return [...localOnly, ...merged];
+        });
+      }
     } catch (e: any) {
-      console.error('Error fetching feed:', e);
-      setPosts([]);
-      setBackendError('Chưa kết nối được máy chủ Backend API Gateway (port 8080). Hãy bật Backend để tải dữ liệu thật!');
+      if (!isBackground) {
+        console.error('Error fetching feed:', e);
+        setPosts([]);
+        if (e?.response?.status !== 401 && e?.response?.status !== 403) {
+          setBackendError('Chưa kết nối được máy chủ Backend API Gateway (port 8080). Hãy bật Backend để tải dữ liệu thật!');
+        }
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchFeed();
-  }, []);
+
+    // Real-time Feed Sync every 4 seconds in the background
+    const realtimeTimer = setInterval(() => {
+      fetchFeed(true);
+    }, 4000);
+
+    return () => clearInterval(realtimeTimer);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && viewMode === 'auth') {
+      setViewMode('app');
+      setActiveNavTab('home');
+    }
+  }, [isAuthenticated, viewMode]);
 
   // If user navigated to explicit Auth page
   if (viewMode === 'auth') {
-    return <AuthPage onGoHome={() => setViewMode('app')} />;
+    return (
+      <AuthPage
+        onGoHome={() => {
+          setViewMode('app');
+          setActiveNavTab('home');
+        }}
+      />
+    );
   }
 
   const handlePostCreated = (newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
+  };
+
+  const handlePostDeleted = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
   const handleSelectChatUser = (chatUser: ChatUser) => {
@@ -63,6 +122,20 @@ export const App: React.FC = () => {
   const handleTabChange = (tab: string) => {
     setViewMode('app');
     setActiveNavTab(tab);
+    if (tab === 'home') {
+      setActiveSidebarFilter('all');
+      setProfileUserId(null);
+    } else if (tab === 'friends' || tab === 'groups') {
+      setActiveSidebarFilter('friends');
+      setProfileUserId(null);
+    }
+  };
+
+  const handleViewProfile = (userId?: string) => {
+    setViewMode('app');
+    setProfileUserId(userId || null);
+    setActiveNavTab('profile');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Filter posts based on active category
@@ -72,6 +145,8 @@ export const App: React.FC = () => {
   } else if (feedCategory === 'popular') {
     displayedPosts = [...posts].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
   }
+
+  const isFriendsView = activeNavTab === 'friends' || activeSidebarFilter === 'friends' || activeNavTab === 'groups';
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-slate-900 text-gray-900 dark:text-slate-100 transition-colors duration-200 pb-16 md:pb-0">
@@ -84,12 +159,28 @@ export const App: React.FC = () => {
           setViewMode('app');
           setActiveNavTab('settings');
         }}
+        onNavigateProfile={(uid) => handleViewProfile(uid)}
         onNavigateAuth={() => setViewMode('auth')}
       />
 
       {activeNavTab === 'settings' ? (
         <div className="pt-14">
           <SettingsView />
+        </div>
+      ) : activeNavTab === 'profile' ? (
+        <div className="pt-14">
+          <ProfileView
+            userId={profileUserId}
+            onSelectChatUser={handleSelectChatUser}
+            onViewProfile={handleViewProfile}
+          />
+        </div>
+      ) : isFriendsView ? (
+        <div className="pt-14 w-full min-h-screen bg-[#f0f2f5] dark:bg-slate-900">
+          <FriendsView
+            onSelectChatUser={handleSelectChatUser}
+            onViewProfile={handleViewProfile}
+          />
         </div>
       ) : (
         <div className="flex pt-14 justify-between max-w-7xl mx-auto px-0 md:px-4">
@@ -98,11 +189,12 @@ export const App: React.FC = () => {
             <SidebarLeft
               activeFilter={activeSidebarFilter}
               onFilterChange={(filter) => setActiveSidebarFilter(filter)}
+              onNavigateProfile={() => handleViewProfile()}
             />
           )}
 
           {/* Main Feed Center Content */}
-          <main className="flex-1 max-w-2xl px-3 sm:px-4 py-6 mx-auto w-full">
+          <main className="flex-1 min-w-0 max-w-2xl px-3 sm:px-4 py-6 mx-auto w-full">
             {/* Non-authenticated Guest Welcome Bar */}
             {!isAuthenticated && (
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 mb-4 text-white shadow-lg flex items-center justify-between">
@@ -137,7 +229,7 @@ export const App: React.FC = () => {
                   <span>{backendError}</span>
                 </div>
                 <button
-                  onClick={fetchFeed}
+                  onClick={() => fetchFeed(false)}
                   className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold flex-shrink-0 transition cursor-pointer"
                 >
                   Thử lại
@@ -193,13 +285,22 @@ export const App: React.FC = () => {
                     </button>
                   </div>
 
-                  <button
-                    onClick={fetchFeed}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-slate-200 transition"
-                    title="Làm mới bảng tin từ API"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <span className="hidden sm:inline-flex items-center space-x-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Trực tiếp</span>
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold bg-gray-100 dark:bg-slate-700/60 px-2.5 py-1 rounded-full">
+                      {displayedPosts.length} bài viết
+                    </span>
+                    <button
+                      onClick={() => fetchFeed(false)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-slate-200 transition rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
+                      title="Làm mới bảng tin từ API"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Feed Posts Listing */}
@@ -219,7 +320,12 @@ export const App: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     {displayedPosts.map((post) => (
-                      <PostCard key={post.id} post={post} />
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onDeletePost={handlePostDeleted}
+                        onViewProfile={handleViewProfile}
+                      />
                     ))}
                   </div>
                 )}

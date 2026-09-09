@@ -52,7 +52,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
       }
       setLoading(true);
       try {
-        await login(usernameOrEmail.trim(), password.trim());
+        const ok = await login(usernameOrEmail.trim(), password.trim());
+        if (ok) {
+          if (onGoHome) onGoHome();
+        } else {
+          setErrorMessage('Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
+        }
       } catch (err: any) {
         setErrorMessage(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản!');
       } finally {
@@ -69,9 +74,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
       }
       setLoading(true);
       try {
-        await register(username.trim(), email.trim(), password.trim(), fullName.trim());
-        setSuccessMessage(t('registerSuccess') || 'Đăng ký thành công! Hãy đăng nhập.');
-        setIsLoginMode(true);
+        const ok = await register(username.trim(), email.trim(), password.trim(), fullName.trim());
+        if (ok) {
+          setSuccessMessage(t('registerSuccess') || 'Đăng ký thành công! Hãy đăng nhập.');
+          setIsLoginMode(true);
+        } else {
+          setErrorMessage('Đăng ký thất bại. Email có thể đã tồn tại hoặc mật khẩu chưa đủ 6 ký tự!');
+        }
       } catch (err: any) {
         setErrorMessage(err.message || 'Đăng ký thất bại. Vui lòng thử lại!');
       } finally {

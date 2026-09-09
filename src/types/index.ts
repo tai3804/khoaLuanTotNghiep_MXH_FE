@@ -11,6 +11,27 @@ export interface User {
   createdAt?: string;
 }
 
+export interface UserProfile {
+  id?: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  fullName?: string;
+  email?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+  bio?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  location?: string;
+  website?: string;
+  followerCount?: number;
+  followingCount?: number;
+  friendCount?: number;
+  createdAt?: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -63,6 +84,7 @@ export interface Post {
   sharesCount: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
   comments?: Comment[];
 }
 
@@ -96,4 +118,6 @@ export interface AuthContextType {
   logout: () => void;
   openLoginModal: () => void;
   closeLoginModal: () => void;
+  refreshUserProfile: () => Promise<void>;
+  updateUser: (data: Partial<User>) => void;
 }

@@ -17,18 +17,36 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
   const [showSearchInput, setShowSearchInput] = useState(false);
 
   useEffect(() => {
-    const fetchFriends = async () => {
-      setLoading(true);
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const fetchFriends = async (silent = false) => {
+      if (!silent) setLoading(true);
       try {
         const friends = await userService.getFriends();
-        setContacts(friends);
+        setContacts(Array.isArray(friends) ? friends : []);
       } catch (e) {
-        setContacts([]);
+        if (!silent) setContacts([]);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchFriends();
+
+    fetchFriends(false);
+
+    // Real-time background sync every 4 seconds
+    const interval = setInterval(() => {
+      fetchFriends(true);
+    }, 4000);
+
+    // Instant update on friend status change event
+    const handleFriendUpdate = () => fetchFriends(true);
+    window.addEventListener('friend_status_updated', handleFriendUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('friend_status_updated', handleFriendUpdate);
+    };
   }, []);
 
   const filteredContacts = contactSearch.trim()
@@ -73,16 +91,23 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
         {loading ? (
           <div className="text-center py-4 text-xs text-gray-400">Đang tải danh sách bạn bè...</div>
         ) : filteredContacts.length === 0 ? (
-          <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 text-center space-y-1">
-            <UserX className="w-6 h-6 text-gray-300 mx-auto" />
-            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Chưa có người liên hệ trực tuyến</p>
+          <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 text-center space-y-1.5">
+            <UserX className="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto" />
+            <p className="text-xs text-gray-600 dark:text-slate-300 font-semibold">Chưa có người liên hệ</p>
+            <p className="text-[11px] text-gray-400 dark:text-slate-500">
+              Chỉ những người đã kết bạn mới xuất hiện trong danh sách liên hệ này.
+            </p>
           </div>
         ) : (
           <div className="space-y-1">
             {filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                onClick={() => onSelectChatUser && onSelectChatUser(contact)}
+                onClick={() => onSelectChatUser && onSelectChatUser({
+                  ...contact,
+                  id: contact.userId || contact.id,
+                  userId: contact.userId || contact.id,
+                })}
                 className="flex items-center space-x-3 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition border border-transparent hover:border-gray-100 dark:hover:border-slate-700 hover:shadow-sm group"
               >
                 <div className="relative flex-shrink-0">

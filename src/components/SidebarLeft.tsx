@@ -16,11 +16,13 @@ import {
 interface SidebarLeftProps {
   activeFilter?: string;
   onFilterChange?: (filter: string) => void;
+  onNavigateProfile?: () => void;
 }
 
 export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   activeFilter = 'all',
   onFilterChange,
+  onNavigateProfile,
 }) => {
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
@@ -45,13 +47,16 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   const displayedItems = showMore ? menuItems : menuItems.slice(0, 5);
 
   return (
-    <aside className="w-64 fixed left-0 top-14 h-[calc(100vh-3.5rem)] overflow-y-auto hidden lg:block p-3 bg-white dark:bg-slate-800/80 border-r border-gray-200 dark:border-slate-700/60 transition-colors duration-200">
+    <aside className="w-64 sticky top-14 shrink-0 h-[calc(100vh-3.5rem)] overflow-y-auto hidden lg:block p-3 bg-white dark:bg-slate-800/80 border-r border-gray-200 dark:border-slate-700/60 transition-colors duration-200">
       {/* User profile banner - Only display if authenticated */}
       {isAuthenticated && user && (
-        <div className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition mb-2">
+        <div
+          onClick={onNavigateProfile}
+          className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition mb-2"
+        >
           <UserAvatar src={user.avatar} alt={user.fullName} size="sm" />
           <div className="min-w-0">
-            <span className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate block">
+            <span className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate block hover:underline">
               {user.fullName || user.username}
             </span>
             <span className="text-[10px] text-green-500 font-medium">● Đang hoạt động</span>
