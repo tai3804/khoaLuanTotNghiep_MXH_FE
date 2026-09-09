@@ -8,6 +8,8 @@ interface UserAvatarProps {
   className?: string;
 }
 
+export const DEFAULT_AVATAR_URL = '/default-avatar.png';
+
 export const UserAvatar: React.FC<UserAvatarProps> = ({
   src,
   alt = 'Avatar',
@@ -24,34 +26,17 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     xl: 'w-16 h-16 text-2xl',
   };
 
-  const iconSizes = {
-    xs: 'w-3.5 h-3.5',
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
-    xl: 'w-8 h-8',
-  };
-
   const baseSizeClass = sizeClasses[size] || 'w-9 h-9 text-base';
-  const iconSizeClass = iconSizes[size] || 'w-5 h-5';
-
-  if (src && !imageError) {
-    return (
-      <img
-        src={src}
-        alt={alt}
-        onError={() => setImageError(true)}
-        className={`${baseSizeClass} rounded-full object-cover border border-blue-500 shadow-sm flex-shrink-0 ${className}`}
-      />
-    );
-  }
+  const effectiveSrc = (src && !imageError && src.trim() !== '') ? src : DEFAULT_AVATAR_URL;
 
   return (
-    <div
-      className={`${baseSizeClass} rounded-full bg-gradient-to-tr from-slate-400 to-slate-500 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center text-white shadow-sm flex-shrink-0 border border-slate-300 dark:border-slate-600 ${className}`}
-      title={alt}
-    >
-      <User className={`${iconSizeClass} text-white fill-white/20`} />
-    </div>
+    <img
+      src={effectiveSrc}
+      alt={alt}
+      onError={() => {
+        if (!imageError) setImageError(true);
+      }}
+      className={`${baseSizeClass} rounded-full object-cover border border-gray-200/80 dark:border-slate-700 shadow-sm shrink-0 ${className}`}
+    />
   );
 };

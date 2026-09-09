@@ -7,111 +7,237 @@ import {
   Bookmark,
   Clock,
   Store,
-  Calendar,
   ChevronDown,
+  Film,
   Tv,
-  Globe,
+  Users2,
+  Settings,
+  Plus,
+  Compass,
 } from 'lucide-react';
 
 interface SidebarLeftProps {
   activeFilter?: string;
   onFilterChange?: (filter: string) => void;
+  onNavigateProfile?: () => void;
+  onNavigateSettings?: () => void;
 }
 
 export const SidebarLeft: React.FC<SidebarLeftProps> = ({
   activeFilter = 'all',
   onFilterChange,
+  onNavigateProfile,
+  onNavigateSettings,
 }) => {
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const [showMore, setShowMore] = useState(false);
 
+  // Full Facebook menu items
   const menuItems = [
-    { id: 'all', icon: Globe, label: 'Bảng tin toàn bộ', color: 'text-blue-500' },
-    { id: 'friends', icon: Users, label: t('friends') || 'Bạn bè', color: 'text-blue-500' },
-    { id: 'saved', icon: Bookmark, label: t('saved') || 'Đã lưu', color: 'text-purple-500' },
-    { id: 'memories', icon: Clock, label: t('memories') || 'Kỷ niệm', color: 'text-amber-500' },
-    { id: 'video', icon: Tv, label: t('video') || 'Video Feeds', color: 'text-teal-500' },
-    { id: 'marketplace', icon: Store, label: t('marketplace') || 'Marketplace', color: 'text-blue-600' },
-    { id: 'events', icon: Calendar, label: t('events') || 'Sự kiện', color: 'text-red-500' },
+    {
+      id: 'friends',
+      label: t('friends') || 'Bạn bè',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-[#1877f2] flex items-center justify-center text-white shadow-sm">
+          <Users className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'groups',
+      label: 'Nhóm',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+          <Users2 className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'memories',
+      label: t('memories') || 'Kỷ niệm',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white shadow-sm">
+          <Clock className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'saved',
+      label: t('saved') || 'Đã lưu',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-white shadow-sm">
+          <Bookmark className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'watch',
+      label: 'Video',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+          <Tv className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'marketplace',
+      label: 'Marketplace',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-sky-500 flex items-center justify-center text-white shadow-sm">
+          <Store className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'reels',
+      label: 'Thước phim',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-sm">
+          <Film className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'settings',
+      label: t('settings') || 'Cài đặt & quyền riêng tư',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-gray-500 dark:bg-[#4e4f50] flex items-center justify-center text-white shadow-sm">
+          <Settings className="w-5 h-5" />
+        </div>
+      ),
+    },
   ];
 
-  const shortcuts = [
-    { name: 'Cộng đồng ReactJS Việt Nam', members: '12.5k thành viên', icon: '⚛️' },
-    { name: 'Lập trình Web & Mobile App', members: '45k thành viên', icon: '💻' },
-    { name: 'Chợ Mua Bán Đồ Công Nghệ', members: '8.9k thành viên', icon: '🛒' },
+  // Community shortcuts
+  const defaultShortcuts = [
+    {
+      id: 'sc-1',
+      name: 'Cộng đồng Sinh viên KLTN 2026',
+      icon: '🎓',
+      members: '1.2K thành viên',
+    },
+    {
+      id: 'sc-2',
+      name: 'Giao lưu Lập trình viên & Công nghệ',
+      icon: '💻',
+      members: '4.8K thành viên',
+    },
+    {
+      id: 'sc-3',
+      name: 'Câu lạc bộ Thiết kế & Đồ họa',
+      icon: '🎨',
+      members: '850 thành viên',
+    },
   ];
 
   const displayedItems = showMore ? menuItems : menuItems.slice(0, 5);
 
+  const handleItemClick = (id: string) => {
+    if (id === 'settings' && onNavigateSettings) {
+      onNavigateSettings();
+      return;
+    }
+    if (onFilterChange) {
+      onFilterChange(id);
+    }
+  };
+
   return (
-    <aside className="w-64 fixed left-0 top-14 h-[calc(100vh-3.5rem)] overflow-y-auto hidden lg:block p-3 bg-white dark:bg-slate-800/80 border-r border-gray-200 dark:border-slate-700/60 transition-colors duration-200">
-      {/* User profile banner - Only display if authenticated */}
+    <aside className="w-[300px] xl:w-[340px] 2xl:w-[360px] sticky top-14 shrink-0 h-[calc(100vh-3.5rem)] overflow-y-auto hidden lg:block px-2 py-3 bg-transparent select-none">
+      {/* User profile row */}
       {isAuthenticated && user && (
-        <div className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition mb-2">
-          <UserAvatar src={user.avatar} alt={user.fullName} size="sm" />
-          <div className="min-w-0">
-            <span className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate block">
-              {user.fullName || user.username}
+        <div
+          onClick={onNavigateProfile}
+          className="flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition mb-1 group"
+        >
+          <UserAvatar src={user.avatar} alt={user.fullName || user.username} size="md" className="w-9 h-9 rounded-full" />
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-sm text-gray-900 dark:text-[#e4e6eb] truncate block">
+              {user.fullName || user.username || 'Người dùng'}
             </span>
-            <span className="text-[10px] text-green-500 font-medium">● Đang hoạt động</span>
           </div>
         </div>
       )}
 
-      <div className="space-y-1">
+      {/* Menu items */}
+      <div className="space-y-0.5">
         {displayedItems.map((item) => {
-          const Icon = item.icon;
           const isActive = activeFilter === item.id;
           return (
             <div
               key={item.id}
-              onClick={() => onFilterChange && onFilterChange(item.id)}
-              className={`flex items-center space-x-3 p-2.5 rounded-xl cursor-pointer transition font-medium text-sm ${
+              onClick={() => handleItemClick(item.id)}
+              className={`flex items-center space-x-3 px-2.5 py-2 rounded-xl cursor-pointer transition font-medium text-sm ${
                 isActive
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold'
-                  : 'text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                  ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] font-semibold'
+                  : 'text-gray-800 dark:text-[#e4e6eb] hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60'
               }`}
             >
-              <Icon className={`w-5 h-5 ${item.color}`} />
+              <div className="shrink-0">{item.iconNode}</div>
               <span className="truncate">{item.label}</span>
             </div>
           );
         })}
 
+        {/* See more / less button */}
         <button
           onClick={() => setShowMore(!showMore)}
-          className="w-full flex items-center space-x-3 p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-semibold cursor-pointer transition"
+          className="w-full flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 text-gray-800 dark:text-[#e4e6eb] text-sm font-medium cursor-pointer transition"
         >
-          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
-            <ChevronDown className={`w-4 h-4 text-gray-600 dark:text-slate-300 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+          <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-[#3a3b3c] flex items-center justify-center shrink-0 text-gray-700 dark:text-[#e4e6eb]">
+            <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${showMore ? 'rotate-180' : ''}`} />
           </div>
-          <span>{showMore ? 'Ẩn bớt' : t('seeMore') || 'Xem thêm'}</span>
+          <span>{showMore ? 'Ẩn bớt' : 'Xem thêm'}</span>
         </button>
       </div>
 
-      <hr className="my-3 border-gray-200 dark:border-slate-700" />
+      <hr className="my-2.5 border-gray-200 dark:border-[#393a3b] mx-2" />
 
-      {/* Shortcuts */}
+      {/* Lối tắt của bạn (Shortcuts Section) */}
       <div>
-        <h4 className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider px-2 mb-2">
-          Lối tắt của bạn
-        </h4>
-        <div className="space-y-1">
-          {shortcuts.map((sc, idx) => (
+        <div className="flex items-center justify-between px-2.5 mb-1.5">
+          <h4 className="text-sm font-semibold text-gray-500 dark:text-[#b0b3b8]">
+            Lối tắt của bạn
+          </h4>
+          <button
+            onClick={() => onFilterChange && onFilterChange('groups')}
+            className="text-xs text-[#2d88ff] hover:underline cursor-pointer"
+          >
+            Chỉnh sửa
+          </button>
+        </div>
+
+        <div className="space-y-0.5">
+          {defaultShortcuts.map((sc) => (
             <div
-              key={idx}
-              className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition group"
+              key={sc.id}
+              onClick={() => onFilterChange && onFilterChange('groups')}
+              className="flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition group"
             >
-              <span className="text-lg">{sc.icon}</span>
+              <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center text-lg shrink-0 border border-gray-200/60 dark:border-[#4e4f50]">
+                {sc.icon}
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-gray-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                <p className="text-xs font-semibold text-gray-900 dark:text-[#e4e6eb] truncate leading-snug">
                   {sc.name}
                 </p>
-                <span className="text-[10px] text-gray-400 dark:text-slate-400 block">{sc.members}</span>
+                <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">
+                  {sc.members}
+                </p>
               </div>
             </div>
           ))}
+
+          <button
+            onClick={() => onFilterChange && onFilterChange('groups')}
+            className="w-full flex items-center space-x-3 px-2.5 py-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 text-[#2d88ff] text-xs font-semibold cursor-pointer transition"
+          >
+            <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-[#2d88ff]/20 flex items-center justify-center shrink-0">
+              <Compass className="w-4 h-4 text-[#2d88ff]" />
+            </div>
+            <span>Khám phá thêm nhóm & cộng đồng</span>
+          </button>
         </div>
       </div>
     </aside>
