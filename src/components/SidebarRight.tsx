@@ -73,7 +73,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     : contacts;
 
   return (
-    <aside className="w-[280px] xl:w-[320px] 2xl:w-[360px] hidden lg:block px-3 py-3 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto space-y-4 bg-transparent select-none">
+    <aside className="w-[280px] 2xl:w-[340px] hidden xl:block px-3 py-3 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto space-y-4 bg-transparent select-none shrink-0">
       {/* 1. Lời mời kết bạn */}
       {pendingRequests.length > 0 && (
         <div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { Post, Comment } from '../types';
 import { UserAvatar } from './UserAvatar';
 import { postService, fetchAuthorProfile } from '../services/api';
+import { CommentModal } from './CommentModal';
 import {
   MessageCircle,
   Share2,
@@ -28,21 +30,24 @@ interface PostCardProps {
 
 export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewProfile }) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const toast = useToast();
 
   const [liked, setLiked] = useState<boolean>(post.isLiked || false);
   const [likesCount, setLikesCount] = useState<number>(post.likesCount ?? 0);
   const [commentsCount, setCommentsCount] = useState<number>(post.commentsCount ?? 0);
+  const [sharesCount, setSharesCount] = useState<number>(post.sharesCount ?? 0);
   const [reaction, setReaction] = useState<string>('👍');
   const [showReactionsMenu, setShowReactionsMenu] = useState<boolean>(false);
   const [saved, setSaved] = useState<boolean>(false);
-  const [showComments, setShowComments] = useState<boolean>(false);
   const [comments, setComments] = useState<Comment[]>(post.comments || []);
   const [loadingComments, setLoadingComments] = useState<boolean>(false);
-  const [commentText, setCommentText] = useState<string>('');
+  const [inlineCommentText, setInlineCommentText] = useState<string>('');
   const [showOptionsMenu, setShowOptionsMenu] = useState<boolean>(false);
+  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
   const [authorName, setAuthorName] = useState<string>(
     post.authorName && post.authorName !== 'Thành viên KLTN' ? post.authorName : ''
   );
@@ -55,6 +60,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   useEffect(() => {
     setCommentsCount(post.commentsCount ?? 0);
   }, [post.commentsCount]);
+
+  useEffect(() => {
+    setSharesCount(post.sharesCount ?? 0);
+  }, [post.sharesCount]);
 
   useEffect(() => {
     if (user && (post.userId === user.id || post.userId === 'me')) {
@@ -79,6 +88,91 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     }
   }, [post.userId, post.authorName, post.authorAvatar, user]);
 
+  const getStoredReaction = (postId: string, userId?: string) => {
+    try {
+      const key = `user_reactions_${userId || 'guest'}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      return stored[postId] || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const setStoredReaction = (postId: string, isLiked: boolean, emoji: string, userId?: string) => {
+    try {
+      const key = `user_reactions_${userId || 'guest'}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      if (isLiked) {
+        stored[postId] = { liked: true, reaction: emoji };
+      } else {
+        delete stored[postId];
+      }
+      localStorage.setItem(key, JSON.stringify(stored));
+    } catch {}
+  };
+
+  const reactionTypeToEmoji: Record<string, string> = {
+    LIKE: '👍',
+    LOVE: '❤️',
+    HAHA: '😆',
+    WOW: '😮',
+    SAD: '😢',
+    ANGRY: '😡',
+  };
+
+  useEffect(() => {
+    // Restore from localStorage first
+    const local = getStoredReaction(post.id, user?.id);
+    if (local) {
+      setLiked(local.liked);
+      if (local.reaction) setReaction(local.reaction);
+    } else if (post.isLiked) {
+      setLiked(true);
+    }
+
+    // Sync with backend API
+    if (isAuthenticated && post.id) {
+      postService
+        .getReactions(post.id)
+        .then((reactions) => {
+          const myReaction = reactions.find(
+            (r: any) => String(r.userId || r.authorId) === String(user?.id)
+          );
+          if (myReaction) {
+            setLiked(true);
+            const emoji = reactionTypeToEmoji[myReaction.type] || '👍';
+            setReaction(emoji);
+            setStoredReaction(post.id, true, emoji, user?.id);
+          } else {
+            setLiked(false);
+            setStoredReaction(post.id, false, '👍', user?.id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [post.id, user?.id, isAuthenticated, post.isLiked]);
+
+  // Fetch initial comments automatically
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingComments(true);
+    postService
+      .getComments(post.id)
+      .then((fetched) => {
+        if (isMounted && Array.isArray(fetched)) {
+          setComments(fetched);
+          setCommentsCount((prev) => Math.max(prev, fetched.length));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setLoadingComments(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [post.id]);
+
   const reactionsMap: Record<string, 'LIKE' | 'LOVE' | 'HAHA' | 'WOW' | 'SAD' | 'ANGRY'> = {
     '👍': 'LIKE',
     '❤️': 'LOVE',
@@ -89,6 +183,17 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   };
   const reactionsList = ['👍', '❤️', '😆', '😮', '😢', '😡'];
 
+  const getReactionLabel = (emoji: string) => {
+    switch (emoji) {
+      case '❤️': return language === 'en' ? 'Love' : 'Yêu thích';
+      case '😆': return 'Haha';
+      case '😮': return 'Wow';
+      case '😢': return language === 'en' ? 'Sad' : 'Buồn';
+      case '😡': return language === 'en' ? 'Angry' : 'Phẫn nộ';
+      default: return language === 'en' ? 'Like' : 'Thích';
+    }
+  };
+
   const handleLike = async () => {
     if (!isAuthenticated) {
       openLoginModal();
@@ -97,11 +202,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     const nextLiked = !liked;
     setLiked(nextLiked);
     setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+    setStoredReaction(post.id, nextLiked, reaction, user?.id);
+    const type = reactionsMap[reaction] || 'LIKE';
     try {
       if (nextLiked) {
-        await postService.reactPost(post.id, 'LIKE');
+        await postService.reactPost(post.id, type);
       } else {
-        await postService.removeReaction(post.id);
+        await postService.removeReaction(post.id, type);
       }
     } catch {
       // optimistic update fallback
@@ -119,6 +226,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       setLiked(true);
       setLikesCount((prev) => prev + 1);
     }
+    setStoredReaction(post.id, true, reactEmoji, user?.id);
     const type = reactionsMap[reactEmoji] || 'LIKE';
     try {
       await postService.reactPost(post.id, type);
@@ -127,38 +235,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     }
   };
 
-  const handleToggleComments = async () => {
-    const next = !showComments;
-    setShowComments(next);
-    if (next && comments.length === 0) {
-      setLoadingComments(true);
-      try {
-        const fetched = await postService.getComments(post.id);
-        setComments(fetched);
-        if (fetched.length > 0) {
-          setCommentsCount((prev) => Math.max(prev, fetched.length));
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoadingComments(false);
-      }
-    }
-  };
-
-  const handleCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitCommentText = async (text: string, parentCommentId?: string) => {
     if (!isAuthenticated) {
       openLoginModal();
       return;
     }
-    if (!commentText.trim()) return;
-
-    const text = commentText.trim();
-    setCommentText('');
+    if (!text.trim()) return;
 
     try {
-      const added = await postService.addComment(post.id, text);
+      const added = await postService.addComment(post.id, text.trim(), undefined, parentCommentId);
       setComments((prev) => [...prev, added]);
       setCommentsCount((prev) => prev + 1);
     } catch {
@@ -168,31 +253,43 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         userId: user?.id || 'me',
         authorName: user?.fullName || user?.username || 'Bạn',
         authorAvatar: user?.avatar || '',
-        content: text,
+        content: text.trim(),
         createdAt: 'Vừa xong',
         likesCount: 0,
+        parentCommentId,
       };
       setComments((prev) => [...prev, fallback]);
       setCommentsCount((prev) => prev + 1);
     }
   };
 
+  const handleInlineCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineCommentText.trim()) return;
+    const text = inlineCommentText.trim();
+    setInlineCommentText('');
+    await submitCommentText(text);
+  };
+
   const handleDeletePost = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) return;
+    if (!window.confirm(language === 'en' ? 'Are you sure you want to delete this post?' : 'Bạn có chắc chắn muốn xóa bài viết này không?')) return;
     setIsDeleting(true);
     try {
       await postService.deletePost(post.id);
       if (onDeletePost) onDeletePost(post.id);
+      toast.showSuccess(language === 'en' ? 'Post deleted successfully!' : 'Đã xóa bài viết thành công!');
     } catch (err: any) {
-      alert('Không thể xóa bài viết: ' + (err.response?.data?.message || err.message));
+      toast.showError((language === 'en' ? 'Could not delete post: ' : 'Không thể xóa bài viết: ') + (err.response?.data?.message || err.message));
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleCopyLink = () => {
+  const handleSharePost = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
+    setSharesCount((prev) => prev + 1);
+    toast.showSuccess(language === 'en' ? 'Post link copied to clipboard!' : 'Đã sao chép liên kết bài viết!');
     setTimeout(() => setCopied(false), 2000);
     setShowOptionsMenu(false);
   };
@@ -200,6 +297,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   if (isDeleting) {
     return null;
   }
+
+  // Top 3 reaction icons display
+  const topReactionIcons = Array.from(new Set([liked ? reaction : '👍', '❤️', '😆'])).slice(0, 3);
+
+  const displayedComments = comments.filter((c) => !c.parentCommentId).slice(0, 2);
+  const totalComments = Math.max(comments.length, commentsCount);
 
   return (
     <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden">
@@ -231,7 +334,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
           </div>
         </div>
 
-        {/* Top Right Actions: More & Close */}
+        {/* Top Right Actions: Options & Close */}
         <div className="flex items-center space-x-1">
           <div className="relative">
             <button
@@ -251,14 +354,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                   className="w-full flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
                 >
                   <Bookmark className={`w-4 h-4 ${saved ? 'text-amber-500 fill-amber-500' : ''}`} />
-                  <span>{saved ? 'Bỏ lưu bài viết' : 'Lưu bài viết'}</span>
+                  <span>{saved ? (language === 'en' ? 'Unsave post' : 'Bỏ lưu bài viết') : (language === 'en' ? 'Save post' : 'Lưu bài viết')}</span>
                 </button>
                 <button
-                  onClick={handleCopyLink}
+                  onClick={handleSharePost}
                   className="w-full flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
                 >
                   {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-blue-500" />}
-                  <span>{copied ? 'Đã chép liên kết!' : 'Sao chép liên kết'}</span>
+                  <span>{copied ? (language === 'en' ? 'Link copied!' : 'Đã chép liên kết!') : (language === 'en' ? 'Copy link' : 'Sao chép liên kết')}</span>
                 </button>
                 {user && (user.id === post.userId || post.userId === 'me') && (
                   <button
@@ -266,7 +369,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                     className="w-full flex items-center space-x-2 p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-xl text-xs font-semibold transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4 text-red-500" />
-                    <span>Xóa bài viết</span>
+                    <span>{language === 'en' ? 'Delete post' : 'Xóa bài viết'}</span>
                   </button>
                 )}
               </div>
@@ -278,7 +381,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
               if (onDeletePost) onDeletePost(post.id);
             }}
             className="text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer"
-            title="Ẩn bài viết"
+            title={language === 'en' ? 'Hide post' : 'Ẩn bài viết'}
           >
             <X className="w-5 h-5" />
           </button>
@@ -286,57 +389,64 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       </div>
 
       {/* Post Text Content */}
-      <div className="px-4 pb-2.5 text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line">
-        {post.content}
-      </div>
+      {post.content && (
+        <div className="px-4 pb-2.5 text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line">
+          {post.content}
+        </div>
+      )}
 
       {/* Media Image Grid Gallery */}
       {post.mediaUrls && post.mediaUrls.length > 0 && (
-        <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden">
+        <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden cursor-pointer" onClick={() => setShowCommentModal(true)}>
           {post.mediaUrls.length === 1 ? (
-            <img src={post.mediaUrls[0]} alt="Post media" className="w-full max-h-[550px] object-cover" />
+            <img src={post.mediaUrls[0]} alt="Post media" className="w-full max-h-[550px] object-cover hover:opacity-95 transition" />
           ) : (
             <div className="grid grid-cols-2 gap-0.5">
               {post.mediaUrls.map((url, i) => (
-                <img key={i} src={url} alt={`Media ${i}`} className="w-full h-64 object-cover" />
+                <img key={i} src={url} alt={`Media ${i}`} className="w-full h-64 object-cover hover:opacity-95 transition" />
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Post Stats matching Facebook */}
+      {/* Post Reaction & Comment Stats (Max 3 Reaction Icons) */}
       <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-[#b0b3b8]">
         <div className="flex items-center space-x-1.5 min-h-[20px]">
           {likesCount > 0 ? (
             <div className="flex items-center space-x-1.5">
               <div className="flex items-center -space-x-1">
-                <span className="w-4.5 h-4.5 rounded-full bg-[#1877f2] flex items-center justify-center text-[10px] text-white z-10 shadow-sm">
-                  👍
-                </span>
-                <span className="w-4.5 h-4.5 rounded-full bg-[#fa3e3e] flex items-center justify-center text-[10px] text-white shadow-sm">
-                  ❤️
-                </span>
+                {topReactionIcons.map((ico, idx) => (
+                  <span
+                    key={ico}
+                    className="text-sm sm:text-base leading-none select-none drop-shadow-sm"
+                    style={{ zIndex: 30 - idx * 10 }}
+                  >
+                    {ico}
+                  </span>
+                ))}
               </div>
-              <span className="text-gray-600 dark:text-[#b0b3b8] text-xs">
+              <span className="text-gray-600 dark:text-[#b0b3b8] text-xs font-semibold">
                 {likesCount}
               </span>
             </div>
           ) : (
-            <span className="text-gray-400 dark:text-[#b0b3b8]/60 text-xs">Hãy là người đầu tiên thích</span>
+            <span className="text-gray-400 dark:text-[#b0b3b8]/60 text-xs">
+              {language === 'en' ? 'Be the first to react' : 'Hãy là người đầu tiên thích'}
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-[#b0b3b8]">
-          <button onClick={handleToggleComments} className="hover:underline cursor-pointer">
-            {Math.max(comments.length, commentsCount)} bình luận
+          <button onClick={() => setShowCommentModal(true)} className="hover:underline cursor-pointer font-medium">
+            {totalComments} {language === 'en' ? 'comments' : 'bình luận'}
           </button>
-          <span>{post.sharesCount || 0} lượt chia sẻ</span>
+          <span className="font-medium">{sharesCount} {language === 'en' ? 'shares' : 'lượt chia sẻ'}</span>
         </div>
       </div>
 
       <div className="mx-3 border-t border-gray-200 dark:border-[#393a3b]" />
 
-      {/* Post Actions Bar */}
+      {/* Post Actions Bar (Like, Comment, Share) */}
       <div className="px-2 py-1 flex items-center justify-around">
         {/* Like Button with Reactions Container */}
         <div
@@ -344,26 +454,28 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
           onMouseEnter={() => setShowReactionsMenu(true)}
           onMouseLeave={() => setShowReactionsMenu(false)}
         >
-          {/* Reactions floating tooltip menu */}
+          {/* Reactions floating tooltip menu with seamless hover bridge */}
           {showReactionsMenu && (
             <div
-              className="absolute -top-12 left-2 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-full shadow-2xl px-2.5 py-1 flex items-center space-x-1.5 z-40 animate-bounce-short"
+              className="absolute -top-14 left-0 pb-3 z-50 cursor-pointer"
               onMouseEnter={() => setShowReactionsMenu(true)}
               onMouseLeave={() => setShowReactionsMenu(false)}
             >
-              {reactionsList.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectReaction(emoji);
-                  }}
-                  className="text-2xl hover:scale-135 transition-transform duration-150 cursor-pointer p-0.5"
-                >
-                  {emoji}
-                </button>
-              ))}
+              <div className="bg-white dark:bg-[#242526] rounded-full shadow-2xl px-4 py-2 flex items-center space-x-2 sm:space-x-2.5 transition-all duration-200 animate-fade-in border-0">
+                {reactionsList.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectReaction(emoji);
+                    }}
+                    className="text-2xl sm:text-3xl hover:scale-135 hover:-translate-y-2 transition-all duration-150 cursor-pointer p-1.5 transform origin-bottom"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -375,14 +487,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                 : 'text-gray-600 dark:text-[#b0b3b8]'
             }`}
           >
-            <ThumbsUp className={`w-5 h-5 ${liked ? 'fill-[#2d88ff]' : ''}`} />
-            <span>{t('like') || 'Thích'}</span>
+            {liked ? (
+              <span className="text-base">{reaction || '👍'}</span>
+            ) : (
+              <ThumbsUp className="w-5 h-5" />
+            )}
+            <span>{liked ? getReactionLabel(reaction) : (t('like') || 'Thích')}</span>
           </button>
         </div>
 
-        {/* Comment Button */}
+        {/* Comment Button (Opens Comment Modal) */}
         <button
-          onClick={handleToggleComments}
+          onClick={() => setShowCommentModal(true)}
           className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
         >
           <MessageCircle className="w-5 h-5" />
@@ -390,24 +506,20 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         </button>
 
         {/* Share Button */}
-        <button className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer">
+        <button
+          onClick={handleSharePost}
+          className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
+        >
           <Share2 className="w-5 h-5" />
-          <span>{t('share') || 'Chia sẻ'}</span>
+          <span>{copied ? (language === 'en' ? 'Copied!' : 'Đã chép!') : (t('share') || 'Chia sẻ')}</span>
         </button>
       </div>
 
-      {/* Comments Drawer matching Facebook */}
-      {showComments && (
-        <div className="p-3.5 bg-gray-50/70 dark:bg-[#242526] space-y-3 border-t border-gray-200 dark:border-[#393a3b]">
-          {loadingComments ? (
-            <div className="flex items-center justify-center py-4 space-x-2 text-gray-400 text-xs font-semibold">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <span>Đang tải bình luận...</span>
-            </div>
-          ) : comments.length === 0 ? (
-            <p className="text-center text-xs text-gray-400 dark:text-[#b0b3b8] py-2">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
-          ) : (
-            comments.map((comment) => {
+      {/* Top 2 Comments Preview Section */}
+      <div className="p-3 bg-gray-50/60 dark:bg-[#242526] space-y-2.5 border-t border-gray-200 dark:border-[#393a3b]">
+        {displayedComments.length > 0 && (
+          <div className="space-y-2">
+            {displayedComments.map((comment) => {
               const displayName =
                 (comment.userId === user?.id || comment.userId === 'me') && user?.fullName
                   ? user.fullName
@@ -423,12 +535,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                     onClick={() => {
                       if (onViewProfile && comment.userId) onViewProfile(comment.userId);
                     }}
-                    className="cursor-pointer"
+                    className="cursor-pointer shrink-0"
                   >
                     <UserAvatar src={displayAvatar} alt={displayName} size="sm" className="w-8 h-8 rounded-full" />
                   </div>
                   <div className="flex-1">
-                    <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2.5 px-3 rounded-2xl inline-block">
+                    <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2.5 px-3 rounded-2xl inline-block max-w-full">
                       <h5
                         onClick={() => {
                           if (onViewProfile && comment.userId) onViewProfile(comment.userId);
@@ -437,14 +549,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                       >
                         {displayName}
                       </h5>
-                      <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed">{comment.content}</p>
+                      <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words">
+                        {comment.content}
+                      </p>
                     </div>
-                    <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-1 ml-2 font-semibold">
+                    <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">
                       <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">{t('like') || 'Thích'}</button>
                       <span>•</span>
-                      <button className="hover:underline hover:text-[#2d88ff] flex items-center space-x-1 cursor-pointer">
+                      <button
+                        onClick={() => setShowCommentModal(true)}
+                        className="hover:underline hover:text-[#2d88ff] flex items-center space-x-1 cursor-pointer"
+                      >
                         <CornerDownRight className="w-3 h-3" />
-                        <span>Phản hồi</span>
+                        <span>{language === 'en' ? 'Reply' : 'Phản hồi'}</span>
                       </button>
                       <span>•</span>
                       <span>{comment.createdAt}</span>
@@ -452,36 +569,73 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
                   </div>
                 </div>
               );
-            })
-          )}
-          {/* Comment Form Input */}
-          <form onSubmit={handleCommentSubmit} className="flex items-center space-x-2 pt-1">
-            <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="sm" className="w-8 h-8 rounded-full" />
-            <div className="flex-1 relative flex items-center">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder={!isAuthenticated ? 'Đăng nhập để bình luận...' : (t('writeComment') || 'Viết bình luận...')}
-                className="w-full bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full pl-4 pr-10 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#2d88ff]"
-              />
-              <button
-                type="button"
-                className="absolute right-3 text-gray-400 hover:text-amber-500 cursor-pointer"
-              >
-                <Smile className="w-4 h-4" />
-              </button>
-            </div>
+            })}
+          </div>
+        )}
+
+        {/* View All / More Comments button if > 2 comments */}
+        {totalComments > 2 && (
+          <button
+            onClick={() => setShowCommentModal(true)}
+            className="text-xs font-semibold text-gray-500 dark:text-[#b0b3b8] hover:underline cursor-pointer pl-1 py-1 block"
+          >
+            {language === 'en'
+              ? `View all ${totalComments} comments...`
+              : `Xem tất cả ${totalComments} bình luận...`}
+          </button>
+        )}
+
+        {/* Inline Quick Comment Input Form */}
+        <form onSubmit={handleInlineCommentSubmit} className="flex items-center space-x-2 pt-1">
+          <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="sm" className="w-8 h-8 rounded-full shrink-0" />
+          <div className="flex-1 relative flex items-center">
+            <input
+              type="text"
+              value={inlineCommentText}
+              onChange={(e) => setInlineCommentText(e.target.value)}
+              onClick={() => {
+                if (!isAuthenticated) openLoginModal();
+              }}
+              placeholder={!isAuthenticated ? (language === 'en' ? 'Log in to comment...' : 'Đăng nhập để bình luận...') : (t('writeComment') || 'Viết bình luận...')}
+              className="w-full bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full pl-4 pr-10 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#2d88ff]"
+            />
             <button
-              type="submit"
-              disabled={!commentText.trim()}
-              className="p-2 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full disabled:opacity-40 transition shadow-sm cursor-pointer"
+              type="button"
+              onClick={() => setShowCommentModal(true)}
+              className="absolute right-3 text-gray-400 hover:text-amber-500 cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Smile className="w-4 h-4" />
             </button>
-          </form>
-        </div>
-      )}
+          </div>
+          <button
+            type="submit"
+            disabled={!inlineCommentText.trim()}
+            className="p-2 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full disabled:opacity-40 transition shadow-sm cursor-pointer shrink-0"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      </div>
+
+      {/* Clean Standalone Comment Modal Component */}
+      <CommentModal
+        isOpen={showCommentModal}
+        onClose={() => setShowCommentModal(false)}
+        post={post}
+        authorName={authorName || post.authorName || 'Thành viên'}
+        authorAvatar={authorAvatar || post.authorAvatar || ''}
+        liked={liked}
+        likesCount={likesCount}
+        commentsCount={totalComments}
+        comments={comments}
+        loadingComments={loadingComments}
+        onLike={handleLike}
+        onSelectReaction={handleSelectReaction}
+        onSubmitComment={submitCommentText}
+        onViewProfile={onViewProfile}
+        onShare={handleSharePost}
+        userReaction={reaction}
+      />
     </div>
   );
 };

@@ -68,6 +68,8 @@ export interface Comment {
   createdAt: string;
   likesCount?: number;
   isLiked?: boolean;
+  parentCommentId?: string;
+  replies?: Comment[];
 }
 
 export interface Post {
