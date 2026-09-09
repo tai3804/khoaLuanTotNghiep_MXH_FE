@@ -6,7 +6,6 @@ import {
   Users,
   Bookmark,
   Home,
-  MessageCircle,
   Settings,
 } from 'lucide-react';
 

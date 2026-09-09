@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { userService } from '../services/api';
 import { ChatUser } from './ChatBox';
 import {
   Users,
-  UserCheck,
   UserPlus,
-  UserX,
   MessageCircle,
-  Clock,
   Heart,
   Search,
   Check,
-  X,
   RefreshCw,
   Home,
   Sparkles,
-  ChevronRight,
-  User,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 
 interface FriendsViewProps {
@@ -26,7 +23,6 @@ interface FriendsViewProps {
   onViewProfile?: (userId: string) => void;
 }
 
-// Fallback avatar images for nice preview like Facebook
 const DEFAULT_AVATAR = '/default-avatar.png';
 
 const getDisplayAvatar = (avatar: string | undefined) => {
@@ -34,9 +30,29 @@ const getDisplayAvatar = (avatar: string | undefined) => {
   return DEFAULT_AVATAR;
 };
 
+// Skeleton loading cards for Facebook grid
+const SkeletonCards = () => (
+  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+      <div
+        key={i}
+        className="bg-white dark:bg-[#242526] rounded-2xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-sm animate-pulse flex flex-col"
+      >
+        <div className="w-full aspect-square bg-gray-200 dark:bg-[#3a3b3c]" />
+        <div className="p-3 space-y-2">
+          <div className="h-4 bg-gray-200 dark:bg-[#3a3b3c] rounded w-3/4" />
+          <div className="h-3 bg-gray-100 dark:bg-[#3a3b3c]/60 rounded w-1/2" />
+          <div className="h-8 bg-gray-200 dark:bg-[#3a3b3c] rounded-xl w-full mt-2" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onViewProfile }) => {
   const { user: currentUser, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('home');
   const [friends, setFriends] = useState<any[]>([]);
@@ -54,27 +70,23 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
   const [targetUserId, setTargetUserId] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
 
-  // Load all initial counts and active tab data
+  // Load initial counts & active tab data
   const loadAllData = async (silent = false) => {
     if (!isAuthenticated) return;
     if (!silent) setLoading(true);
     try {
-      const [fData, sData, rData] = await Promise.all([
+      const [fData, sData, rData, foData, fgData] = await Promise.all([
         userService.getFriends().catch(() => []),
         userService.getSuggestedFriends().catch(() => []),
         userService.getPendingRequests().catch(() => []),
+        userService.getFollowers().catch(() => []),
+        userService.getFollowing().catch(() => []),
       ]);
       setFriends(Array.isArray(fData) ? fData : []);
       setSuggestions(Array.isArray(sData) ? sData : []);
       setRequests(Array.isArray(rData) ? rData : []);
-
-      if (activeTab === 'followers') {
-        const foData = await userService.getFollowers().catch(() => []);
-        setFollowers(Array.isArray(foData) ? foData : []);
-      } else if (activeTab === 'following') {
-        const fgData = await userService.getFollowing().catch(() => []);
-        setFollowing(Array.isArray(fgData) ? fgData : []);
-      }
+      setFollowers(Array.isArray(foData) ? foData : []);
+      setFollowing(Array.isArray(fgData) ? fgData : []);
     } catch (e) {
       if (!silent) console.error('Error loading friends center data:', e);
     } finally {
@@ -85,7 +97,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
   useEffect(() => {
     loadAllData(false);
 
-    // Real-time synchronization every 4 seconds in the background
+    // Real-time background sync every 4 seconds
     const interval = setInterval(() => {
       loadAllData(true);
     }, 4000);
@@ -100,13 +112,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
       await userService.acceptFriendRequest(targetId);
       setRequests((prev) => prev.filter((r) => r.id !== item.id && r.requesterId !== item.requesterId));
       setActionMessage(`Đã chấp nhận lời mời kết bạn từ ${item.name || 'người dùng'}!`);
-      // Reload friends
       const updatedFriends = await userService.getFriends();
       setFriends(Array.isArray(updatedFriends) ? updatedFriends : []);
       window.dispatchEvent(new CustomEvent('friend_status_updated'));
       setTimeout(() => setActionMessage(null), 3500);
     } catch (err: any) {
-      // Fallback by connection ID if targetId failed
       if (item.id && item.id !== targetId) {
         try {
           await userService.acceptFriendRequest(item.id);
@@ -119,7 +129,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
           return;
         } catch {}
       }
-      alert('Lỗi khi chấp nhận: ' + (err.response?.data?.message || err.message));
+      toast.showError('Lỗi khi chấp nhận: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -130,20 +140,18 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
       await userService.rejectFriendRequest(targetId);
       setRequests((prev) => prev.filter((r) => r.id !== item.id && r.requesterId !== item.requesterId));
       window.dispatchEvent(new CustomEvent('friend_status_updated'));
-      setActionMessage('Đã xóa lời mời kết bạn.');
-      setTimeout(() => setActionMessage(null), 3000);
+      toast.showInfo('Đã xóa lời mời kết bạn.');
     } catch (err: any) {
       if (item.id && item.id !== targetId) {
         try {
           await userService.rejectFriendRequest(item.id);
           setRequests((prev) => prev.filter((r) => r.id !== item.id));
           window.dispatchEvent(new CustomEvent('friend_status_updated'));
-          setActionMessage('Đã xóa lời mời kết bạn.');
-          setTimeout(() => setActionMessage(null), 3000);
+          toast.showInfo('Đã xóa lời mời kết bạn.');
           return;
         } catch {}
       }
-      alert('Lỗi khi từ chối: ' + (err.response?.data?.message || err.message));
+      toast.showError('Lỗi khi từ chối: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -153,10 +161,9 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
       await userService.sendFriendRequest(targetId);
       setSentRequests((prev) => new Set(prev).add(targetId));
       window.dispatchEvent(new CustomEvent('friend_status_updated'));
-      setActionMessage(`Đã gửi lời mời kết bạn tới ${name || 'người dùng'}!`);
-      setTimeout(() => setActionMessage(null), 3500);
+      toast.showSuccess(`Đã gửi lời mời kết bạn tới ${name || 'người dùng'}!`);
     } catch (err: any) {
-      alert('Không thể gửi lời mời: ' + (err.response?.data?.message || err.message));
+      toast.showError('Không thể gửi lời mời: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -172,10 +179,9 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
       await userService.unfriend(friendId);
       setFriends((prev) => prev.filter((f) => f.id !== friendId && f.userId !== friendId));
       window.dispatchEvent(new CustomEvent('friend_status_updated'));
-      setActionMessage(`Đã hủy kết bạn với ${friendName || 'người dùng'}.`);
-      setTimeout(() => setActionMessage(null), 3000);
+      toast.showSuccess(`Đã hủy kết bạn với ${friendName || 'người dùng'}.`);
     } catch (err: any) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      toast.showError('Lỗi: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -187,11 +193,10 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
     try {
       await userService.sendFriendRequest(targetUserId.trim());
       setSentRequests((prev) => new Set(prev).add(targetUserId.trim()));
-      setActionMessage('Đã gửi lời mời kết bạn thành công!');
+      toast.showSuccess('Đã gửi lời mời kết bạn thành công!');
       setTargetUserId('');
-      setTimeout(() => setActionMessage(null), 3000);
     } catch (err: any) {
-      alert('Không thể gửi lời mời: ' + (err.response?.data?.message || err.message));
+      toast.showError('Không thể gửi lời mời: ' + (err.response?.data?.message || err.message));
     } finally {
       setSendingRequest(false);
     }
@@ -200,18 +205,18 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto py-20 px-4 text-center space-y-4">
-        <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center mx-auto shadow-sm">
+        <div className="w-20 h-20 rounded-full bg-[#1877f2]/10 text-[#1877f2] flex items-center justify-center mx-auto shadow-sm">
           <Users className="w-10 h-10" />
         </div>
-        <h3 className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
+        <h3 className="text-xl font-black text-gray-900 dark:text-[#e4e6eb]">
           Đăng nhập để xem Bạn bè
         </h3>
-        <p className="text-sm text-gray-500 dark:text-slate-400">
+        <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
           Kết nối với bạn bè, trò chuyện và cùng chia sẻ những khoảnh khắc tuyệt vời.
         </p>
         <button
           onClick={openLoginModal}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow transition cursor-pointer"
+          className="px-6 py-2.5 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-xl text-xs font-bold shadow transition cursor-pointer"
         >
           Đăng nhập ngay
         </button>
@@ -222,35 +227,81 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
   // Active suggestions (filtered out removed)
   const visibleSuggestions = suggestions.filter((s) => !removedSuggestions.has(String(s.id || s.userId)));
 
-  // Navigation Items for Left Facebook Friends Sidebar
+  // Navigation Items matching Facebook Friends Left Sidebar
   const navItems = [
-    { id: 'home', label: 'Trang chủ', icon: Home, count: null },
-    { id: 'requests', label: 'Lời mời kết bạn', icon: UserPlus, count: requests.length },
-    { id: 'suggestions', label: 'Gợi ý', icon: Sparkles, count: null },
-    { id: 'friends', label: 'Tất cả bạn bè', icon: Users, count: friends.length },
-    { id: 'followers', label: 'Người theo dõi', icon: Heart, count: followers.length },
-    { id: 'following', label: 'Đang theo dõi', icon: Check, count: following.length },
+    { id: 'home', label: t('friends.home'), icon: Home, bgColor: 'bg-[#1877f2]', count: null },
+    { id: 'requests', label: t('friends.requests'), icon: UserPlus, bgColor: 'bg-blue-500', count: requests.length },
+    { id: 'suggestions', label: t('friends.suggestions'), icon: Sparkles, bgColor: 'bg-amber-500', count: visibleSuggestions.length },
+    { id: 'friends', label: t('friends.allFriends'), icon: UserCheck, bgColor: 'bg-emerald-500', count: friends.length },
+    { id: 'followers', label: t('friends.followers'), icon: Heart, bgColor: 'bg-rose-500', count: followers.length },
+    { id: 'following', label: t('friends.following'), icon: Users, bgColor: 'bg-purple-500', count: following.length },
   ];
 
   return (
-    <div className="w-full flex flex-col md:flex-row min-h-[calc(100vh-3.5rem)] bg-[#f0f2f5] dark:bg-slate-900 text-gray-900 dark:text-slate-100">
-      {/* 1. LEFT SIDEBAR: Facebook Friends Menu */}
-      <aside className="w-full md:w-80 md:fixed md:top-14 md:bottom-0 md:left-0 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 overflow-y-auto p-4 space-y-4 z-20 shadow-sm shrink-0">
+    <div className="w-full flex flex-col md:flex-row min-h-[calc(100vh-3.5rem)] bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-150">
+      {/* 1. MOBILE TOP TAB NAVIGATION SLIDER (Visible on Mobile) */}
+      <div className="md:hidden flex items-center space-x-2 overflow-x-auto p-3 bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] shrink-0 sticky top-14 z-30 scrollbar-none">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id as any);
+                setSearchTerm('');
+              }}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? 'bg-[#1877f2] text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{item.label}</span>
+              {item.count !== null && item.count > 0 && (
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                    isActive ? 'bg-white text-[#1877f2]' : 'bg-red-500 text-white'
+                  }`}
+                >
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 2. DESKTOP LEFT SIDEBAR (Synchronized with main SidebarLeft) */}
+      <aside className="hidden md:flex flex-col w-[300px] xl:w-[340px] fixed top-14 bottom-0 left-0 bg-white dark:bg-[#242526] border-r border-gray-200 dark:border-[#393a3b] overflow-y-auto p-3.5 space-y-3.5 z-20 shadow-sm shrink-0 select-none">
         {/* Header Title */}
         <div className="flex items-center justify-between px-2 pt-1">
-          <h1 className="text-2xl font-black text-gray-900 dark:text-slate-100 tracking-tight">
-            Bạn bè
+          <h1 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb] tracking-tight">
+            {t('friends.title')}
           </h1>
           <button
             onClick={() => loadAllData(false)}
-            title="Làm mới"
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 transition"
+            title="Làm mới dữ liệu API"
+            className="p-2 rounded-full hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer"
           >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Menu Navigation Pills (Exact Facebook Style) */}
+        {/* Quick Filter Input Box */}
+        <div className="relative px-1">
+          <Search className="absolute left-4 top-2.5 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('friends.filterPlaceholder')}
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+          />
+        </div>
+
+        {/* Menu Navigation Pills */}
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -262,30 +313,32 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
                   setActiveTab(item.id as any);
                   setSearchTerm('');
                 }}
-                className={`w-full flex items-center justify-between p-3 rounded-xl font-semibold text-sm transition cursor-pointer ${
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
                   isActive
-                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/60'
+                    ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] font-bold shadow-sm'
+                    : 'text-gray-900 dark:text-[#e4e6eb] hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60'
                 }`}
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 min-w-0">
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform ${
                       isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200'
+                        ? 'bg-[#1877f2] text-white shadow-md scale-105'
+                        : `${item.bgColor} text-white shadow-sm`
                     }`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span className="font-bold">{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 </div>
                 {item.count !== null && item.count > 0 && (
                   <span
-                    className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
                       item.id === 'requests'
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
+                        ? 'bg-red-500 text-white animate-pulse'
+                        : isActive
+                        ? 'bg-[#1877f2] text-white'
+                        : 'bg-gray-200 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#b0b3b8]'
                     }`}
                   >
                     {item.count}
@@ -295,36 +348,10 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
             );
           })}
         </nav>
-
-        <hr className="border-gray-200 dark:border-slate-700" />
-
-        {/* Quick Send Friend Request by User UUID */}
-        <div className="px-2 space-y-2">
-          <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-            Kết bạn trực tiếp
-          </label>
-          <form onSubmit={handleSendRequestById} className="space-y-2">
-            <input
-              type="text"
-              value={targetUserId}
-              onChange={(e) => setTargetUserId(e.target.value)}
-              placeholder="Nhập mã User UUID..."
-              className="w-full bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100 px-3 py-2 rounded-xl text-xs border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none transition"
-            />
-            <button
-              type="submit"
-              disabled={sendingRequest || !targetUserId.trim()}
-              className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Gửi lời mời kết bạn</span>
-            </button>
-          </form>
-        </div>
       </aside>
 
-      {/* 2. RIGHT MAIN CONTENT AREA: Facebook Friend Cards Grid */}
-      <main className="flex-1 md:ml-80 p-4 sm:p-6 min-h-[calc(100vh-3.5rem)]">
+      {/* 3. RIGHT MAIN CONTENT AREA (Facebook Friend Cards Grid) */}
+      <main className="flex-1 md:ml-[300px] xl:ml-[340px] p-4 sm:p-6 min-h-[calc(100vh-3.5rem)] transition-all duration-150">
         {/* Floating Action Alert Toast */}
         {actionMessage && (
           <div className="mb-5 p-3.5 bg-emerald-600 text-white rounded-xl shadow-lg flex items-center space-x-2 text-sm font-semibold animate-fade-in">
@@ -341,18 +368,18 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                      Lời mời kết bạn
+                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
+                      {t('friends.requests')}
                     </h2>
-                    <span className="text-sm font-bold text-red-500 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900">
+                    <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-900">
                       {requests.length}
                     </span>
                   </div>
                   <button
                     onClick={() => setActiveTab('requests')}
-                    className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    className="text-xs sm:text-sm font-bold text-[#1877f2] dark:text-[#2d88ff] hover:underline cursor-pointer"
                   >
-                    Xem tất cả
+                    {t('friends.seeAll')}
                   </button>
                 </div>
 
@@ -375,31 +402,33 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                    Những người bạn có thể biết
+                  <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
+                    {t('friends.peopleYouMayKnow')}
                   </h2>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                    Gợi ý dựa trên bạn bè chung và người dùng trong hệ thống
+                  <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                    {t('friends.suggestionsSub')}
                   </p>
                 </div>
                 {visibleSuggestions.length > 5 && (
                   <button
                     onClick={() => setActiveTab('suggestions')}
-                    className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    className="text-xs sm:text-sm font-bold text-[#1877f2] dark:text-[#2d88ff] hover:underline cursor-pointer"
                   >
-                    Xem tất cả
+                    {t('friends.seeAll')}
                   </button>
                 )}
               </div>
 
               {loading && visibleSuggestions.length === 0 ? (
-                <div className="py-12 text-center text-sm text-gray-400">Đang tải danh sách gợi ý...</div>
+                <SkeletonCards />
               ) : visibleSuggestions.length === 0 ? (
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200 dark:border-slate-700 text-center space-y-2">
+                <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl border border-gray-200 dark:border-[#393a3b] text-center space-y-2 shadow-sm">
                   <Sparkles className="w-10 h-10 text-amber-500 mx-auto" />
-                  <h4 className="font-bold text-base">Hiện không còn gợi ý kết bạn mới</h4>
-                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                    Bạn có thể tìm kiếm bạn bè bằng mã User UUID hoặc chia sẻ trang cá nhân của mình.
+                  <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">
+                    {t('friends.noSuggestions')}
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-sm mx-auto">
+                    {t('friends.noSuggestionsSub')}
                   </p>
                 </div>
               ) : (
@@ -424,35 +453,35 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         {/* TAB 2: LỜI MỜI KẾT BẠN (REQUESTS) */}
         {activeTab === 'requests' && (
           <div className="space-y-5 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-[#393a3b]">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100">
-                  Lời mời kết bạn
+                <h2 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.requests')}
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Bạn có {requests.length} lời mời kết bạn đang chờ phản hồi
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                  {requests.length}
                 </p>
               </div>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">Đang tải danh sách lời mời...</div>
+              <SkeletonCards />
             ) : requests.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-gray-200 dark:border-slate-700 text-center space-y-3 max-w-lg mx-auto">
-                <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-12 rounded-2xl border border-gray-200 dark:border-[#393a3b] text-center space-y-3 max-w-lg mx-auto shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-[#1877f2]/10 text-[#1877f2] flex items-center justify-center mx-auto">
                   <UserPlus className="w-8 h-8" />
                 </div>
-                <h3 className="font-bold text-lg text-gray-800 dark:text-slate-100">
-                  Không có lời mời kết bạn nào
+                <h3 className="font-bold text-lg text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.noRequests')}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Khi có người gửi lời mời kết bạn đến bạn, lời mời sẽ xuất hiện ở đây.
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                  {t('friends.noRequestsSub')}
                 </p>
                 <button
                   onClick={() => setActiveTab('suggestions')}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition"
+                  className="px-5 py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
                 >
-                  Xem gợi ý kết bạn
+                  {t('friends.suggestions')}
                 </button>
               </div>
             ) : (
@@ -475,27 +504,27 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         {/* TAB 3: GỢI Ý (SUGGESTIONS) */}
         {activeTab === 'suggestions' && (
           <div className="space-y-5 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-[#393a3b]">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100">
-                  Gợi ý kết bạn
+                <h2 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.suggestions')}
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Những người bạn có thể biết trên mạng xã hội
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                  {t('friends.suggestionsSub')}
                 </p>
               </div>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">Đang tải gợi ý kết bạn...</div>
+              <SkeletonCards />
             ) : visibleSuggestions.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-gray-200 dark:border-slate-700 text-center space-y-3 max-w-lg mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-12 rounded-2xl border border-gray-200 dark:border-[#393a3b] text-center space-y-3 max-w-lg mx-auto shadow-sm">
                 <Sparkles className="w-12 h-12 text-amber-500 mx-auto" />
-                <h3 className="font-bold text-lg text-gray-800 dark:text-slate-100">
-                  Hiện chưa có gợi ý mới
+                <h3 className="font-bold text-lg text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.noSuggestions')}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Hãy thử tải lại danh sách hoặc tìm kiếm bạn bè bằng tên.
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                  {t('friends.noSuggestionsSub')}
                 </p>
               </div>
             ) : (
@@ -519,13 +548,13 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         {/* TAB 4: TẤT CẢ BẠN BÈ (FRIENDS) */}
         {activeTab === 'friends' && (
           <div className="space-y-5 max-w-7xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200 dark:border-[#393a3b]">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100">
-                  Tất cả bạn bè
+                <h2 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.allFriends')}
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  {friends.length} người bạn
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                  {friends.length}
                 </p>
               </div>
 
@@ -536,30 +565,30 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm kiếm bạn bè..."
-                  className="w-full bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 pl-9 pr-4 py-2 rounded-full border border-gray-200 dark:border-slate-700 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
+                  placeholder={t('friends.searchPlaceholder')}
+                  className="w-full bg-white dark:bg-[#242526] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 pl-9 pr-4 py-2 rounded-full border border-gray-200 dark:border-[#393a3b] text-xs focus:outline-none focus:ring-1 focus:ring-[#1877f2] shadow-sm"
                 />
               </div>
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">Đang tải danh sách bạn bè...</div>
+              <SkeletonCards />
             ) : friends.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-gray-200 dark:border-slate-700 text-center space-y-3 max-w-lg mx-auto">
-                <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-12 rounded-2xl border border-gray-200 dark:border-[#393a3b] text-center space-y-3 max-w-lg mx-auto shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-[#1877f2]/10 text-[#1877f2] flex items-center justify-center mx-auto">
                   <Users className="w-8 h-8" />
                 </div>
-                <h3 className="font-bold text-lg text-gray-800 dark:text-slate-100">
-                  Bạn chưa có người bạn nào
+                <h3 className="font-bold text-lg text-gray-900 dark:text-[#e4e6eb]">
+                  {t('friends.noFriends')}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  Hãy kết bạn với những người khác để cùng trò chuyện và tương tác!
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                  {t('friends.noFriendsSub')}
                 </p>
                 <button
                   onClick={() => setActiveTab('suggestions')}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
+                  className="px-5 py-2.5 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
                 >
-                  Xem gợi ý kết bạn ngay
+                  {t('friends.suggestions')}
                 </button>
               </div>
             ) : (
@@ -592,15 +621,17 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         {/* TAB 5 & 6: FOLLOWERS & FOLLOWING */}
         {(activeTab === 'followers' || activeTab === 'following') && (
           <div className="space-y-5 max-w-7xl mx-auto">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100 pb-2 border-b border-gray-200 dark:border-slate-700">
-              {activeTab === 'followers' ? 'Người theo dõi bạn' : 'Những người bạn đang theo dõi'}
+            <h2 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb] pb-2 border-b border-gray-200 dark:border-[#393a3b]">
+              {activeTab === 'followers' ? t('friends.followers') : t('friends.following')}
             </h2>
             {loading ? (
-              <div className="py-12 text-center text-sm text-gray-400">Đang tải dữ liệu...</div>
+              <SkeletonCards />
             ) : (activeTab === 'followers' ? followers : following).length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl border border-gray-200 dark:border-slate-700 text-center space-y-2 max-w-lg mx-auto">
+              <div className="bg-white dark:bg-[#242526] p-12 rounded-2xl border border-gray-200 dark:border-[#393a3b] text-center space-y-2 max-w-lg mx-auto shadow-sm">
                 <Heart className="w-12 h-12 text-rose-500 mx-auto" />
-                <h4 className="font-bold text-base">Danh sách hiện đang trống</h4>
+                <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">
+                  {activeTab === 'followers' ? t('friends.noFollowers') : t('friends.noFollowing')}
+                </h4>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
@@ -649,19 +680,29 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
   onUnfriend,
   onViewProfile,
 }) => {
+  const { language, t } = useLanguage();
   const displayName =
     item.name ||
     item.fullName ||
-    (item.lastName || item.firstName ? `${item.lastName || ''} ${item.firstName || ''}`.trim() : 'Người dùng KLTN');
+    (item.lastName || item.firstName ? `${item.lastName || ''} ${item.firstName || ''}`.trim() : 'User');
 
   const avatarSrc = getDisplayAvatar(item.avatar || item.avatarUrl);
 
+  const cardSubtitle =
+    type === 'request'
+      ? (language === 'en' ? 'Sent you a friend request' : 'Đã gửi cho bạn lời mời kết bạn')
+      : type === 'friend'
+      ? (language === 'en' ? 'Friends on KLTN Social' : 'Bạn bè trên KLTN Social')
+      : item.mutualFriendsCount && item.mutualFriendsCount > 0
+      ? (language === 'en' ? `${item.mutualFriendsCount} mutual friends` : `${item.mutualFriendsCount} bạn chung`)
+      : (item.bio && item.bio !== 'Gợi ý kết bạn' ? item.bio : t('friends.suggestions'));
+
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700 shadow-sm hover:shadow-md transition duration-200 flex flex-col group">
+    <div className="bg-white dark:bg-[#242526] rounded-2xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition duration-200 flex flex-col group select-none">
       {/* 1. Square Avatar / Cover Photo at Top */}
       <div
         onClick={onViewProfile}
-        className="relative w-full aspect-square bg-gray-100 dark:bg-slate-700 overflow-hidden cursor-pointer"
+        className="relative w-full aspect-square bg-gray-100 dark:bg-[#3a3b3c] overflow-hidden cursor-pointer"
       >
         <img
           src={avatarSrc}
@@ -682,16 +723,12 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
           <h4
             onClick={onViewProfile}
             title={displayName}
-            className="font-bold text-sm sm:text-base text-gray-900 dark:text-slate-100 hover:underline cursor-pointer truncate block"
+            className="font-bold text-sm sm:text-base text-gray-900 dark:text-[#e4e6eb] hover:underline cursor-pointer truncate block"
           >
             {displayName}
           </h4>
-          <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">
-            {type === 'request'
-              ? 'Đã gửi cho bạn lời mời kết bạn'
-              : type === 'friend'
-              ? 'Bạn bè trên KLTN Social'
-              : item.bio || 'Gợi ý kết bạn'}
+          <p className="text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
+            {cardSubtitle}
           </p>
         </div>
 
@@ -702,15 +739,15 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
             <>
               <button
                 onClick={onAccept}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition flex items-center justify-center space-x-1 cursor-pointer"
+                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1 cursor-pointer"
               >
-                <span>Xác nhận</span>
+                <span>{t('friends.confirm')}</span>
               </button>
               <button
                 onClick={onReject}
-                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 font-semibold text-xs sm:text-sm rounded-lg transition cursor-pointer"
+                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
               >
-                <span>Xóa</span>
+                <span>{t('friends.delete')}</span>
               </button>
             </>
           )}
@@ -721,25 +758,25 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
               {isSent ? (
                 <button
                   disabled
-                  className="w-full py-2 bg-gray-100 dark:bg-slate-700/60 text-gray-500 dark:text-slate-400 font-semibold text-xs sm:text-sm rounded-lg cursor-default flex items-center justify-center space-x-1 border border-gray-200 dark:border-slate-600"
+                  className="w-full py-2 bg-gray-100 dark:bg-[#3a3b3c]/60 text-gray-500 dark:text-[#b0b3b8] font-bold text-xs sm:text-sm rounded-xl cursor-default flex items-center justify-center space-x-1 border border-gray-200 dark:border-[#393a3b]"
                 >
-                  <Check className="w-4 h-4 text-green-500" />
-                  <span>Đã gửi lời mời</span>
+                  <Check className="w-4 h-4 text-emerald-500" />
+                  <span>{t('friends.requestSent')}</span>
                 </button>
               ) : (
                 <button
                   onClick={onAdd}
-                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                  className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>Thêm bạn bè</span>
+                  <span>{t('friends.addFriend')}</span>
                 </button>
               )}
               <button
                 onClick={onRemove}
-                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 font-semibold text-xs sm:text-sm rounded-lg transition cursor-pointer"
+                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
               >
-                <span>Gỡ</span>
+                <span>{t('friends.remove')}</span>
               </button>
             </>
           )}
@@ -749,16 +786,16 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
             <>
               <button
                 onClick={onChat}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Nhắn tin</span>
+                <span>{t('friends.message')}</span>
               </button>
               <button
                 onClick={onUnfriend}
-                className="w-full py-1.5 bg-gray-100 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:bg-slate-700 text-gray-600 dark:text-slate-300 font-semibold text-xs rounded-lg transition cursor-pointer"
+                className="w-full py-1.5 bg-gray-100 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] font-bold text-xs rounded-xl transition cursor-pointer"
               >
-                <span>Hủy kết bạn</span>
+                <span>{t('friends.unfriend')}</span>
               </button>
             </>
           )}
@@ -767,9 +804,9 @@ const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
           {type === 'follower' && (
             <button
               onClick={onViewProfile}
-              className="w-full py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 font-semibold text-xs sm:text-sm rounded-lg transition cursor-pointer"
+              className="w-full py-2 bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
             >
-              <span>Xem trang cá nhân</span>
+              <span>{t('friends.viewProfile')}</span>
             </button>
           )}
         </div>
