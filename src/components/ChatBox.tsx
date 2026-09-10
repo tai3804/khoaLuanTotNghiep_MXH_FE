@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Phone, Video, Minus, Smile, Image as ImageIcon } from 'lucide-react';
+import { X, Send, Phone, Video, Minus, Smile, Image as ImageIcon, Wifi } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { UserAvatar } from './UserAvatar';
-import { chatService } from '../services/api';
+import { chatService, websocketService } from '../services/api';
 
 export interface ChatUser {
   id: string;
@@ -31,11 +31,12 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isWsLive, setIsWsLive] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const targetUserId = friend.userId || friend.id;
 
-  // Initialize conversation and load messages
+  // Initialize conversation and load persistent chat history
   useEffect(() => {
     let isMounted = true;
 
@@ -47,15 +48,17 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
           return;
         }
 
-        // Attempt to create or fetch direct conversation
+        // 1. Get or create 1-on-1 direct conversation
         const conv = await chatService.createDirectChat(targetUserId);
-        const convId = conv?.id ? String(conv.id) : null;
+        const convId = conv?.conversationId || conv?.id ? String(conv.conversationId || conv.id) : null;
 
         if (isMounted && convId) {
           setConversationId(convId);
+
+          // 2. Load persistent chat history from database
           const rawMsgs = await chatService.getMessages(convId);
           if (Array.isArray(rawMsgs) && rawMsgs.length > 0) {
-            // Sort ascending by creation time so newest are at the bottom
+            // Messages from DB are newest first, reverse for chronological top-to-bottom
             const sorted = [...rawMsgs].reverse();
             setMessages(
               sorted.map((m: any) => ({
@@ -68,28 +71,13 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
               }))
             );
           } else {
-            // Default warm welcome message
-            setMessages([
-              {
-                id: 'init-1',
-                senderId: targetUserId,
-                text: `Chào bạn! Rất vui được kết nối trên KLTN Social 👋`,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              },
-            ]);
+            setMessages([]);
           }
         }
       } catch (err) {
-        // Fallback local conversation
+        console.error('[ChatBox] Error initializing chat conversation:', err);
         if (isMounted) {
-          setMessages([
-            {
-              id: 'init-fallback',
-              senderId: targetUserId,
-              text: `Chào bạn! Rất vui được kết nối với bạn 👋`,
-              time: 'Vừa xong',
-            },
-          ]);
+          setMessages([]);
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -102,15 +90,70 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
     };
   }, [targetUserId]);
 
-  // Real-time polling for incoming messages while chat is active (every 1.5s)
+  // Real-time WebSocket subscription for live chat
   useEffect(() => {
     if (!conversationId) return;
 
-    const syncMessages = async () => {
+    let unsubscribe: (() => void) | null = null;
+    let isSubscribed = true;
+
+    const setupWebSocket = async () => {
       try {
-        const rawMsgs = await chatService.getMessages(conversationId);
-        if (Array.isArray(rawMsgs) && rawMsgs.length > 0) {
-          const sorted = [...rawMsgs].reverse();
+        const isConnected = await websocketService.connect();
+        if (isSubscribed && isConnected) {
+          setIsWsLive(true);
+        }
+
+        unsubscribe = await websocketService.subscribeToConversation(
+          conversationId,
+          (incoming) => {
+            if (!isSubscribed) return;
+            setIsWsLive(true);
+
+            setMessages((prev) => {
+              const incomingId = String(incoming.messageId || (incoming as any).id || '');
+              const incomingSender = String(incoming.senderId);
+              const incomingContent = incoming.content || '';
+
+              // Check if message is already in list (e.g. optimistic match)
+              const matchIdx = prev.findIndex(
+                (m) =>
+                  (incomingId && m.id === incomingId) ||
+                  (m.id.startsWith('msg-') && m.text === incomingContent && (m.senderId === incomingSender || m.senderId === user?.id || m.senderId === 'me'))
+              );
+
+              const formatted: Message = {
+                id: incomingId || 'ws-' + Date.now(),
+                senderId: incomingSender,
+                text: incomingContent,
+                time: incoming.createdAt
+                  ? new Date(incoming.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Vừa xong',
+              };
+
+              if (matchIdx >= 0) {
+                const updated = [...prev];
+                updated[matchIdx] = formatted;
+                return updated;
+              }
+
+              return [...prev, formatted];
+            });
+          }
+        );
+      } catch (err) {
+        console.warn('[ChatBox] WebSocket subscription notice:', err);
+      }
+    };
+
+    setupWebSocket();
+
+    // Re-sync messages when user switches back to tab
+    const handleFocus = async () => {
+      try {
+        const raw = await chatService.getMessages(conversationId);
+        if (Array.isArray(raw) && raw.length > 0) {
+          const sorted = [...raw].reverse();
           setMessages(
             sorted.map((m: any) => ({
               id: String(m.messageId || m.id),
@@ -122,14 +165,16 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
             }))
           );
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
+    window.addEventListener('focus', handleFocus);
 
-    const interval = setInterval(syncMessages, 1500);
-    return () => clearInterval(interval);
-  }, [conversationId]);
+    return () => {
+      isSubscribed = false;
+      if (unsubscribe) unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [conversationId, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,8 +187,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
     const textToSend = inputText.trim();
     setInputText('');
 
+    const tempId = 'msg-' + Date.now();
     const optimisticMsg: Message = {
-      id: 'msg-' + Date.now(),
+      id: tempId,
       senderId: user?.id || 'me',
       text: textToSend,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -153,25 +199,24 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
 
     try {
       if (conversationId) {
-        await chatService.sendMessage(conversationId, textToSend);
-        // Fast sync immediately after send
-        const rawMsgs = await chatService.getMessages(conversationId);
-        if (Array.isArray(rawMsgs) && rawMsgs.length > 0) {
-          const sorted = [...rawMsgs].reverse();
-          setMessages(
-            sorted.map((m: any) => ({
-              id: String(m.messageId || m.id),
-              senderId: String(m.senderId),
-              text: m.content || '',
-              time: m.createdAt
-                ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : 'Vừa xong',
-            }))
-          );
+        // 1. Send via WebSocket for instant delivery to subscribers
+        const sentViaWs = websocketService.sendMessage(conversationId, textToSend);
+
+        if (sentViaWs) {
+          setIsWsLive(true);
+        } else {
+          // 2. Reliable fallback via REST API (which also broadcasts to WS subscribers and saves to DB)
+          const res = await chatService.sendMessage(conversationId, textToSend);
+          if (res && (res.messageId || res.id)) {
+            const actualId = String(res.messageId || res.id);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, id: actualId } : m))
+            );
+          }
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('[ChatBox] Error sending message:', err);
     }
   };
 
@@ -247,6 +292,12 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
           <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-[#b0b3b8]">
             <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin mr-2" />
             <span>Đang tải tin nhắn...</span>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <UserAvatar src={friend.avatar} alt={friend.name} size="md" />
+            <p className="text-xs font-semibold mt-2.5 text-gray-800 dark:text-[#e4e6eb]">{friend.name}</p>
+            <p className="text-[11px] text-gray-400 dark:text-[#b0b3b8] mt-1">Chưa có tin nhắn nào trong cuộc trò chuyện này.</p>
           </div>
         ) : (
           messages.map((msg) => {

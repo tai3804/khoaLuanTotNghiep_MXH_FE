@@ -113,21 +113,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
         </div>
       )}
 
-      {/* 2. Sinh nhật (Facebook Birthday section) */}
-      <div>
-        <h3 className="text-gray-500 dark:text-[#b0b3b8] font-bold text-sm mb-1.5 px-1">
-          Sinh nhật
-        </h3>
-        <div className="flex items-center space-x-3 p-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition">
-          <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
-            <Gift className="w-5 h-5 text-[#1877f2]" />
-          </div>
-          <p className="text-xs text-gray-800 dark:text-[#e4e6eb] leading-snug">
-            Hôm nay không có sinh nhật của bạn bè nào.
-          </p>
-        </div>
-        <hr className="border-gray-200 dark:border-[#393a3b] mt-3" />
-      </div>
+
 
       {/* 2. Người liên hệ (Dữ liệu thật từ userService.getFriends trong DB) */}
       <div>

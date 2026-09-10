@@ -12,8 +12,13 @@ export const chatService = {
   },
 
   createDirectChat: async (targetUserId: string) => {
+    if (!targetUserId) throw new Error('targetUserId is required');
     const res = await api.post('/chat/conversations/direct', { targetUserId });
-    return res.data?.data || res.data;
+    const data = res.data?.data || res.data;
+    if (data && data.conversationId && !data.id) {
+      data.id = data.conversationId;
+    }
+    return data;
   },
 
   getMessages: async (conversationId: string, page = 0, size = 50) => {
