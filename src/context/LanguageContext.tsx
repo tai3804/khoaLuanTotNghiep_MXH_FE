@@ -101,6 +101,12 @@ const translations = {
     'search.noResults': 'Không tìm thấy kết quả phù hợp',
     'search.people': 'MỌI NGƯỜI',
     'search.posts': 'BÀI VIẾT',
+
+    // Feed & General
+    'feed.all': 'Tất cả',
+    'feed.recent': 'Mới nhất',
+    'feed.popular': 'Nổi bật',
+    settings: 'Cài đặt & quyền riêng tư',
   },
   en: {
     'nav.search': 'Search...',
@@ -201,6 +207,12 @@ const translations = {
     'search.noResults': 'No matching results found',
     'search.people': 'PEOPLE',
     'search.posts': 'POSTS',
+
+    // Feed & General
+    'feed.all': 'All Posts',
+    'feed.recent': 'Recent',
+    'feed.popular': 'Popular',
+    settings: 'Settings & privacy',
   },
 };
 
@@ -217,9 +229,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('language', lang);
   };
 
-  const t = (key: string): string => {
+  const t = (key: string, fallback?: string): string => {
     const langDict = translations[language] || translations.vi;
-    return (langDict as Record<string, string>)[key] || key;
+    const val = (langDict as Record<string, string>)[key];
+    if (val !== undefined) return val;
+    if (fallback !== undefined) return fallback;
+    return '';
   };
 
   return (
