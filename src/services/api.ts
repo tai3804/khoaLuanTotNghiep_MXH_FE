@@ -4,3 +4,4 @@ export { userService, authorProfileCache, fetchAuthorProfile } from './userServi
 export { postService, normalizePost } from './postService';
 export { chatService } from './chatService';
 export { storyService } from './storyService';
+export { websocketService } from './websocket';
