@@ -38,6 +38,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   const [commentsCount, setCommentsCount] = useState<number>(post.commentsCount ?? 0);
   const [sharesCount, setSharesCount] = useState<number>(post.sharesCount ?? 0);
   const [reaction, setReaction] = useState<string>('👍');
+  const [activeReactions, setActiveReactions] = useState<string[]>([]);
   const [showReactionsMenu, setShowReactionsMenu] = useState<boolean>(false);
   const [saved, setSaved] = useState<boolean>(false);
   const [comments, setComments] = useState<Comment[]>(post.comments || []);
@@ -135,6 +136,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       postService
         .getReactions(post.id)
         .then((reactions) => {
+          if (Array.isArray(reactions) && reactions.length > 0) {
+            const types = Array.from(
+              new Set(reactions.map((r: any) => reactionTypeToEmoji[r.type] || '👍'))
+            );
+            setActiveReactions(types);
+          } else {
+            setActiveReactions([]);
+          }
           const myReaction = reactions.find(
             (r: any) => String(r.userId || r.authorId) === String(user?.id)
           );
@@ -143,6 +152,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
             const emoji = reactionTypeToEmoji[myReaction.type] || '👍';
             setReaction(emoji);
             setStoredReaction(post.id, true, emoji, user?.id);
+            setActiveReactions((prev) => Array.from(new Set([...prev, emoji])));
           } else {
             setLiked(false);
             setStoredReaction(post.id, false, '👍', user?.id);
@@ -203,6 +213,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     setLiked(nextLiked);
     setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
     setStoredReaction(post.id, nextLiked, reaction, user?.id);
+    if (nextLiked) {
+      setActiveReactions((prev) => Array.from(new Set([...prev, reaction])));
+    } else {
+      setActiveReactions((prev) => prev.filter((r) => r !== reaction));
+    }
     const type = reactionsMap[reaction] || 'LIKE';
     try {
       if (nextLiked) {
@@ -220,6 +235,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       openLoginModal();
       return;
     }
+    const prevReaction = reaction;
     setReaction(reactEmoji);
     setShowReactionsMenu(false);
     if (!liked) {
@@ -227,6 +243,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       setLikesCount((prev) => prev + 1);
     }
     setStoredReaction(post.id, true, reactEmoji, user?.id);
+    setActiveReactions((prev) => {
+      const filtered = prev.filter((r) => r !== prevReaction);
+      return Array.from(new Set([...filtered, reactEmoji]));
+    });
     const type = reactionsMap[reactEmoji] || 'LIKE';
     try {
       await postService.reactPost(post.id, type);
@@ -298,14 +318,22 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     return null;
   }
 
-  // Top 3 reaction icons display
-  const topReactionIcons = Array.from(new Set([liked ? reaction : '👍', '❤️', '😆'])).slice(0, 3);
+  // Top reaction icons display: only show reactions that actually exist
+  const topReactionIcons = activeReactions.length > 0
+    ? activeReactions.slice(0, 3)
+    : liked
+    ? [reaction]
+    : ['👍'];
 
-  const displayedComments = comments.filter((c) => !c.parentCommentId).slice(0, 2);
+  const rootComments = comments.filter((c) => !c.parentCommentId);
+  const displayedComments = rootComments.slice(-3);
   const totalComments = Math.max(comments.length, commentsCount);
 
   return (
-    <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden">
+    <div
+      id={`post-${post.id}`}
+      className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden"
+    >
       {/* Header section matching Facebook */}
       <div className="p-3.5 pb-2 flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
@@ -635,6 +663,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         onViewProfile={onViewProfile}
         onShare={handleSharePost}
         userReaction={reaction}
+        topReactionIcons={topReactionIcons}
       />
     </div>
   );

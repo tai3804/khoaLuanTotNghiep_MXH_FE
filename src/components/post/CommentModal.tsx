@@ -32,6 +32,7 @@ interface CommentModalProps {
   onViewProfile?: (userId: string) => void;
   onShare?: () => void;
   userReaction?: string;
+  topReactionIcons?: string[];
 }
 
 export const CommentModal: React.FC<CommentModalProps> = ({
@@ -51,6 +52,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   onViewProfile,
   onShare,
   userReaction = '👍',
+  topReactionIcons: externalTopIcons,
 }) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t, language } = useLanguage();
@@ -132,8 +134,10 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     }
   };
 
-  // Top 3 reaction icons display
-  const topReactionIcons = Array.from(new Set([liked ? userReaction : '👍', '❤️', '😆'])).slice(0, 3);
+  // Top reaction icons display: only display reactions actually made
+  const topReactionIcons = externalTopIcons && externalTopIcons.length > 0
+    ? externalTopIcons
+    : [liked ? (userReaction || '👍') : '👍'];
 
   const rootComments = comments.filter((c) => !c.parentCommentId);
   const getRepliesFor = (parentId: string) =>

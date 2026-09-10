@@ -21,8 +21,11 @@ import { UserAvatar } from '../common/UserAvatar';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useNotification } from '../../context/NotificationContext';
+import { NotificationDropdown } from '../notification/NotificationDropdown';
 import { ChatUser } from '../chat/ChatBox';
 import { userService, postService } from '../../services/api';
+
 
 interface HeaderProps {
   activeTab?: string;
@@ -44,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, isAuthenticated, logout, openLoginModal } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  const { unreadCount } = useNotification();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[] }>({ users: [], posts: [] });
@@ -417,11 +421,46 @@ export const Header: React.FC<HeaderProps> = ({
                   setShowMsgMenu(false);
                   setShowUserMenu(false);
                 }}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+                className={`relative w-10 h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+                  showNotifMenu
+                    ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
+                    : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
+                }`}
                 title={language === 'en' ? 'Notifications' : 'Thông báo'}
               >
                 <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full shadow-sm animate-pulse min-w-4 text-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </button>
+
+              {showNotifMenu && (
+                <NotificationDropdown
+                  onClose={() => setShowNotifMenu(false)}
+                  onNavigateSettings={onNavigateSettings}
+                  onNavigateTarget={(url) => {
+                    if (url.startsWith('/profile') && onNavigateProfile) {
+                      const uid = url.split('/profile/')[1];
+                      onNavigateProfile(uid);
+                    } else if (url.startsWith('/posts')) {
+                      if (onTabChange) onTabChange('home');
+                      const postId = url.split('/posts/')[1];
+                      if (postId) {
+                        setTimeout(() => {
+                          const el = document.getElementById(`post-${postId}`) || document.getElementById(postId);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.add('ring-2', 'ring-[#1877f2]', 'transition-all');
+                            setTimeout(() => el.classList.remove('ring-2', 'ring-[#1877f2]'), 3000);
+                          }
+                        }, 300);
+                      }
+                    }
+                  }}
+                />
+              )}
             </div>
 
             {/* Profile Avatar & User Dropdown */}
