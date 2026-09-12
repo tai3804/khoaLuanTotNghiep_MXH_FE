@@ -1,0 +1,18 @@
+export const AVAILABLE_HOBBIES = [
+  '🎧 Nghe nhạc',
+  '⚽ Đá bóng',
+  '✈️ Du lịch',
+  '🎮 Chơi game',
+  '📚 Đọc sách',
+  '💻 Lập trình',
+  '🍳 Nấu ăn',
+  '📷 Chụp ảnh',
+  '🎬 Xem phim',
+  '☕ Cà phê',
+  '🏃 Chạy bộ',
+  '🎨 Vẽ tranh',
+  '🎸 Chơi đàn',
+  '🛍️ Mua sắm',
+  '🧘 Thể hình & Gym',
+  '🐾 Thú cưng',
+];

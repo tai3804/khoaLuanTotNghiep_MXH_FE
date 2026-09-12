@@ -23,17 +23,26 @@ export const authService = {
     return res.data;
   },
 
-  register: async (data: any) => {
-    const rawName = (data.fullName || data.username || 'User').trim();
-    const parts = rawName.split(/\s+/);
-    const lastName = parts.length > 1 ? parts[0] : 'User';
-    const firstName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
+  sendRegisterOtp: async (email: string) => {
+    const res = await api.post('/auth/register/send-otp', { email });
+    return res.data;
+  },
 
+  verifyRegisterOtp: async (email: string, otpCode: string) => {
+    const res = await api.post('/auth/register/verify-otp', { email, otpCode });
+    return res.data?.data || res.data;
+  },
+
+  register: async (data: any) => {
     const payload = {
+      registerSessionToken: data.registerSessionToken,
       email: data.email,
       password: data.password,
-      firstName: firstName || 'User',
-      lastName: lastName || 'User',
+      firstName: data.firstName,
+      lastName: data.lastName,
+      middleName: data.middleName || undefined,
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender || 'MALE',
     };
     const res = await api.post('/auth/register', payload);
     return res.data;
@@ -75,6 +84,12 @@ export const authService = {
 
   disableMfa: async (otpCode: string) => {
     const res = await api.post('/auth/mfa/disable', { otpCode });
+    return res.data;
+  },
+
+  verifyMfa: async (mfaToken: string, otpCode: string) => {
+    let deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
+    const res = await api.post('/auth/mfa/verify', { mfaToken, otpCode, deviceFingerprint });
     return res.data;
   },
 };

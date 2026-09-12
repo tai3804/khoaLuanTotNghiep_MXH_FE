@@ -1,30 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { FriendsPage } from './pages/FriendsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuthPage } from './pages/AuthPage';
-import { LoginModal } from './components/common/LoginModal';
 import { ChatUser } from './components/chat/ChatBox';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
 import { postService } from './services/api';
 import { Post } from './types';
-import { Home, Tv, Store, Users, Gamepad2 } from 'lucide-react';
+import { Home, Tv, Store, Users } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [viewMode, setViewMode] = useState<'app' | 'auth'>('app');
-  const [activeNavTab, setActiveNavTab] = useState<string>('home');
   const [activeSidebarFilter, setActiveSidebarFilter] = useState<string>('all');
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [feedCategory, setFeedCategory] = useState<'all' | 'recent' | 'popular'>('all');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendError, setBackendError] = useState<string | null>(null);
   const [activeChatUser, setActiveChatUser] = useState<ChatUser | null>(null);
+
+  // Sync activeNavTab from URL path
+  const path = location.pathname;
+  let activeNavTab = 'home';
+  if (path.startsWith('/settings')) activeNavTab = 'settings';
+  else if (path.startsWith('/profile')) activeNavTab = 'profile';
+  else if (path.startsWith('/friends')) activeNavTab = 'friends';
 
   const fetchFeed = async (isBackground = false) => {
     if (!isBackground) {
@@ -84,23 +90,20 @@ export const App: React.FC = () => {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated && viewMode === 'auth') {
-      setViewMode('app');
-      setActiveNavTab('home');
+    if (!isAuthenticated && location.pathname !== '/auth') {
+      navigate('/auth');
+    } else if (isAuthenticated && location.pathname === '/auth') {
+      navigate('/');
     }
-  }, [isAuthenticated, viewMode]);
+  }, [isAuthenticated, location.pathname]);
 
-  // If user navigated to explicit Auth page
-  if (viewMode === 'auth') {
-    return (
-      <AuthPage
-        onGoHome={() => {
-          setViewMode('app');
-          setActiveNavTab('home');
-        }}
-      />
-    );
-  }
+  useEffect(() => {
+    const handleNavigateAuth = () => {
+      navigate('/auth');
+    };
+    window.addEventListener('navigate_to_auth', handleNavigateAuth);
+    return () => window.removeEventListener('navigate_to_auth', handleNavigateAuth);
+  }, [navigate]);
 
   const handlePostCreated = (newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -110,26 +113,19 @@ export const App: React.FC = () => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
-  const handleSelectChatUser = (chatUser: ChatUser) => {
-    setActiveChatUser(chatUser);
-  };
-
   const handleTabChange = (tab: string) => {
-    setViewMode('app');
-    setActiveNavTab(tab);
-    if (tab === 'home') {
-      setActiveSidebarFilter('all');
-      setProfileUserId(null);
-    } else if (tab === 'friends') {
-      setActiveSidebarFilter('friends');
-      setProfileUserId(null);
-    }
+    if (tab === 'home') navigate('/');
+    else if (tab === 'friends') navigate('/friends');
+    else if (tab === 'settings') navigate('/settings/profile');
+    else if (tab === 'profile') navigate('/profile');
   };
 
   const handleViewProfile = (userId?: string) => {
-    setViewMode('app');
-    setProfileUserId(userId || null);
-    setActiveNavTab('profile');
+    if (userId && userId !== 'me') {
+      navigate(`/profile/${userId}`);
+    } else {
+      navigate('/profile');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -141,77 +137,98 @@ export const App: React.FC = () => {
     displayedPosts = [...posts].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
   }
 
-  const isFriendsView = activeNavTab === 'friends' || activeSidebarFilter === 'friends' || activeNavTab === 'groups';
-
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-[#050505] dark:text-[#e4e6eb] transition-colors duration-150 pb-16 md:pb-0">
-      {activeNavTab === 'settings' ? (
-        <SettingsPage
-          activeNavTab={activeNavTab}
-          setActiveNavTab={handleTabChange}
-          onNavigateSettings={() => {
-            setViewMode('app');
-            setActiveNavTab('settings');
-          }}
-          onNavigateProfile={(uid) => handleViewProfile(uid)}
-          onNavigateAuth={() => setViewMode('auth')}
-          activeChatUser={activeChatUser}
-          setActiveChatUser={setActiveChatUser}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <HomePage
+              activeNavTab={activeNavTab}
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              feedCategory={feedCategory}
+              setFeedCategory={setFeedCategory}
+              posts={displayedPosts}
+              loading={loading}
+              backendError={backendError}
+              fetchFeed={fetchFeed}
+              onPostCreated={handlePostCreated}
+              onDeletePost={handlePostDeleted}
+              onViewProfile={handleViewProfile}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
         />
-      ) : activeNavTab === 'profile' ? (
-        <ProfilePage
-          userId={profileUserId}
-          activeNavTab={activeNavTab}
-          setActiveNavTab={handleTabChange}
-          onNavigateSettings={() => {
-            setViewMode('app');
-            setActiveNavTab('settings');
-          }}
-          onNavigateProfile={(uid) => handleViewProfile(uid)}
-          onNavigateAuth={() => setViewMode('auth')}
-          activeChatUser={activeChatUser}
-          setActiveChatUser={setActiveChatUser}
+        <Route
+          path="/friends"
+          element={
+            <FriendsPage
+              activeNavTab="friends"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
         />
-      ) : isFriendsView ? (
-        <FriendsPage
-          activeNavTab={activeNavTab}
-          setActiveNavTab={handleTabChange}
-          onNavigateSettings={() => {
-            setViewMode('app');
-            setActiveNavTab('settings');
-          }}
-          onNavigateProfile={(uid) => handleViewProfile(uid)}
-          onNavigateAuth={() => setViewMode('auth')}
-          activeChatUser={activeChatUser}
-          setActiveChatUser={setActiveChatUser}
+        <Route
+          path="/profile"
+          element={
+            <ProfilePage
+              activeNavTab="profile"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
         />
-      ) : (
-        <HomePage
-          activeNavTab={activeNavTab}
-          setActiveNavTab={handleTabChange}
-          activeSidebarFilter={activeSidebarFilter}
-          setActiveSidebarFilter={setActiveSidebarFilter}
-          feedCategory={feedCategory}
-          setFeedCategory={setFeedCategory}
-          posts={displayedPosts}
-          loading={loading}
-          backendError={backendError}
-          fetchFeed={fetchFeed}
-          onPostCreated={handlePostCreated}
-          onDeletePost={handlePostDeleted}
-          onViewProfile={handleViewProfile}
-          onNavigateSettings={() => {
-            setViewMode('app');
-            setActiveNavTab('settings');
-          }}
-          onNavigateAuth={() => setViewMode('auth')}
-          activeChatUser={activeChatUser}
-          setActiveChatUser={setActiveChatUser}
+        <Route
+          path="/profile/:userId"
+          element={
+            <ProfilePage
+              activeNavTab="profile"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
         />
-      )}
-
-      {/* Global Login Modal */}
-      <LoginModal />
+        <Route
+          path="/settings/*"
+          element={
+            <SettingsPage
+              activeNavTab="settings"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/auth"
+          element={
+            <AuthPage
+              onGoHome={() => navigate('/')}
+            />
+          }
+        />
+      </Routes>
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 h-14 flex items-center justify-around md:hidden z-40 shadow-lg">
