@@ -69,18 +69,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
 
       const postPrivacy = privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
       
-      // Upload file directly to media-service for S3 key registration & Quota tracking
       let uploadedUrl = imageUrl.trim();
-      if (selectedFile) {
-        try {
-          const uploadedMedia = await mediaService.uploadMedia(selectedFile, 'posts');
-          if (uploadedMedia && uploadedMedia.fileUrl) {
-            uploadedUrl = uploadedMedia.fileUrl;
-          }
-        } catch (mErr) {
-          console.warn('[CreatePostBox] mediaService upload error, continuing with fallback:', mErr);
-        }
-      }
 
       const files: File[] = selectedFile ? [selectedFile] : [];
       const createdPost = await postService.createPost(fullContent, postPrivacy, files);

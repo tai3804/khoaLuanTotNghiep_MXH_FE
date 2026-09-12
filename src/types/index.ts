@@ -108,14 +108,26 @@ export interface LanguageContextType {
   t: (key: string, fallback?: string) => string;
 }
 
+export interface RegisterData {
+  email: string;
+  password: string;
+  lastName: string;
+  firstName: string;
+  middleName?: string;
+  dateOfBirth: string;
+  gender?: string;
+  registerSessionToken?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
   isGuest: boolean;
   loginModalOpen: boolean;
-  login: (username?: string, password?: string) => Promise<boolean>;
-  register: (username: string, email: string, password?: string, fullName?: string) => Promise<boolean>;
+  login: (username?: string, password?: string) => Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }>;
+  verifyMfaLogin: (mfaToken: string, otpCode: string) => Promise<boolean>;
+  register: (data: RegisterData) => Promise<boolean>;
   loginAsGuest: () => void;
   logout: () => void;
   openLoginModal: () => void;

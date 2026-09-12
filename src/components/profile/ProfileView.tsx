@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
 import { userService, postService } from '../../services/api';
 import { mediaService } from '../../services/mediaService';
 import { MediaGalleryModal } from './MediaGalleryModal';
+import { EditProfileModal } from './EditProfileModal';
 import { Post, UserProfile } from '../../types';
 import { PostCard } from '../post/PostCard';
 import { CreatePostBox } from '../post/CreatePostBox';
@@ -63,13 +65,16 @@ interface ProfileViewProps {
   userId?: string | null;
   onSelectChatUser?: (user: ChatUser) => void;
   onViewProfile?: (userId: string) => void;
+  onNavigateSettings?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   userId,
   onSelectChatUser,
   onViewProfile,
+  onNavigateSettings,
 }) => {
+  const navigate = useNavigate();
   const { user: currentUser, isAuthenticated, refreshUserProfile, updateUser } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
@@ -98,6 +103,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'friends' | 'photos'>('posts');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
+  const [coverError, setCoverError] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Dynamic check once profile is loaded: if profile matches current logged-in user
@@ -116,36 +122,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const isOwnProfile = isOwnProfileInitial || isOwnProfileByData;
   const targetUserId = isOwnProfile ? (currentUser?.id || 'me') : userId;
 
-  // Edit form & Media state
+  // Media state
   const [showMediaGalleryModal, setShowMediaGalleryModal] = useState(false);
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
   const coverInputRef = React.useRef<HTMLInputElement>(null);
-  const modalAvatarRef = React.useRef<HTMLInputElement>(null);
-  const modalCoverRef = React.useRef<HTMLInputElement>(null);
-  const [editFirstName, setEditFirstName] = useState('');
-  const [editLastName, setEditLastName] = useState('');
-  const [editBio, setEditBio] = useState('');
-  const [editAvatarUrl, setEditAvatarUrl] = useState('');
-  const [editCoverUrl, setEditCoverUrl] = useState('');
-  const [editLocation, setEditLocation] = useState('');
-  const [editWebsite, setEditWebsite] = useState('');
-  const [editEducation, setEditEducation] = useState('');
-  const [editGender, setEditGender] = useState('OTHER');
-  const [editDateOfBirth, setEditDateOfBirth] = useState('');
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([
     '🎧 Nghe nhạc',
     '✈️ Du lịch',
     '💻 Lập trình',
   ]);
-  const [isEditingModalBio, setIsEditingModalBio] = useState(false);
-  const [isEditingDetails, setIsEditingDetails] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingHobbies, setIsEditingHobbies] = useState(false);
-  const [showAvatarUrlInput, setShowAvatarUrlInput] = useState(false);
-  const [showCoverUrlInput, setShowCoverUrlInput] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Load saved hobbies
   useEffect(() => {
@@ -161,47 +146,82 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    toast.showInfo('Đang nén & tải ảnh đại diện lên AWS S3...');
+    toast.showInfo('Đang tải ảnh đại diện lên...');
     try {
       const uploaded = await mediaService.uploadMedia(file, 'avatars');
-      const names = (profile?.fullName || currentUser?.fullName || 'User User').split(' ');
-      const fn = profile?.firstName || names.slice(1).join(' ') || 'User';
-      const ln = profile?.lastName || names[0] || 'User';
+      let myProf = profile;
+      if (!myProf || !myProf.firstName) {
+        try {
+          myProf = await userService.getMyProfile();
+        } catch {}
+      }
+      const names = (myProf?.fullName || currentUser?.fullName || 'User User').split(' ');
+      const fn = myProf?.firstName || names.slice(1).join(' ') || 'User';
+      const ln = myProf?.lastName || names[0] || 'User';
 
       const updated = await userService.updateMyProfile({
         firstName: fn,
         lastName: ln,
+        middleName: myProf?.middleName || undefined,
+        bio: myProf?.bio || undefined,
         avatarUrl: uploaded.fileUrl,
+        coverUrl: myProf?.coverUrl || undefined,
+        location: myProf?.location || undefined,
+        website: myProf?.website || undefined,
+        gender: myProf?.gender || 'MALE',
+        dateOfBirth: myProf?.dateOfBirth ? (typeof myProf.dateOfBirth === 'string' ? myProf.dateOfBirth.split('T')[0] : undefined) : undefined,
       });
+
       setProfile(updated);
       if (updateUser) {
         updateUser({ avatar: uploaded.fileUrl });
       }
-      toast.showSuccess('Cập nhật ảnh đại diện trên AWS S3 thành công!');
+      if (refreshUserProfile) refreshUserProfile();
+      toast.showSuccess('Cập nhật ảnh đại diện thành công!');
     } catch (err: any) {
       toast.showError('Tải ảnh đại diện thất bại: ' + (err.response?.data?.message || err.message));
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
   const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    toast.showInfo('Đang nén & tải ảnh bìa lên AWS S3...');
+    toast.showInfo('Đang tải ảnh bìa lên...');
     try {
       const uploaded = await mediaService.uploadMedia(file, 'covers');
-      const names = (profile?.fullName || currentUser?.fullName || 'User User').split(' ');
-      const fn = profile?.firstName || names.slice(1).join(' ') || 'User';
-      const ln = profile?.lastName || names[0] || 'User';
+      let myProf = profile;
+      if (!myProf || !myProf.firstName) {
+        try {
+          myProf = await userService.getMyProfile();
+        } catch {}
+      }
+      const names = (myProf?.fullName || currentUser?.fullName || 'User User').split(' ');
+      const fn = myProf?.firstName || names.slice(1).join(' ') || 'User';
+      const ln = myProf?.lastName || names[0] || 'User';
 
       const updated = await userService.updateMyProfile({
         firstName: fn,
         lastName: ln,
+        middleName: myProf?.middleName || undefined,
+        bio: myProf?.bio || undefined,
+        avatarUrl: myProf?.avatarUrl || undefined,
         coverUrl: uploaded.fileUrl,
+        location: myProf?.location || undefined,
+        website: myProf?.website || undefined,
+        gender: myProf?.gender || 'MALE',
+        dateOfBirth: myProf?.dateOfBirth ? (typeof myProf.dateOfBirth === 'string' ? myProf.dateOfBirth.split('T')[0] : undefined) : undefined,
       });
+
       setProfile(updated);
-      toast.showSuccess('Cập nhật ảnh bìa trên AWS S3 thành công!');
+      setCoverError(false);
+      if (refreshUserProfile) refreshUserProfile();
+      toast.showSuccess('Cập nhật ảnh bìa thành công!');
     } catch (err: any) {
       toast.showError('Tải ảnh bìa thất bại: ' + (err.response?.data?.message || err.message));
+    } finally {
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -234,16 +254,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         if (isMounted && userProf) {
           setProfile(userProf);
           setBioInput(userProf.bio || '');
-          setEditFirstName(userProf.firstName || '');
-          setEditLastName(userProf.lastName || '');
-          setEditBio(userProf.bio || '');
-          setEditAvatarUrl(userProf.avatarUrl || '');
-          setEditCoverUrl(userProf.coverUrl || '');
-          setEditLocation(userProf.location || '');
-          setEditWebsite(userProf.website || '');
-          setEditEducation((userProf as any).education || '');
-          setEditGender(userProf.gender || 'OTHER');
-          setEditDateOfBirth(userProf.dateOfBirth || '');
         }
 
         // Load posts for this profile
@@ -337,88 +347,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  const handleModalAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingAvatar(true);
-    toast.showInfo('Đang tải ảnh đại diện lên AWS S3...');
-    try {
-      const uploaded = await mediaService.uploadMedia(file, 'avatars');
-      setEditAvatarUrl(uploaded.fileUrl);
-      toast.showSuccess('Đã tải ảnh đại diện lên AWS S3!');
-    } catch (err: any) {
-      toast.showError('Tải ảnh đại diện thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
 
-  const handleModalCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploadingCover(true);
-    toast.showInfo('Đang tải ảnh bìa lên AWS S3...');
-    try {
-      const uploaded = await mediaService.uploadMedia(file, 'covers');
-      setEditCoverUrl(uploaded.fileUrl);
-      toast.showSuccess('Đã tải ảnh bìa lên AWS S3!');
-    } catch (err: any) {
-      toast.showError('Tải ảnh bìa thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setIsUploadingCover(false);
-    }
-  };
-
-  const toggleHobby = (hobby: string) => {
-    setSelectedHobbies((prev) =>
-      prev.includes(hobby) ? prev.filter((h) => h !== hobby) : [...prev, hobby]
-    );
-  };
-
-  const handleSaveProfile = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setIsSaving(true);
-    try {
-      const updated = await userService.updateMyProfile({
-        firstName: editFirstName.trim(),
-        lastName: editLastName.trim(),
-        bio: editBio.trim(),
-        avatarUrl: editAvatarUrl.trim(),
-        coverUrl: editCoverUrl.trim(),
-        location: editLocation.trim(),
-        website: editWebsite.trim(),
-        gender: editGender,
-        dateOfBirth: editDateOfBirth || undefined,
-      });
-
-      // Persist hobbies
-      try {
-        const uId = currentUser?.id || 'default';
-        localStorage.setItem(`user_hobbies_${uId}`, JSON.stringify(selectedHobbies));
-      } catch {}
-
-      setProfile((prev) => ({
-        ...(prev || {}),
-        ...updated,
-        education: editEducation.trim() || (prev as any)?.education,
-      }));
-      setShowEditModal(false);
-      const newFullName = `${editLastName.trim()} ${editFirstName.trim()}`.trim();
-      if (updateUser) {
-        updateUser({
-          fullName: newFullName,
-          avatar: editAvatarUrl.trim(),
-          bio: editBio.trim(),
-        });
-      }
-      if (refreshUserProfile) refreshUserProfile();
-      toast.showSuccess('Cập nhật hồ sơ cá nhân thành công!');
-    } catch (err: any) {
-      toast.showError('Cập nhật hồ sơ thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handlePostCreated = (newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -538,7 +467,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     : currentUser?.fullName || 'Người dùng';
 
   const avatarUrl = profile?.avatarUrl || currentUser?.avatar || '';
-  const coverUrl = profile?.coverUrl || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=1600';
+  const coverUrl = profile?.coverUrl || '';
 
   // Extract photos from posts
   const allPostPhotos: string[] = [];
@@ -554,29 +483,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       <div className="bg-white dark:bg-[#242526] shadow-sm border-b border-gray-200 dark:border-[#393a3b] transition-colors">
         <div className="max-w-6xl mx-auto px-0 sm:px-4">
           {/* Cover Container */}
-          <div className="relative h-48 sm:h-72 md:h-80 lg:h-96 w-full rounded-b-none sm:rounded-b-2xl overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700">
-            <img
-              src={coverUrl}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
+          <div className="relative h-48 sm:h-72 md:h-80 lg:h-96 w-full rounded-b-none sm:rounded-b-2xl overflow-hidden bg-gray-200 dark:bg-[#3a3b3c]">
+            {coverUrl && !coverError ? (
+              <img
+                src={coverUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setCoverError(true)}
+              />
+            ) : null}
             {isOwnProfile && (
               <>
                 <input
+                  id="profile-header-cover-input"
                   type="file"
-                  ref={coverInputRef}
                   onChange={handleCoverFileSelect}
                   accept="image/*"
                   className="hidden"
                 />
-                <button
-                  onClick={() => coverInputRef.current?.click()}
-                  className="absolute right-4 bottom-4 bg-white/90 dark:bg-[#242526]/90 hover:bg-white dark:hover:bg-[#3a3b3c] text-gray-800 dark:text-[#e4e6eb] text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl shadow-md backdrop-blur-sm flex items-center space-x-1.5 transition cursor-pointer"
-                  title="Tải ảnh bìa mới lên AWS S3"
+                <label
+                  htmlFor="profile-header-cover-input"
+                  className="absolute right-4 bottom-4 z-20 bg-white/90 dark:bg-[#242526]/90 hover:bg-white dark:hover:bg-[#3a3b3c] text-gray-800 dark:text-[#e4e6eb] text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl shadow-md backdrop-blur-sm flex items-center space-x-1.5 transition cursor-pointer"
+                  title="Chỉnh sửa ảnh bìa"
                 >
                   <Camera className="w-4 h-4" />
-                  <span className="hidden sm:inline">Tải ảnh bìa mới lên S3</span>
-                </button>
+                  <span className="hidden sm:inline">Chỉnh sửa ảnh bìa</span>
+                </label>
               </>
             )}
           </div>
@@ -601,19 +533,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   {isOwnProfile && (
                     <>
                       <input
+                        id="profile-header-avatar-input"
                         type="file"
-                        ref={avatarInputRef}
                         onChange={handleAvatarFileSelect}
                         accept="image/*"
                         className="hidden"
                       />
-                      <button
-                        onClick={() => avatarInputRef.current?.click()}
-                        className="absolute right-1 bottom-1 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] p-2 rounded-full shadow-md text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
-                        title="Đổi avatar lên AWS S3"
+                      <label
+                        htmlFor="profile-header-avatar-input"
+                        className="absolute right-1 bottom-1 z-20 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] p-2 rounded-full shadow-md text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+                        title="Thay đổi ảnh đại diện"
                       >
                         <Camera className="w-4 h-4" />
-                      </button>
+                      </label>
                     </>
                   )}
                 </div>
@@ -1025,7 +957,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div className="pt-4 border-t border-gray-100 dark:border-[#393a3b] flex justify-end">
                 <button
                   onClick={() => setShowEditModal(true)}
-                  className="bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold px-4 py-2 rounded-xl transition"
+                  className="bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
                 >
                   Chỉnh sửa thông tin
                 </button>
@@ -1125,498 +1057,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         )}
       </div>
 
-      {/* 3. Edit Profile Modal (Facebook Authentic Style) */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-gray-200 dark:border-[#393a3b] overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-[#393a3b] shrink-0">
-              <div className="w-9" /> {/* Spacer for optical center balance */}
-              <h3 className="font-extrabold text-lg sm:text-xl text-gray-900 dark:text-[#e4e6eb] text-center flex-1">
-                Chỉnh sửa trang cá nhân
-              </h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer"
-                title="Đóng"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body - Scrollable Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 divide-y divide-gray-200 dark:divide-[#393a3b] text-xs sm:text-sm">
-              
-              {/* SECTION 1: Ảnh đại diện (Profile Picture) */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Ảnh đại diện
-                  </h4>
-                  <input
-                    type="file"
-                    ref={modalAvatarRef}
-                    onChange={handleModalAvatarUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => modalAvatarRef.current?.click()}
-                    disabled={isUploadingAvatar}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isUploadingAvatar ? 'Đang tải...' : 'Chỉnh sửa'}
-                  </button>
-                </div>
-
-                <div className="flex flex-col items-center justify-center">
-                  <div
-                    onClick={() => modalAvatarRef.current?.click()}
-                    className="w-36 h-36 sm:w-40 sm:h-40 rounded-full overflow-hidden ring-4 ring-gray-100 dark:ring-[#3a3b3c] shadow-md relative group cursor-pointer bg-gray-200 dark:bg-[#3a3b3c]"
-                  >
-                    <img
-                      src={editAvatarUrl && editAvatarUrl.trim() !== '' ? editAvatarUrl : '/default-avatar.png'}
-                      alt="Avatar Preview"
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/default-avatar.png';
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition duration-200">
-                      <Camera className="w-6 h-6 mb-1" />
-                      <span className="text-[11px] font-bold">Thay đổi</span>
-                    </div>
-                    {isUploadingAvatar && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
-                        <Loader2 className="w-6 h-6 animate-spin mb-1 text-blue-400" />
-                        <span className="text-[10px] font-semibold">Tải lên S3...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAvatarUrlInput(!showAvatarUrlInput)}
-                    className="mt-2 text-[11px] text-[#1877f2] dark:text-[#4599ff] hover:underline flex items-center space-x-1"
-                  >
-                    <LinkIcon className="w-3 h-3" />
-                    <span>{showAvatarUrlInput ? 'Ẩn nhập link URL' : 'Hoặc dán link URL ảnh'}</span>
-                  </button>
-
-                  {showAvatarUrlInput && (
-                    <div className="w-full max-w-md mt-2">
-                      <input
-                        type="url"
-                        value={editAvatarUrl}
-                        onChange={(e) => setEditAvatarUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full p-2 text-xs rounded-xl border border-gray-300 dark:border-[#393a3b] bg-gray-50 dark:bg-[#3a3b3c] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* SECTION 2: Ảnh bìa (Cover Photo) */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Ảnh bìa
-                  </h4>
-                  <input
-                    type="file"
-                    ref={modalCoverRef}
-                    onChange={handleModalCoverUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => modalCoverRef.current?.click()}
-                    disabled={isUploadingCover}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isUploadingCover ? 'Đang tải...' : 'Chỉnh sửa'}
-                  </button>
-                </div>
-
-                <div className="flex flex-col items-center justify-center">
-                  <div
-                    onClick={() => modalCoverRef.current?.click()}
-                    className="w-full h-36 sm:h-44 rounded-2xl overflow-hidden shadow-sm relative group cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700"
-                  >
-                    <img
-                      src={editCoverUrl && editCoverUrl.trim() !== '' ? editCoverUrl : coverUrl}
-                      alt="Cover Preview"
-                      className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition duration-200">
-                      <Camera className="w-6 h-6 mb-1" />
-                      <span className="text-xs font-bold">Cập nhật ảnh bìa</span>
-                    </div>
-                    {isUploadingCover && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
-                        <Loader2 className="w-6 h-6 animate-spin mb-1 text-blue-400" />
-                        <span className="text-xs font-semibold">Đang tải lên AWS S3...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowCoverUrlInput(!showCoverUrlInput)}
-                    className="mt-2 text-[11px] text-[#1877f2] dark:text-[#4599ff] hover:underline flex items-center space-x-1"
-                  >
-                    <LinkIcon className="w-3 h-3" />
-                    <span>{showCoverUrlInput ? 'Ẩn nhập link URL' : 'Hoặc dán link URL ảnh bìa'}</span>
-                  </button>
-
-                  {showCoverUrlInput && (
-                    <div className="w-full max-w-md mt-2">
-                      <input
-                        type="url"
-                        value={editCoverUrl}
-                        onChange={(e) => setEditCoverUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full p-2 text-xs rounded-xl border border-gray-300 dark:border-[#393a3b] bg-gray-50 dark:bg-[#3a3b3c] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* SECTION 3: Tiểu sử (Bio) */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Tiểu sử
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingModalBio(!isEditingModalBio)}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isEditingModalBio ? 'Đóng' : editBio ? 'Chỉnh sửa' : 'Thêm'}
-                  </button>
-                </div>
-
-                {isEditingModalBio ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editBio}
-                      onChange={(e) => setEditBio(e.target.value.slice(0, 101))}
-                      rows={3}
-                      placeholder="Mô tả về bản thân..."
-                      className="w-full p-3 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-gray-50 dark:bg-[#3a3b3c] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2] text-xs sm:text-sm text-center resize-none"
-                    />
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-[#b0b3b8]">
-                      <div className="flex items-center space-x-1">
-                        <Globe className="w-3.5 h-3.5" />
-                        <span>Công khai</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span>Còn {101 - editBio.length} ký tự</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingModalBio(false)}
-                          className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] font-semibold text-gray-700 dark:text-[#e4e6eb]"
-                        >
-                          Xong
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-2 px-4">
-                    {editBio ? (
-                      <p className="text-gray-800 dark:text-[#e4e6eb] font-medium italic">
-                        "{editBio}"
-                      </p>
-                    ) : (
-                      <p className="text-gray-400 dark:text-[#8a8d91] italic">
-                        Mô tả ngắn gọn về bản thân bạn với mọi người...
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION 4: Chỉnh sửa phần giới thiệu (Customize Details) */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Chỉnh sửa phần giới thiệu
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingDetails(!isEditingDetails)}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isEditingDetails ? 'Thu gọn' : 'Chỉnh sửa'}
-                  </button>
-                </div>
-
-                {isEditingDetails ? (
-                  <div className="space-y-3 bg-gray-50 dark:bg-[#3a3b3c]/40 p-4 rounded-2xl border border-gray-200 dark:border-[#393a3b]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1 flex items-center space-x-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-red-500" />
-                          <span>Tỉnh/Thành phố hiện tại</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={editLocation}
-                          onChange={(e) => setEditLocation(e.target.value)}
-                          placeholder="Ví dụ: TP. Hồ Chí Minh"
-                          className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1 flex items-center space-x-1.5">
-                          <GraduationCap className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Học vấn / Trường học</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={editEducation}
-                          onChange={(e) => setEditEducation(e.target.value)}
-                          placeholder="Ví dụ: Đại học Công nghiệp TP.HCM"
-                          className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1 flex items-center space-x-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Website / Liên kết cá nhân</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={editWebsite}
-                          onChange={(e) => setEditWebsite(e.target.value)}
-                          placeholder="https://..."
-                          className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1 flex items-center space-x-1.5">
-                          <Users className="w-3.5 h-3.5 text-purple-500" />
-                          <span>Giới tính</span>
-                        </label>
-                        <select
-                          value={editGender}
-                          onChange={(e) => setEditGender(e.target.value)}
-                          className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        >
-                          <option value="MALE">Nam</option>
-                          <option value="FEMALE">Nữ</option>
-                          <option value="OTHER">Khác</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1 flex items-center space-x-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-green-500" />
-                        <span>Ngày sinh</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={editDateOfBirth}
-                        onChange={(e) => setEditDateOfBirth(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3 py-1 text-gray-700 dark:text-[#e4e6eb]">
-                    <div className="flex items-center space-x-3">
-                      <GraduationCap className="w-5 h-5 text-gray-400 dark:text-[#8a8d91] shrink-0" />
-                      <span>Học vấn: <b>{editEducation || (profile as any)?.education || 'Chưa thêm thông tin học vấn'}</b></span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <MapPin className="w-5 h-5 text-gray-400 dark:text-[#8a8d91] shrink-0" />
-                      <span>Sống tại <b>{editLocation || 'Chưa cập nhật nơi ở'}</b></span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Briefcase className="w-5 h-5 text-gray-400 dark:text-[#8a8d91] shrink-0" />
-                      <span>Liên kết: <b>{editWebsite || 'Chưa thêm liên kết cá nhân'}</b></span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Calendar className="w-5 h-5 text-gray-400 dark:text-[#8a8d91] shrink-0" />
-                      <span>
-                        Ngày sinh: <b>{editDateOfBirth ? new Date(editDateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</b>
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Users className="w-5 h-5 text-gray-400 dark:text-[#8a8d91] shrink-0" />
-                      <span>
-                        Giới tính: <b>{editGender === 'MALE' ? 'Nam' : editGender === 'FEMALE' ? 'Nữ' : 'Khác'}</b>
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION 5: Sở thích (Hobbies) */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Sở thích
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingHobbies(!isEditingHobbies)}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isEditingHobbies ? 'Xong' : 'Chỉnh sửa'}
-                  </button>
-                </div>
-
-                {isEditingHobbies ? (
-                  <div className="space-y-3 bg-gray-50 dark:bg-[#3a3b3c]/40 p-4 rounded-2xl border border-gray-200 dark:border-[#393a3b]">
-                    <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-                      Chọn những sở thích phản ánh đúng con người bạn:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {AVAILABLE_HOBBIES.map((hobby) => {
-                        const isSelected = selectedHobbies.includes(hobby);
-                        return (
-                          <button
-                            key={hobby}
-                            type="button"
-                            onClick={() => toggleHobby(hobby)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center space-x-1.5 transition cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#1877f2] text-white shadow-sm'
-                                : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
-                            }`}
-                          >
-                            <span>{hobby}</span>
-                            {isSelected && <Check className="w-3.5 h-3.5 ml-1" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 py-1">
-                    {selectedHobbies.length > 0 ? (
-                      selectedHobbies.map((hobby, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-[#1877f2] dark:bg-[#1877f2]/20 dark:text-[#4599ff] border border-blue-200 dark:border-blue-800"
-                        >
-                          {hobby}
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-xs text-gray-400 dark:text-[#8a8d91] italic">
-                        Chưa chọn sở thích nào. Bấm "Chỉnh sửa" để thêm.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION 6: Họ và tên (Name) */}
-              <div className="pt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
-                    Họ và tên
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingName(!isEditingName)}
-                    className="text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-50 dark:hover:bg-[#1877f2]/10 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer text-xs sm:text-sm"
-                  >
-                    {isEditingName ? 'Đóng' : 'Chỉnh sửa'}
-                  </button>
-                </div>
-
-                {isEditingName ? (
-                  <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-[#3a3b3c]/40 p-4 rounded-2xl border border-gray-200 dark:border-[#393a3b]">
-                    <div>
-                      <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1">
-                        Họ & Tên đệm
-                      </label>
-                      <input
-                        type="text"
-                        value={editLastName}
-                        onChange={(e) => setEditLastName(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        placeholder="Nguyễn Văn"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-gray-700 dark:text-[#b0b3b8] block mb-1">
-                        Tên
-                      </label>
-                      <input
-                        type="text"
-                        value={editFirstName}
-                        onChange={(e) => setEditFirstName(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-white dark:bg-[#242526] dark:text-[#e4e6eb] focus:ring-2 focus:ring-[#1877f2]"
-                        placeholder="An"
-                        required
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <p className="font-bold text-sm text-gray-800 dark:text-[#e4e6eb] py-1">
-                    {editLastName} {editFirstName}
-                  </p>
-                )}
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 px-6 border-t border-gray-200 dark:border-[#393a3b] bg-gray-50 dark:bg-[#242526] flex items-center justify-between shrink-0">
-              <span className="text-xs text-gray-500 dark:text-[#b0b3b8] hidden sm:inline">
-                Tất cả thông tin chỉnh sửa sẽ được lưu vào hồ sơ cá nhân của bạn.
-              </span>
-              <div className="flex items-center space-x-2.5 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-gray-200 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-300 dark:hover:bg-[#4e4f50] transition cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveProfile()}
-                  disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-[#1877f2] text-white hover:bg-[#166fe5] shadow-md transition cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Đang lưu...</span>
-                    </>
-                  ) : (
-                    <span>Lưu thay đổi</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Media Gallery & S3 Storage Quota Modal */}
       <MediaGalleryModal
         userId={targetUserId || ''}
         isOpen={showMediaGalleryModal}
         onClose={() => setShowMediaGalleryModal(false)}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        profile={profile}
+        onProfileUpdated={(updated) => {
+          setProfile(updated);
+          setCoverError(false);
+        }}
       />
     </div>
   );

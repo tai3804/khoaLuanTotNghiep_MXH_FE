@@ -97,18 +97,26 @@ export const StoriesBar: React.FC = () => {
           onClick={() => setShowCreateModal(true)}
           className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] transition flex flex-col justify-between"
         >
-          <div className="h-[72%] w-full overflow-hidden bg-gray-100 dark:bg-[#3a3b3c]">
-            <img
-              src={user?.avatar || '/default-avatar.png'}
-              alt={user?.fullName || 'Tạo tin'}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+          {/* Top 72% area with subtle gradient background and distinct circular avatar */}
+          <div className="h-[72%] w-full overflow-hidden bg-gradient-to-b from-blue-500/15 via-indigo-500/10 to-gray-100 dark:from-[#1877f2]/25 dark:via-blue-900/10 dark:to-[#3a3b3c] flex items-center justify-center relative">
+            <div className="w-14 h-14 rounded-full ring-4 ring-white dark:ring-[#242526] shadow-md overflow-hidden bg-gray-200 dark:bg-[#3a3b3c] group-hover:scale-105 transition duration-300">
+              <img
+                src={user?.avatar || '/default-avatar.png'}
+                alt={user?.fullName || 'Tạo tin'}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/default-avatar.png';
+                }}
+              />
+            </div>
           </div>
-          <div className="h-[28%] bg-white dark:bg-[#242526] flex flex-col items-center justify-end pb-2 relative">
-            <div className="w-9 h-9 rounded-full bg-[#1877f2] border-4 border-white dark:border-[#242526] flex items-center justify-center text-white shadow-md absolute -top-4.5 group-hover:bg-[#166fe5] transition">
+
+          {/* Bottom 28% area with Plus icon badge */}
+          <div className="h-[28%] bg-white dark:bg-[#242526] flex flex-col items-center justify-end pb-2.5 relative">
+            <div className="w-9 h-9 rounded-full bg-[#1877f2] border-4 border-white dark:border-[#242526] flex items-center justify-center text-white shadow-md absolute -top-4.5 group-hover:bg-[#166fe5] group-hover:scale-110 transition">
               <Plus className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <span className="text-[12px] font-semibold text-gray-900 dark:text-[#e4e6eb] leading-tight mt-3">
+            <span className="text-[12px] font-semibold text-gray-900 dark:text-[#e4e6eb] leading-tight">
               {t('createStory') || 'Tạo tin'}
             </span>
           </div>
@@ -128,7 +136,7 @@ export const StoriesBar: React.FC = () => {
           const avatarSrc = userStoryItem.avatarUrl || cached?.avatar || '/default-avatar.png';
           const stories = userStoryItem.stories || [];
           const firstStory = stories[0] || {};
-          const bgImage = firstStory.mediaUrl || avatarSrc;
+          const bgImage = firstStory.mediaUrl || null;
 
           return (
             <div
@@ -139,18 +147,26 @@ export const StoriesBar: React.FC = () => {
                 }
                 setSelectedStory({ authorName, avatarSrc, firstStory });
               }}
-              className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-[#3a3b3c] transition border border-gray-200/40 dark:border-transparent"
+              className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-gray-900 transition border border-gray-200/40 dark:border-transparent"
             >
-              {/* Background Story Image */}
-              <img
-                src={bgImage}
-                alt={authorName}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 brightness-90 group-hover:brightness-100"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/default-avatar.png';
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
+              {/* Background Story Image or Colorful Gradient */}
+              {bgImage ? (
+                <img
+                  src={bgImage}
+                  alt={authorName}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 brightness-90 group-hover:brightness-100"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 flex items-center justify-center p-3 text-center">
+                  <span className="text-[11px] font-bold text-white line-clamp-3 leading-snug">
+                    {firstStory.content || 'Tin mới 24h'}
+                  </span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70 pointer-events-none" />
 
               {/* Author Avatar with Story Ring */}
               <div className="absolute top-3 left-3 z-10">
@@ -158,6 +174,9 @@ export const StoriesBar: React.FC = () => {
                   src={avatarSrc}
                   alt={authorName}
                   className="w-9 h-9 rounded-full object-cover ring-4 ring-[#1877f2] shadow-sm"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/default-avatar.png';
+                  }}
                 />
               </div>
 

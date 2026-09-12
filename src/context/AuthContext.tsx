@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, AuthTokens, AuthContextType } from '../types';
+import { User, AuthTokens, AuthContextType, RegisterData } from '../types';
 import { authService, userService } from '../services/api';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,7 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setTokens(null);
       setIsGuest(true);
-      setLoginModalOpen(true);
+      setLoginModalOpen(false);
+      window.dispatchEvent(new Event('navigate_to_auth'));
     };
     window.addEventListener('auth_session_expired', handleExpired);
 
@@ -70,26 +71,149 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (username?: string, password?: string): Promise<boolean> => {
+  // Check if current device has been revoked remotely (heartbeat & focus listener)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkDeviceSession = async () => {
+      const currentFingerprint = localStorage.getItem('deviceFingerprint');
+      if (!currentFingerprint) return;
+
+      try {
+        const devices = await authService.getDevices();
+        if (Array.isArray(devices)) {
+          const currentDev = devices.find((d: any) => d.deviceFingerprint === currentFingerprint);
+          if (currentDev && currentDev.status === 'REVOKED') {
+            console.warn('[AuthContext] Session has been revoked remotely.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            setUser(null);
+            setTokens(null);
+            setIsGuest(true);
+            setLoginModalOpen(false);
+            window.dispatchEvent(new Event('navigate_to_auth'));
+          }
+        }
+      } catch (err: any) {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          setUser(null);
+          setTokens(null);
+          setIsGuest(true);
+          setLoginModalOpen(false);
+          window.dispatchEvent(new Event('navigate_to_auth'));
+        }
+      }
+    };
+
+    // Check session status every 10s
+    const interval = setInterval(checkDeviceSession, 10000);
+
+    // Check on window focus / tab switch / storage change
+    const handleFocus = () => checkDeviceSession();
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'lastRevokedAt' || e.key === 'token') {
+        checkDeviceSession();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [user]);
+
+  const login = async (
+    username?: string,
+    password?: string
+  ): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }> => {
     try {
       const res = await authService.login({ username, password });
       const result = res?.data || res?.result || res;
+
+      // Handle 2FA Required
+      if (result && result.mfaRequired) {
+        return {
+          success: true,
+          mfaRequired: true,
+          mfaToken: result.mfaToken,
+          mfaType: result.mfaType || 'TOTP',
+        };
+      }
+
       if (result && (result.token || result.accessToken)) {
         const accessToken = result.token || result.accessToken;
         const refreshToken = result.refreshToken || '';
         const rawUser = result.user;
-        const fullName = rawUser ? ((rawUser.lastName ? rawUser.lastName + ' ' : '') + (rawUser.firstName || '')) : (username || 'Người dùng');
-        const userData: User = rawUser ? {
-          id: rawUser.id,
-          username: rawUser.email || username,
-          email: rawUser.email || '',
-          fullName: fullName.trim() || 'Người dùng',
-        } : {
-          id: 'u-' + Date.now(),
-          username: username || 'user',
-          email: (username || 'user') + '@example.com',
-          fullName: username || 'Người dùng'
-        };
+        const fullName = rawUser
+          ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
+          : username || 'Người dùng';
+        const userData: User = rawUser
+          ? {
+              id: rawUser.id,
+              username: rawUser.email || username,
+              email: rawUser.email || '',
+              fullName: fullName.trim() || 'Người dùng',
+              avatar: rawUser.avatarUrl || '',
+            }
+          : {
+              id: 'u-' + Date.now(),
+              username: username || 'user',
+              email: (username || 'user') + '@example.com',
+              fullName: username || 'Người dùng',
+            };
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.removeItem('isGuest');
+        setUser(userData);
+        setTokens({ accessToken, refreshToken });
+        setIsGuest(false);
+        setLoginModalOpen(false);
+        refreshUserProfile();
+        return { success: true };
+      }
+      return { success: false };
+    } catch (e) {
+      console.error('Login failed:', e);
+      return { success: false };
+    }
+  };
+
+  const verifyMfaLogin = async (mfaToken: string, otpCode: string): Promise<boolean> => {
+    try {
+      const res = await authService.verifyMfa(mfaToken, otpCode);
+      const result = res?.data || res?.result || res;
+      if (result && (result.accessToken || result.token)) {
+        const accessToken = result.token || result.accessToken;
+        const refreshToken = result.refreshToken || '';
+        const rawUser = result.user;
+        const fullName = rawUser
+          ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
+          : 'Người dùng';
+        const userData: User = rawUser
+          ? {
+              id: rawUser.id,
+              username: rawUser.email || 'user',
+              email: rawUser.email || '',
+              fullName: fullName.trim() || 'Người dùng',
+              avatar: rawUser.avatarUrl || '',
+            }
+          : {
+              id: 'u-' + Date.now(),
+              username: 'user',
+              email: 'user@example.com',
+              fullName: 'Người dùng',
+            };
         localStorage.setItem('token', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userData));
@@ -103,21 +227,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return false;
     } catch (e) {
-      console.error('Login failed:', e);
+      console.error('MFA Login Verification failed:', e);
       return false;
     }
   };
 
-  const register = async (username: string, email: string, password?: string, fullName?: string): Promise<boolean> => {
+  const register = async (data: RegisterData): Promise<boolean> => {
     try {
-      const res = await authService.register({ username, email, password, fullName: fullName || username });
+      const res = await authService.register(data);
       if (res?.code === 200 || res?.code === 1000 || res?.data || res?.result || res?.id) {
-        return await login(email || username, password);
+        const loginRes = await login(data.email, data.password);
+        return loginRes.success;
       }
       return false;
-    } catch (e) {
+    } catch (e: any) {
       console.error('Register failed:', e);
-      return false;
+      throw e;
     }
   };
 
@@ -130,6 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    authService.logout().catch(() => null);
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
@@ -137,9 +263,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setTokens(null);
     setIsGuest(true);
+    setLoginModalOpen(false);
+    window.dispatchEvent(new Event('navigate_to_auth'));
   };
 
-  const openLoginModal = () => setLoginModalOpen(true);
+  const openLoginModal = () => {
+    setLoginModalOpen(false);
+    window.dispatchEvent(new Event('navigate_to_auth'));
+  };
   const closeLoginModal = () => setLoginModalOpen(false);
 
   return (
@@ -151,6 +282,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGuest,
         loginModalOpen,
         login,
+        verifyMfaLogin,
         register,
         loginAsGuest,
         logout,
