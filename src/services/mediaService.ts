@@ -101,4 +101,19 @@ export const mediaService = {
     });
     return res.data?.data || res.data;
   },
+
+  /**
+   * Transforms direct AWS S3 URLs to backend proxy URL if needed
+   */
+  getMediaUrl: (url?: string): string => {
+    if (!url) return '';
+    if (url.startsWith('/')) return url;
+    if (url.includes('s3.amazonaws.com/') || url.includes('.s3.') || url.includes('amazonaws.com')) {
+      const parts = url.split('amazonaws.com/');
+      if (parts.length > 1) {
+        return `http://localhost:8080/api/v1/media/files/${parts[1]}`;
+      }
+    }
+    return url;
+  },
 };
