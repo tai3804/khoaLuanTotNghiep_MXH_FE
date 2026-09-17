@@ -51,30 +51,110 @@ export const normalizePost = (p: any): Post => {
     sharesCount: Number(p.shareCount ?? p.sharesCount ?? 0),
     isLiked: Boolean(p.isLiked),
     privacy: p.privacy || 'PUBLIC',
+    originalPostId: p.originalPostId ? String(p.originalPostId) : undefined,
     comments: p.comments || [],
   };
 };
 
-export const postService = {
-  getFeed: async (page = 1, size = 100): Promise<Post[]> => {
-    try {
-      const res = await api.get('/posts', {
-        params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' },
-      });
-      const raw = Array.isArray(res.data?.data)
-        ? res.data.data
-        : (res.data?.data?.content || res.data?.result || res.data || []);
+export interface PagedPostsResponse {
+  posts: Post[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  nextCursor?: string | null;
+}
 
-      if (Array.isArray(raw) && raw.length > 0) {
-        const authorIds = Array.from(new Set(raw.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
-        Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
-        return raw.map(normalizePost);
+export const postDetailCache: Record<string, Post> = {};
+
+export const postService = {
+  getPostById: async (postId: string): Promise<Post | null> => {
+    if (!postId) return null;
+    if (postDetailCache[postId]) return postDetailCache[postId];
+
+    try {
+      const res = await api.get(`/posts/${postId}`);
+      const data = res.data?.data || res.data?.result || res.data;
+      if (data) {
+        if (data.authorId) {
+          await fetchAuthorProfile(String(data.authorId)).catch(() => {});
+        }
+        const normalized = normalizePost(data);
+        postDetailCache[postId] = normalized;
+        return normalized;
       }
-      return [];
-    } catch (err: any) {
-      console.error('getFeed error:', err);
-      return [];
+      return null;
+    } catch {
+      return null;
     }
+  },
+
+  getFeedPaged: async (page = 1, size = 10, cursor?: string | null): Promise<PagedPostsResponse> => {
+    try {
+      const params: Record<string, any> = {
+        page,
+        size,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+      };
+      if (cursor) {
+        params.cursor = cursor;
+      }
+
+      const res = await api.get('/posts', { params });
+      const rawData = res.data;
+      const rawPosts = Array.isArray(rawData?.data)
+        ? rawData.data
+        : (rawData?.data?.content || rawData?.result || rawData?.content || []);
+
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        const authorIds = Array.from(
+          new Set(rawPosts.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
+        ) as string[];
+        if (authorIds.length > 0) {
+          Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+        }
+      }
+
+      const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
+
+      let nextCursor: string | null = null;
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        const lastRaw = rawPosts[rawPosts.length - 1];
+        if (lastRaw?.createdAt) {
+          nextCursor = lastRaw.createdAt;
+        }
+      }
+
+      const isLast = rawData?.last !== undefined ? Boolean(rawData.last) : (posts.length < size);
+
+      return {
+        posts,
+        page: rawData?.page ?? page,
+        size: rawData?.size ?? size,
+        totalElements: rawData?.totalElements ?? posts.length,
+        totalPages: rawData?.totalPages ?? 1,
+        last: isLast,
+        nextCursor,
+      };
+    } catch (err: any) {
+      console.error('getFeedPaged error:', err);
+      return {
+        posts: [],
+        page,
+        size,
+        totalElements: 0,
+        totalPages: 0,
+        last: true,
+        nextCursor: null,
+      };
+    }
+  },
+
+  getFeed: async (page = 1, size = 10): Promise<Post[]> => {
+    const res = await postService.getFeedPaged(page, size);
+    return res.posts;
   },
 
   getAllPosts: async (page = 1, size = 100): Promise<Post[]> => {
@@ -318,5 +398,11 @@ export const postService = {
     } catch {
       return [];
     }
+  },
+
+  sharePost: async (postId: string, caption?: string, privacy = 'PUBLIC') => {
+    const res = await api.post(`/posts/${postId}/share`, { caption, privacy });
+    const raw = res.data?.data || res.data?.result || res.data;
+    return normalizePost(raw);
   },
 };

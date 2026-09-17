@@ -207,8 +207,49 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             </p>
           )}
 
+          {/* Shared Post Container */}
+          {(post.sharedPost || post.originalPostId) && (
+            <div className="my-2 rounded-2xl border border-gray-200 dark:border-[#3e4042] bg-gray-50/50 dark:bg-[#18191a]/40 overflow-hidden">
+              {post.sharedPost ? (
+                <div className="space-y-2.5 p-3">
+                  <div className="flex items-center space-x-2.5">
+                    <UserAvatar src={post.sharedPost.authorAvatar} alt={post.sharedPost.authorName} size="sm" />
+                    <div>
+                      <div className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb]">
+                        {post.sharedPost.authorName}
+                      </div>
+                      <div className="text-[10px] text-gray-500 dark:text-[#b0b3b8]">
+                        {post.sharedPost.createdAt}
+                      </div>
+                    </div>
+                  </div>
+
+                  {post.sharedPost.content && (
+                    <p className="text-xs sm:text-sm text-gray-800 dark:text-[#d0d2d6] whitespace-pre-line">
+                      {post.sharedPost.content}
+                    </p>
+                  )}
+
+                  {post.sharedPost.mediaUrls && post.sharedPost.mediaUrls.length > 0 && (
+                    <div className="rounded-xl overflow-hidden border border-gray-100 dark:border-[#393a3b] mt-2">
+                      <img
+                        src={post.sharedPost.mediaUrls[0]}
+                        alt="Shared media"
+                        className="w-full max-h-64 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3 text-center text-xs text-gray-400">
+                  {language === 'en' ? 'Shared post' : 'Bài viết được chia sẻ'}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Post Media / Images */}
-          {post.mediaUrls && post.mediaUrls.length > 0 && (
+          {!post.originalPostId && post.mediaUrls && post.mediaUrls.length > 0 && (
             <div className="rounded-xl overflow-hidden bg-black/5 dark:bg-black/30 my-2">
               {post.mediaUrls.length === 1 ? (
                 <img src={post.mediaUrls[0]} alt="Media" className="w-full max-h-[450px] object-cover" />

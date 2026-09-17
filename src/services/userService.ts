@@ -106,23 +106,23 @@ export const userService = {
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
 
-        return data
-          .map((c: any) => {
-            const isCurrentRequester = String(c.requesterId).toLowerCase() === currentUserId;
-            const fid = String(isCurrentRequester ? c.targetId : c.requesterId);
-            const profile = authorProfileCache[fid];
-            return {
-              id: fid,
-              connectionId: String(c.id),
-              userId: fid,
-              name: profile?.name || c.name || 'Thành viên KLTN',
-              avatar: profile?.avatar || c.avatar || '/default-avatar.png',
-              online: true,
-              status: c.status || 'ACCEPTED',
-              createdAt: c.createdAt,
-            };
-          })
-          .filter((f: any) => String(f.userId).toLowerCase() !== currentUserId);
+        return friendIds.map((fid) => {
+          const c = data.find((item: any) =>
+            String(item.requesterId).toLowerCase() === fid.toLowerCase() ||
+            String(item.targetId).toLowerCase() === fid.toLowerCase()
+          );
+          const profile = authorProfileCache[fid];
+          return {
+            id: fid,
+            connectionId: String(c?.id || fid),
+            userId: fid,
+            name: profile?.name || c?.name || 'Thành viên KLTN',
+            avatar: profile?.avatar || c?.avatar || '/default-avatar.png',
+            online: true,
+            status: c?.status || 'ACCEPTED',
+            createdAt: c?.createdAt,
+          };
+        });
       }
       return [];
     } catch {
@@ -153,23 +153,23 @@ export const userService = {
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
 
-        return data
-          .map((c: any) => {
-            const isTargetRequester = String(c.requesterId).toLowerCase() === targetLower;
-            const fid = String(isTargetRequester ? c.targetId : c.requesterId);
-            const profile = authorProfileCache[fid];
-            return {
-              id: fid,
-              connectionId: String(c.id),
-              userId: fid,
-              name: profile?.name || c.name || 'Thành viên KLTN',
-              avatar: profile?.avatar || c.avatar || '/default-avatar.png',
-              online: true,
-              status: c.status || 'ACCEPTED',
-              createdAt: c.createdAt,
-            };
-          })
-          .filter((f: any) => String(f.userId).toLowerCase() !== targetLower);
+        return friendIds.map((fid) => {
+          const c = data.find((item: any) =>
+            String(item.requesterId).toLowerCase() === fid.toLowerCase() ||
+            String(item.targetId).toLowerCase() === fid.toLowerCase()
+          );
+          const profile = authorProfileCache[fid];
+          return {
+            id: fid,
+            connectionId: String(c?.id || fid),
+            userId: fid,
+            name: profile?.name || c?.name || 'Thành viên KLTN',
+            avatar: profile?.avatar || c?.avatar || '/default-avatar.png',
+            online: true,
+            status: c?.status || 'ACCEPTED',
+            createdAt: c?.createdAt,
+          };
+        });
       }
       return [];
     } catch {

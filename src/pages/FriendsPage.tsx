@@ -39,7 +39,12 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
         />
       </div>
       {activeChatUser && (
-        <ChatBox friend={activeChatUser} onClose={() => setActiveChatUser(null)} />
+        <ChatBox
+          key={activeChatUser.userId || activeChatUser.id}
+          friend={activeChatUser}
+          onClose={() => setActiveChatUser(null)}
+          onNavigateProfile={onNavigateProfile}
+        />
       )}
     </div>
   );

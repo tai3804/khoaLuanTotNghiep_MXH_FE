@@ -24,7 +24,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useNotification } from '../../context/NotificationContext';
 import { NotificationDropdown } from '../notification/NotificationDropdown';
 import { ChatUser } from '../chat/ChatBox';
-import { userService, postService } from '../../services/api';
+import { userService, postService, chatService, authorProfileCache, fetchAuthorProfile } from '../../services/api';
 
 
 interface HeaderProps {
@@ -136,19 +136,190 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, [isAuthenticated]);
 
+  const formatRelativeChatTime = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (isNaN(diffSec) || diffSec < 0) return '';
+    if (diffSec < 60) return 'Vừa xong';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}p`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 7) return `${diffDay}d`;
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  };
+
   useEffect(() => {
-    if (showMsgMenu && isAuthenticated) {
+    if (!showMsgMenu || !isAuthenticated) return;
+
+    let isMounted = true;
+    const loadChats = async () => {
       setLoadingChatContacts(true);
-      userService
-        .getFriends()
-        .then((friends) => {
-          setChatContacts(Array.isArray(friends) ? friends : []);
+      try {
+        const [friends, rawConvs] = await Promise.all([
+          userService.getFriends().catch(() => []),
+          chatService.getConversations().catch(() => []),
+        ]);
+
+        if (!isMounted) return;
+
+        const friendsList = Array.isArray(friends) ? friends : [];
+        const convsList = Array.isArray(rawConvs) ? rawConvs : [];
+
+        // Fetch batch presence for all friends [UC-CH06]
+        const friendIds = friendsList.map((f: any) => f.userId || f.id).filter(Boolean);
+        let presenceMap: Record<string, any> = {};
+        if (friendIds.length > 0) {
+          try {
+            presenceMap = await chatService.getBatchPresence(friendIds);
+          } catch {}
+        }
+
+        // Fetch any missing author profiles for conversations with users not in friends list
+        const missingIds = convsList
+          .map((c: any) => c.otherParticipantId)
+          .filter(
+            (id: any) =>
+              id &&
+              !friendsList.some(
+                (f: any) => String(f.userId || f.id).toLowerCase() === String(id).toLowerCase()
+              ) &&
+              !authorProfileCache[id]
+          );
+
+        if (missingIds.length > 0) {
+          await Promise.all(missingIds.map((id: string) => fetchAuthorProfile(id).catch(() => null)));
+        }
+
+        if (!isMounted) return;
+
+        // Group conversations by target user ID to prevent duplicates
+        const conversationMap = new Map<string, any>();
+        for (const c of convsList) {
+          const targetId = c.otherParticipantId || c.conversationId;
+          if (!targetId) continue;
+          const key = String(targetId).toLowerCase();
+          if (!conversationMap.has(key)) {
+            conversationMap.set(key, c);
+          } else {
+            const existing = conversationMap.get(key);
+            const existingTime = existing.lastMessageAt ? new Date(existing.lastMessageAt).getTime() : 0;
+            const currentTime = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0;
+            if (currentTime > existingTime) {
+              conversationMap.set(key, c);
+            }
+          }
+        }
+
+        const convContacts: ChatUser[] = Array.from(conversationMap.values()).map((c: any) => {
+          const otherId = c.otherParticipantId;
+          const friend = otherId
+            ? friendsList.find(
+                (f: any) => String(f.userId || f.id).toLowerCase() === String(otherId).toLowerCase()
+              )
+            : null;
+          const cachedProfile = otherId ? authorProfileCache[otherId] : null;
+          const otherPresence = otherId ? presenceMap[otherId] : null;
+          const isUserOnline =
+            c.isOnline !== undefined && c.isOnline !== null
+              ? Boolean(c.isOnline)
+              : otherPresence
+              ? Boolean(otherPresence.online)
+              : friend
+              ? (friend.online ?? false)
+              : false;
+
+          return {
+            id: otherId || c.conversationId,
+            userId: otherId,
+            conversationId: c.conversationId,
+            name: friend?.name || cachedProfile?.name || c.name || 'Người dùng',
+            avatar: friend?.avatar || cachedProfile?.avatar || c.avatarUrl || '/default-avatar.png',
+            online: isUserOnline,
+            lastActiveAt: c.otherLastActiveAt || otherPresence?.lastActiveAt || null,
+            lastMessage: c.lastMessageContent || '',
+            lastMessageAt: c.lastMessageAt || null,
+            lastMessageSenderId: c.lastMessageSenderId || null,
+            unreadCount: Number(c.unreadCount) || 0,
+          };
+        });
+
+        // Add any friends who don't have conversation records yet
+        const existingTargetKeys = new Set(
+          convContacts.map((c) => String(c.userId || c.id).toLowerCase())
+        );
+
+        const friendContacts: ChatUser[] = friendsList
+          .filter((f: any) => !existingTargetKeys.has(String(f.userId || f.id).toLowerCase()))
+          .map((f: any) => {
+            const fId = f.id || f.userId;
+            const presence = fId ? presenceMap[fId] : null;
+            return {
+              id: fId,
+              userId: f.userId || f.id,
+              name: f.name,
+              avatar: f.avatar,
+              online: presence ? Boolean(presence.online) : (f.online ?? false),
+              lastActiveAt: presence?.lastActiveAt || null,
+              lastMessage: '',
+              lastMessageAt: null,
+              lastMessageSenderId: null,
+              unreadCount: 0,
+            };
+          });
+
+        // Sort: latest message conversations first, then others
+        const combined = [...convContacts, ...friendContacts].sort((a, b) => {
+          if (a.lastMessageAt && b.lastMessageAt) {
+            return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+          }
+          if (a.lastMessageAt) return -1;
+          if (b.lastMessageAt) return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
+        setChatContacts(combined);
+      } catch {
+        // preserve previous state
+      } finally {
+        if (isMounted) setLoadingChatContacts(false);
+      }
+    };
+
+    loadChats();
+
+    const handleChatUpdated = () => loadChats();
+    const handlePresence = (e: any) => {
+      const detail = e.detail;
+      if (!detail || !detail.userId) return;
+      setChatContacts((prev) =>
+        prev.map((c) => {
+          const cId = c.userId || c.id;
+          if (cId && String(cId).toLowerCase() === String(detail.userId).toLowerCase()) {
+            return {
+              ...c,
+              online: Boolean(detail.online),
+              lastActiveAt: detail.lastActiveAt || c.lastActiveAt,
+            };
+          }
+          return c;
         })
-        .catch(() => {
-          setChatContacts([]);
-        })
-        .finally(() => setLoadingChatContacts(false));
-    }
+      );
+    };
+
+    window.addEventListener('chat_conversation_updated', handleChatUpdated);
+    window.addEventListener('friend_status_updated', handleChatUpdated);
+    window.addEventListener('user_presence_updated', handlePresence);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('chat_conversation_updated', handleChatUpdated);
+      window.removeEventListener('friend_status_updated', handleChatUpdated);
+      window.removeEventListener('user_presence_updated', handlePresence);
+    };
   }, [showMsgMenu, isAuthenticated]);
 
   const handleNavClick = (tab: string) => {
@@ -380,33 +551,88 @@ export const Header: React.FC<HeaderProps> = ({
                     ) : (
                       chatContacts
                         .filter(c => !msgSearch || c.name.toLowerCase().includes(msgSearch.toLowerCase()))
-                        .map((contact) => (
-                          <div
-                            key={contact.id}
-                            onClick={() => {
-                              if (onSelectChatUser) {
-                                onSelectChatUser({
-                                  ...contact,
-                                  id: contact.userId || contact.id,
-                                  userId: contact.userId || contact.id,
-                                });
-                              }
-                              setShowMsgMenu(false);
-                            }}
-                            className="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-slate-700/60 rounded-xl cursor-pointer transition group"
-                          >
-                            <div className="relative shrink-0">
-                              <UserAvatar src={contact.avatar} alt={contact.name} size="md" />
-                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-bold text-xs text-gray-900 dark:text-slate-100 truncate group-hover:text-blue-600 transition">
-                                {contact.name}
+                        .map((contact) => {
+                          const currentUserId = user?.id || (user as any)?.userId;
+                          const isSentByMe =
+                            contact.lastMessageSenderId &&
+                            currentUserId &&
+                            String(contact.lastMessageSenderId).toLowerCase() === String(currentUserId).toLowerCase();
+                          const isUnread = Boolean(contact.unreadCount && contact.unreadCount > 0);
+
+                          return (
+                            <div
+                              key={contact.id}
+                              onClick={() => {
+                                if (onSelectChatUser) {
+                                  onSelectChatUser({
+                                    ...contact,
+                                    id: contact.userId || contact.id,
+                                    userId: contact.userId || contact.id,
+                                  });
+                                }
+                                setShowMsgMenu(false);
+                              }}
+                              className={`flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition group ${
+                                isUnread ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
+                              }`}
+                            >
+                              <div className="relative shrink-0">
+                                <UserAvatar src={contact.avatar} alt={contact.name} size="md" />
+                                {contact.online && (
+                                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#242526] rounded-full shadow-sm" />
+                                )}
                               </div>
-                              <div className="text-[11px] text-gray-400 truncate">{t('messenger.clickToChat')}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <div
+                                    className={`text-xs truncate transition ${
+                                      isUnread
+                                        ? 'font-bold text-gray-900 dark:text-[#e4e6eb]'
+                                        : 'font-semibold text-gray-800 dark:text-[#e4e6eb] group-hover:text-blue-500'
+                                    }`}
+                                  >
+                                    {contact.name}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
+                                  {contact.lastMessage ? (
+                                    <>
+                                      <span
+                                        className={`truncate ${
+                                          isUnread ? 'font-bold text-gray-900 dark:text-[#e4e6eb]' : ''
+                                        }`}
+                                      >
+                                        {isSentByMe ? 'Bạn: ' : ''}
+                                        {contact.lastMessage}
+                                      </span>
+                                      {contact.lastMessageAt && (
+                                        <>
+                                          <span className="shrink-0 text-[10px] text-gray-400">·</span>
+                                          <span
+                                            className={`shrink-0 text-[11px] ${
+                                              isUnread
+                                                ? 'font-bold text-blue-600 dark:text-blue-400'
+                                                : 'text-gray-400 dark:text-[#8a8d91]'
+                                            }`}
+                                          >
+                                            {formatRelativeChatTime(contact.lastMessageAt)}
+                                          </span>
+                                        </>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-[11px] text-gray-400 dark:text-[#8a8d91] truncate">
+                                      {t('messenger.clickToChat')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {isUnread && (
+                                <span className="w-2.5 h-2.5 bg-[#2d88ff] rounded-full shrink-0 animate-pulse" />
+                              )}
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                     )}
                   </div>
                 </div>

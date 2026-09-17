@@ -87,6 +87,8 @@ export interface Post {
   isLiked?: boolean;
   isSaved?: boolean;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
+  originalPostId?: string;
+  sharedPost?: Post;
   comments?: Comment[];
 }
 

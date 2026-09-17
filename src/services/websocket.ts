@@ -11,11 +11,18 @@ export interface ChatMessagePayload {
   createdAt?: string;
 }
 
+export interface UserPresencePayload {
+  userId: string;
+  online: boolean;
+  lastActiveAt?: string | null;
+}
+
 class WebSocketService {
   private client: Client | null = null;
   private connected: boolean = false;
   private subscriptions: Map<string, StompSubscription> = new Map();
   private messageCallbacks: Map<string, Set<(msg: ChatMessagePayload) => void>> = new Map();
+  private presenceCallbacks: Set<(presence: UserPresencePayload) => void> = new Set();
   private connectionPromise: Promise<boolean> | null = null;
 
   constructor() {
@@ -37,8 +44,8 @@ class WebSocketService {
     }
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
-      // Try direct chat-service port 8087 first, fallback to gateway 8080
-      const wsUrl = 'http://localhost:8087/ws-chat';
+      // Direct chat-service port 8087 or gateway 8080
+      const wsUrl = import.meta.env.VITE_CHAT_WS_URL || 'http://localhost:8087/ws-chat';
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),
@@ -59,6 +66,9 @@ class WebSocketService {
           console.log('[WebSocket] Connected successfully to chat broker via STOMP.');
           this.connected = true;
           this.connectionPromise = null;
+
+          // Subscribe to presence topic
+          this.subscribePresenceTopic();
 
           // Re-subscribe any pending topic subscriptions
           this.resubscribeAll();
@@ -154,10 +164,43 @@ class WebSocketService {
 
   private resubscribeAll() {
     this.subscriptions.clear();
+    this.subscribePresenceTopic();
     for (const [conversationId] of this.messageCallbacks.entries()) {
       const topic = `/topic/conversations/${conversationId}`;
       this.createSubscription(conversationId, topic);
     }
+  }
+
+  private subscribePresenceTopic() {
+    if (!this.client || !this.client.connected) return;
+    const topic = '/topic/presence';
+    if (this.subscriptions.has(topic)) return;
+
+    try {
+      const sub = this.client.subscribe(topic, (frame: IMessage) => {
+        try {
+          const payload: UserPresencePayload = JSON.parse(frame.body);
+          this.presenceCallbacks.forEach((cb) => cb(payload));
+          // Broadcast to global window event for components to listen easily
+          window.dispatchEvent(new CustomEvent('user_presence_updated', { detail: payload }));
+        } catch (e) {
+          console.error('[WebSocket] Error parsing presence payload:', e);
+        }
+      });
+      this.subscriptions.set(topic, sub);
+    } catch (e) {
+      console.error('[WebSocket] Failed to subscribe to presence topic:', e);
+    }
+  }
+
+  public async subscribeToPresence(callback: (presence: UserPresencePayload) => void): Promise<() => void> {
+    this.presenceCallbacks.add(callback);
+    await this.connect();
+    this.subscribePresenceTopic();
+
+    return () => {
+      this.presenceCallbacks.delete(callback);
+    };
   }
 
   public sendMessage(conversationId: string, content: string): boolean {

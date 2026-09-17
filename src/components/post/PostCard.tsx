@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
@@ -6,6 +6,7 @@ import { Post, Comment } from '../../types';
 import { UserAvatar } from '../common/UserAvatar';
 import { postService, fetchAuthorProfile } from '../../services/api';
 import { CommentModal } from './CommentModal';
+import { ShareModal } from './ShareModal';
 import {
   MessageCircle,
   Share2,
@@ -39,6 +40,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   const [sharesCount, setSharesCount] = useState<number>(post.sharesCount ?? 0);
   const [reaction, setReaction] = useState<string>('👍');
   const [activeReactions, setActiveReactions] = useState<string[]>([]);
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({});
   const [showReactionsMenu, setShowReactionsMenu] = useState<boolean>(false);
   const [saved, setSaved] = useState<boolean>(false);
   const [comments, setComments] = useState<Comment[]>(post.comments || []);
@@ -48,11 +50,48 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
 
   const [authorName, setAuthorName] = useState<string>(
     post.authorName && post.authorName !== 'Thành viên KLTN' ? post.authorName : ''
   );
   const [authorAvatar, setAuthorAvatar] = useState<string>(post.authorAvatar || '');
+
+  const [originalPost, setOriginalPost] = useState<Post | null>(post.sharedPost || null);
+  const [loadingOriginalPost, setLoadingOriginalPost] = useState<boolean>(
+    !post.sharedPost && Boolean(post.originalPostId)
+  );
+
+  useEffect(() => {
+    if (post.sharedPost) {
+      setOriginalPost(post.sharedPost);
+      setLoadingOriginalPost(false);
+      return;
+    }
+    if (!post.originalPostId) {
+      setOriginalPost(null);
+      setLoadingOriginalPost(false);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingOriginalPost(true);
+    postService
+      .getPostById(post.originalPostId)
+      .then((orig) => {
+        if (isMounted && orig) {
+          setOriginalPost(orig);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setLoadingOriginalPost(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [post.originalPostId, post.sharedPost]);
 
   useEffect(() => {
     setLikesCount(post.likesCount ?? 0);
@@ -136,23 +175,35 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       postService
         .getReactions(post.id)
         .then((reactions) => {
+          const counts: Record<string, number> = {};
           if (Array.isArray(reactions) && reactions.length > 0) {
-            const types = Array.from(
-              new Set(reactions.map((r: any) => reactionTypeToEmoji[r.type] || '👍'))
-            );
-            setActiveReactions(types);
+            reactions.forEach((r: any) => {
+              const emoji = reactionTypeToEmoji[r.type] || '👍';
+              counts[emoji] = (counts[emoji] || 0) + 1;
+            });
+            setReactionCounts(counts);
+
+            const sorted = Object.entries(counts)
+              .filter(([_, count]) => count > 0)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([emoji]) => emoji);
+            setActiveReactions(sorted);
+            setLikesCount((prev) => Math.max(prev, reactions.length));
           } else {
+            setReactionCounts({});
             setActiveReactions([]);
           }
-          const myReaction = reactions.find(
-            (r: any) => String(r.userId || r.authorId) === String(user?.id)
-          );
+
+          const myReaction = Array.isArray(reactions)
+            ? reactions.find((r: any) => String(r.userId || r.authorId) === String(user?.id))
+            : undefined;
+
           if (myReaction) {
             setLiked(true);
             const emoji = reactionTypeToEmoji[myReaction.type] || '👍';
             setReaction(emoji);
             setStoredReaction(post.id, true, emoji, user?.id);
-            setActiveReactions((prev) => Array.from(new Set([...prev, emoji])));
           } else {
             setLiked(false);
             setStoredReaction(post.id, false, '👍', user?.id);
@@ -213,11 +264,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     setLiked(nextLiked);
     setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
     setStoredReaction(post.id, nextLiked, reaction, user?.id);
-    if (nextLiked) {
-      setActiveReactions((prev) => Array.from(new Set([...prev, reaction])));
-    } else {
-      setActiveReactions((prev) => prev.filter((r) => r !== reaction));
-    }
+
+    setReactionCounts((prev) => {
+      const updated = { ...prev };
+      if (nextLiked) {
+        updated[reaction] = (updated[reaction] || 0) + 1;
+      } else {
+        updated[reaction] = Math.max(0, (updated[reaction] || 0) - 1);
+        if (updated[reaction] === 0) delete updated[reaction];
+      }
+      return updated;
+    });
+
     const type = reactionsMap[reaction] || 'LIKE';
     try {
       if (nextLiked) {
@@ -236,17 +294,44 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       return;
     }
     const prevReaction = reaction;
-    setReaction(reactEmoji);
+    const wasLiked = liked;
     setShowReactionsMenu(false);
-    if (!liked) {
-      setLiked(true);
+
+    // If clicked same reaction while liked -> toggle off (unlike)
+    if (wasLiked && prevReaction === reactEmoji) {
+      setLiked(false);
+      setLikesCount((prev) => Math.max(0, prev - 1));
+      setStoredReaction(post.id, false, '👍', user?.id);
+      setReactionCounts((prev) => {
+        const updated = { ...prev };
+        updated[reactEmoji] = Math.max(0, (updated[reactEmoji] || 0) - 1);
+        if (updated[reactEmoji] === 0) delete updated[reactEmoji];
+        return updated;
+      });
+      try {
+        await postService.removeReaction(post.id, reactionsMap[reactEmoji] || 'LIKE');
+      } catch {}
+      return;
+    }
+
+    // Otherwise change or add reaction
+    setReaction(reactEmoji);
+    setLiked(true);
+    if (!wasLiked) {
       setLikesCount((prev) => prev + 1);
     }
     setStoredReaction(post.id, true, reactEmoji, user?.id);
-    setActiveReactions((prev) => {
-      const filtered = prev.filter((r) => r !== prevReaction);
-      return Array.from(new Set([...filtered, reactEmoji]));
+
+    setReactionCounts((prev) => {
+      const updated = { ...prev };
+      if (wasLiked && prevReaction) {
+        updated[prevReaction] = Math.max(0, (updated[prevReaction] || 0) - 1);
+        if (updated[prevReaction] === 0) delete updated[prevReaction];
+      }
+      updated[reactEmoji] = (updated[reactEmoji] || 0) + 1;
+      return updated;
     });
+
     const type = reactionsMap[reactEmoji] || 'LIKE';
     try {
       await postService.reactPost(post.id, type);
@@ -306,24 +391,45 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
   };
 
   const handleSharePost = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setSharesCount((prev) => prev + 1);
-    toast.showSuccess(language === 'en' ? 'Post link copied to clipboard!' : 'Đã sao chép liên kết bài viết!');
-    setTimeout(() => setCopied(false), 2000);
     setShowOptionsMenu(false);
+    setShowShareModal(true);
+  };
+
+  const handleShareSuccess = () => {
+    setSharesCount((prev) => prev + 1);
+    window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
   };
 
   if (isDeleting) {
     return null;
   }
 
-  // Top reaction icons display: only show reactions that actually exist
-  const topReactionIcons = activeReactions.length > 0
-    ? activeReactions.slice(0, 3)
-    : liked
-    ? [reaction]
-    : ['👍'];
+  // Top reaction icons display: ALWAYS sorted descending by count, max 3 types
+  const topReactionIcons = useMemo(() => {
+    const sorted = Object.entries(reactionCounts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]) // Most frequent reactions FIRST!
+      .slice(0, 3) // Maximum 3 reaction types!
+      .map(([emoji]) => emoji);
+
+    if (sorted.length > 0) {
+      return sorted;
+    }
+
+    if (activeReactions.length > 0) {
+      return activeReactions.slice(0, 3);
+    }
+
+    if (liked) {
+      return [reaction];
+    }
+
+    if (likesCount > 0) {
+      return ['👍'];
+    }
+
+    return [];
+  }, [reactionCounts, activeReactions, liked, reaction, likesCount]);
 
   const rootComments = comments.filter((c) => !c.parentCommentId);
   const displayedComments = rootComments.slice(-3);
@@ -353,6 +459,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
               className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer leading-tight"
             >
               {authorName || post.authorName || 'Thành viên'}
+              {post.originalPostId && (
+                <span className="font-normal text-gray-500 dark:text-[#b0b3b8] text-xs ml-1.5">
+                  {language === 'en' ? 'shared a post' : 'đã chia sẻ một bài viết'}
+                </span>
+              )}
             </h4>
             <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
               <span>{post.createdAt || 'Vừa xong'}</span>
@@ -423,8 +534,88 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         </div>
       )}
 
-      {/* Media Image Grid Gallery */}
-      {post.mediaUrls && post.mediaUrls.length > 0 && (
+      {/* Shared Post Container */}
+      {post.originalPostId && (
+        <div className="mx-4 mb-3 rounded-2xl border border-gray-200 dark:border-[#3e4042] bg-gray-50/50 dark:bg-[#242526]/50 overflow-hidden hover:border-gray-300 dark:hover:border-[#4e4f50] transition shadow-xs">
+          {loadingOriginalPost ? (
+            <div className="p-4 flex items-center space-x-3 animate-pulse">
+              <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-2.5 w-1/4 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            </div>
+          ) : originalPost ? (
+            <div className="space-y-2.5">
+              {/* Original Author Header */}
+              <div className="p-3 pb-0 flex items-center space-x-2.5">
+                <div
+                  onClick={() => onViewProfile && onViewProfile(originalPost.userId)}
+                  className="cursor-pointer hover:opacity-90 transition shrink-0"
+                >
+                  <UserAvatar src={originalPost.authorAvatar} alt={originalPost.authorName} size="sm" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div
+                    onClick={() => onViewProfile && onViewProfile(originalPost.userId)}
+                    className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] hover:underline cursor-pointer truncate"
+                  >
+                    {originalPost.authorName}
+                  </div>
+                  <div className="flex items-center space-x-1 text-[11px] text-gray-500 dark:text-[#b0b3b8]">
+                    <span>{originalPost.createdAt}</span>
+                    <span>·</span>
+                    <Globe className="w-3 h-3" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Original Post Content */}
+              {originalPost.content && (
+                <div className="px-3 text-xs sm:text-sm text-gray-800 dark:text-[#d0d2d6] whitespace-pre-line leading-relaxed">
+                  {originalPost.content}
+                </div>
+              )}
+
+              {/* Original Post Media */}
+              {originalPost.mediaUrls && originalPost.mediaUrls.length > 0 && (
+                <div
+                  className="w-full overflow-hidden border-t border-gray-100 dark:border-[#393a3b] bg-black/5 dark:bg-black/20 cursor-pointer"
+                  onClick={() => setShowCommentModal(true)}
+                >
+                  {originalPost.mediaUrls.length === 1 ? (
+                    <img
+                      src={originalPost.mediaUrls[0]}
+                      alt="Original post media"
+                      className="w-full max-h-[420px] object-cover hover:opacity-95 transition"
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-0.5">
+                      {originalPost.mediaUrls.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Original media ${i}`}
+                          className="w-full h-48 sm:h-56 object-cover hover:opacity-95 transition"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-xs text-gray-400 dark:text-[#b0b3b8]">
+              {language === 'en'
+                ? 'This shared content is currently unavailable or has been removed.'
+                : 'Nội dung được chia sẻ này hiện không khả dụng hoặc bài viết gốc đã bị xóa.'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Media Image Grid Gallery (for direct post media) */}
+      {!post.originalPostId && post.mediaUrls && post.mediaUrls.length > 0 && (
         <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden cursor-pointer" onClick={() => setShowCommentModal(true)}>
           {post.mediaUrls.length === 1 ? (
             <img src={post.mediaUrls[0]} alt="Post media" className="w-full max-h-[550px] object-cover hover:opacity-95 transition" />
@@ -441,7 +632,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       {/* Post Reaction & Comment Stats (Max 3 Reaction Icons) */}
       <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-[#b0b3b8]">
         <div className="flex items-center space-x-1.5 min-h-[20px]">
-          {likesCount > 0 ? (
+          {likesCount > 0 && topReactionIcons.length > 0 ? (
             <div className="flex items-center space-x-1.5">
               <div className="flex items-center -space-x-1">
                 {topReactionIcons.map((ico, idx) => (
@@ -649,7 +840,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       <CommentModal
         isOpen={showCommentModal}
         onClose={() => setShowCommentModal(false)}
-        post={post}
+        post={{
+          ...post,
+          sharedPost: originalPost || post.sharedPost,
+        }}
         authorName={authorName || post.authorName || 'Thành viên'}
         authorAvatar={authorAvatar || post.authorAvatar || ''}
         liked={liked}
@@ -664,6 +858,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         onShare={handleSharePost}
         userReaction={reaction}
         topReactionIcons={topReactionIcons}
+      />
+
+      {/* Standalone Share Post Modal */}
+      <ShareModal
+        post={post}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShareSuccess={handleShareSuccess}
       />
     </div>
   );

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus } from 'lucide-react';
 import { ChatUser } from '../chat/ChatBox';
 import { UserAvatar } from '../common/UserAvatar';
 import { userService } from '../../services/api';
+import { chatService } from '../../services/chatService';
+import { websocketService } from '../../services/websocket';
 
 interface SidebarRightProps {
   onSelectChatUser?: (user: ChatUser) => void;
@@ -11,6 +14,7 @@ interface SidebarRightProps {
 
 export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) => {
   const { t } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const [contacts, setContacts] = useState<ChatUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,17 +22,49 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
   const [showSearchInput, setShowSearchInput] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!isAuthenticated) {
+      setContacts([]);
+      setPendingRequests([]);
+      return;
+    }
+
+    // Connect WebSocket to receive live presence notifications [UC-CH06]
+    websocketService.connect();
 
     const fetchData = async (silent = false) => {
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) return;
+
       if (!silent) setLoading(true);
       try {
         const [friends, requests] = await Promise.all([
           userService.getFriends().catch(() => []),
           userService.getPendingRequests().catch(() => []),
         ]);
-        setContacts(Array.isArray(friends) ? friends : []);
+
+        const friendsList = Array.isArray(friends) ? friends : [];
+        const friendIds = friendsList.map((f: any) => f.userId || f.id).filter(Boolean);
+
+        let presenceMap: Record<string, any> = {};
+        if (friendIds.length > 0) {
+          try {
+            presenceMap = await chatService.getBatchPresence(friendIds);
+          } catch {}
+        }
+
+        const mappedContacts: ChatUser[] = friendsList.map((f: any) => {
+          const fId = f.userId || f.id;
+          const presence = fId ? presenceMap[fId] : null;
+          return {
+            ...f,
+            id: fId,
+            userId: fId,
+            online: presence ? Boolean(presence.online) : false,
+            lastActiveAt: presence?.lastActiveAt || null,
+          };
+        });
+
+        setContacts(mappedContacts);
         setPendingRequests(Array.isArray(requests) ? requests : []);
       } catch (e) {
         if (!silent) setContacts([]);
@@ -41,16 +77,36 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
 
     const interval = setInterval(() => {
       fetchData(true);
-    }, 4000);
+    }, 15000);
 
     const handleFriendUpdate = () => fetchData(true);
     window.addEventListener('friend_status_updated', handleFriendUpdate);
 
+    const handlePresence = (e: any) => {
+      const detail = e.detail;
+      if (!detail || !detail.userId) return;
+      setContacts((prev) =>
+        prev.map((c) => {
+          const cId = c.userId || c.id;
+          if (cId && String(cId).toLowerCase() === String(detail.userId).toLowerCase()) {
+            return {
+              ...c,
+              online: Boolean(detail.online),
+              lastActiveAt: detail.lastActiveAt || c.lastActiveAt,
+            };
+          }
+          return c;
+        })
+      );
+    };
+    window.addEventListener('user_presence_updated', handlePresence);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
+      window.removeEventListener('user_presence_updated', handlePresence);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const handleAccept = async (requestId: string) => {
     try {
