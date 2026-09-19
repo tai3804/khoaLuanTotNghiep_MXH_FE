@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
+import { useCall } from '../../context/CallContext';
 import { userService, postService } from '../../services/api';
 import { mediaService } from '../../services/mediaService';
 import { MediaGalleryModal } from './MediaGalleryModal';
@@ -38,6 +39,8 @@ import {
   Upload,
   Link as LinkIcon,
   Loader2,
+  Phone,
+  Video,
 } from 'lucide-react';
 
 const AVAILABLE_HOBBIES = [
@@ -73,6 +76,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const { user: currentUser, isAuthenticated, refreshUserProfile, updateUser } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { startCall } = useCall();
 
   // Determine if this is the logged-in user's own profile
   const isOwnProfileInitial = !userId || userId === 'me' || Boolean(
@@ -685,6 +689,31 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         >
                           <MessageCircle className="w-4 h-4" />
                           <span>Nhắn tin</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (profile) {
+                              const targetId = String(profile.userId || targetUserId || '');
+                              startCall({ id: targetId, name: fullName, avatar: avatarUrl }, 'VIDEO');
+                            }
+                          }}
+                          className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+                          title="Gọi video"
+                        >
+                          <Video className="w-4 h-4" />
+                          <span className="hidden sm:inline">Gọi video</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (profile) {
+                              const targetId = String(profile.userId || targetUserId || '');
+                              startCall({ id: targetId, name: fullName, avatar: avatarUrl }, 'AUDIO');
+                            }
+                          }}
+                          className="flex items-center space-x-1.5 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm px-3 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+                          title="Gọi thoại"
+                        >
+                          <Phone className="w-4 h-4" />
                         </button>
                       </>
                     ) : hasPendingReceived ? (

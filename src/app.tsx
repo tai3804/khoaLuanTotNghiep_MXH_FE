@@ -11,6 +11,7 @@ import { useLanguage } from './context/LanguageContext';
 import { postService } from './services/api';
 import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
+import { CallManager } from './components/call/CallManager';
 
 export const App: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -317,6 +318,9 @@ export const App: React.FC = () => {
           <span className="text-[10px] font-semibold">Nhóm</span>
         </button>
       </nav>
+
+      {/* Global Real-time Audio/Video Call Manager & Modals */}
+      <CallManager />
     </div>
   );
 };

@@ -15,6 +15,7 @@ import {
   LogIn,
   Settings,
   LayoutGrid,
+  Phone,
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { UserAvatar } from '../common/UserAvatar';
@@ -23,6 +24,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useNotification } from '../../context/NotificationContext';
 import { NotificationDropdown } from '../notification/NotificationDropdown';
+import { useCall } from '../../context/CallContext';
 import { ChatUser } from '../chat/ChatBox';
 import { userService, postService, chatService, authorProfileCache, fetchAuthorProfile } from '../../services/api';
 
@@ -48,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const { unreadCount } = useNotification();
+  const { setIsCallHistoryOpen } = useCall();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[] }>({ users: [], posts: [] });
@@ -499,6 +502,15 @@ export const Header: React.FC<HeaderProps> = ({
 
         {isAuthenticated ? (
           <>
+            {/* Call History button */}
+            <button
+              onClick={() => setIsCallHistoryOpen(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+              title="Lịch sử cuộc gọi"
+            >
+              <Phone className="w-5 h-5" />
+            </button>
+
             {/* Messenger button & dropdown */}
             <div ref={msgMenuRef} className="relative">
               <button
@@ -521,9 +533,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-3 z-50 space-y-2.5">
                   <div className="flex items-center justify-between px-1">
                     <h4 className="font-extrabold text-base text-gray-900 dark:text-[#e4e6eb]">{t('messenger.chats')}</h4>
-                    <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold cursor-pointer hover:underline">
-                      {t('messenger.markRead')}
-                    </span>
+                    <button
+                      onClick={() => {
+                        setIsCallHistoryOpen(true);
+                        setShowMsgMenu(false);
+                      }}
+                      className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 font-semibold cursor-pointer hover:underline px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Nhật ký gọi</span>
+                    </button>
                   </div>
 
                   <div className="relative">

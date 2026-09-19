@@ -3,6 +3,7 @@ import { X, Send, Phone, Video, Minus, Smile, Image as ImageIcon, Wifi, Loader2,
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useCall } from '../../context/CallContext';
 import { UserAvatar } from '../common/UserAvatar';
 import { chatService, websocketService } from '../../services/api';
 import { mediaService } from '../../services/mediaService';
@@ -57,6 +58,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { startCall } = useCall();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isMinimized, setIsMinimized] = useState(false);
@@ -430,10 +432,30 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
           </div>
         </div>
         <div className="flex items-center space-x-0.5 text-[#1877f2] dark:text-[#4599ff]">
-          <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer" title="Cuộc gọi thoại">
+          <button
+            onClick={() =>
+              startCall(
+                { id: targetUserId, name: friend.name, avatar: friend.avatar },
+                'AUDIO',
+                conversationId || undefined
+              )
+            }
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
+            title="Cuộc gọi thoại"
+          >
             <Phone className="w-4 h-4" />
           </button>
-          <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer" title="Cuộc gọi video">
+          <button
+            onClick={() =>
+              startCall(
+                { id: targetUserId, name: friend.name, avatar: friend.avatar },
+                'VIDEO',
+                conversationId || undefined
+              )
+            }
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
+            title="Cuộc gọi video"
+          >
             <Video className="w-4 h-4" />
           </button>
           <button
