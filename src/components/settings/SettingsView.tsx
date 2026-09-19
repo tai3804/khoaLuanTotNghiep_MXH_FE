@@ -24,30 +24,13 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4">
-      {/* Settings Header */}
-      <div className="bg-white dark:bg-[#242526] rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-[#393a3b] mb-5 flex items-center justify-between transition-colors">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb] flex items-center space-x-2">
-            <span>⚙️</span>
-            <span>Cài Đặt Hệ Thống & Tài Khoản</span>
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1">
-            Quản lý thông tin cá nhân, quyền riêng tư, thiết bị đăng nhập và bảo mật tài khoản.
-          </p>
-        </div>
-        <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-[#1877f2]/20 text-[#1877f2] dark:text-[#4599ff] font-bold text-xs">
-          Phiên bản KLTN 2026
-        </div>
-      </div>
-
-      {/* Main Settings Body */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+    <div className="max-w-[1200px] mx-auto py-8 px-4 w-full">
+      <div className="flex flex-col md:flex-row gap-6 h-full min-h-[80vh]">
         {/* Settings Sidebar Navigation */}
         <SettingsSidebarNav activeSubTab={activeSubTab} onTabChange={handleTabChange} />
 
         {/* Content Details Panel with Sub-routes */}
-        <div className="md:col-span-3 bg-white dark:bg-[#242526] rounded-2xl p-5 border border-gray-200 dark:border-[#393a3b] shadow-sm transition-colors">
+        <div className="w-full md:w-3/4 bg-white dark:bg-[#242526] rounded-2xl p-6 border border-gray-200 dark:border-[#393a3b] shadow-sm transition-colors">
           <Routes>
             <Route index element={<ProfileSettingsTab />} />
             <Route path="profile" element={<ProfileSettingsTab />} />

@@ -5,7 +5,11 @@ import { ProfilePage } from './pages/ProfilePage';
 import { FriendsPage } from './pages/FriendsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuthPage } from './pages/AuthPage';
-import { ChatUser } from './components/chat/ChatBox';
+import { SearchPage } from './pages/SearchPage';
+import { WatchPage } from './pages/WatchPage';
+import { GroupsPage } from './pages/GroupsPage';
+import { GroupDetailPage } from './pages/GroupDetailPage';
+import { ChatUser } from './components/chat/chat-box';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
 import { postService } from './services/api';
@@ -13,7 +17,7 @@ import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, tokens } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +40,8 @@ export const App: React.FC = () => {
   if (path.startsWith('/settings')) activeNavTab = 'settings';
   else if (path.startsWith('/profile')) activeNavTab = 'profile';
   else if (path.startsWith('/friends')) activeNavTab = 'friends';
+  else if (path.startsWith('/watch')) activeNavTab = 'watch';
+  else if (path.startsWith('/groups')) activeNavTab = 'groups';
 
   const fetchFeed = async (isBackground = false) => {
     if (!isBackground) {
@@ -123,24 +129,26 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchFeed();
+    if (isAuthenticated) {
+      fetchFeed();
 
-    // Real-time Feed Sync every 4 seconds in the background
-    const realtimeTimer = setInterval(() => {
-      fetchFeed(true);
-    }, 4000);
+      // Real-time Feed Sync every 4 seconds in the background
+      const realtimeTimer = setInterval(() => {
+        fetchFeed(true);
+      }, 30000);
 
-    return () => clearInterval(realtimeTimer);
+      return () => clearInterval(realtimeTimer);
+    }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    const hasToken = !!localStorage.getItem('token');
+    const hasToken = !!tokens?.accessToken;
     if (!isAuthenticated && !hasToken && location.pathname !== '/auth') {
       navigate('/auth');
     } else if (isAuthenticated && location.pathname === '/auth') {
       navigate('/');
     }
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, tokens?.accessToken, location.pathname]);
 
   useEffect(() => {
     const handleNavigateAuth = () => {
@@ -163,6 +171,8 @@ export const App: React.FC = () => {
     else if (tab === 'friends') navigate('/friends');
     else if (tab === 'settings') navigate('/settings/profile');
     else if (tab === 'profile') navigate('/profile');
+    else if (tab === 'watch') navigate('/watch');
+    else if (tab === 'groups') navigate('/groups');
   };
 
   const handleViewProfile = (userId?: string) => {
@@ -276,42 +286,96 @@ export const App: React.FC = () => {
             />
           }
         />
+        <Route
+          path="/search"
+          element={
+            <SearchPage
+              activeNavTab="home"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/watch"
+          element={
+            <WatchPage
+              activeNavTab="watch"
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateAuth={() => navigate('/auth')}
+              onViewProfile={handleViewProfile}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/groups"
+          element={
+            <GroupsPage
+              activeNavTab="groups"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/groups/:id"
+          element={
+            <GroupDetailPage
+              activeNavTab="groups"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
       </Routes>
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 h-14 flex items-center justify-around md:hidden z-40 shadow-lg">
         <button
           onClick={() => handleTabChange('home')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'home' ? 'text-blue-600' : 'text-gray-400'
-          }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'home' ? 'text-blue-600' : 'text-gray-400'
+            }`}
         >
           <Home className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Trang chủ</span>
         </button>
         <button
           onClick={() => handleTabChange('watch')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'watch' ? 'text-blue-600' : 'text-gray-400'
-          }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'watch' ? 'text-blue-600' : 'text-gray-400'
+            }`}
         >
           <Tv className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Watch</span>
         </button>
         <button
           onClick={() => handleTabChange('marketplace')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'marketplace' ? 'text-blue-600' : 'text-gray-400'
-          }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'marketplace' ? 'text-blue-600' : 'text-gray-400'
+            }`}
         >
           <Store className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Chợ</span>
         </button>
         <button
           onClick={() => handleTabChange('groups')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'groups' ? 'text-blue-600' : 'text-gray-400'
-          }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'groups' ? 'text-blue-600' : 'text-gray-400'
+            }`}
         >
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Nhóm</span>

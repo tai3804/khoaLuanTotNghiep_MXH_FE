@@ -22,7 +22,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, tokens } = useAuth();
   const { showInfo } = useToast();
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -140,12 +140,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    const token = localStorage.getItem('token');
+    const token = tokens?.accessToken;
+    if (!token) return;
+
     const userId = user.id;
     if (!userId) return;
 
-    // Connect directly to notification service websocket (port 8083) to avoid duplicate CORS headers from gateway
-    const wsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL || 'http://localhost:8083/ws-notifications';
+    // Connect through API gateway (port 8080) where CORS is configured
+    const wsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL || 'http://localhost:8080/ws-notifications';
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
@@ -199,7 +201,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Polling fallback every 20s to ensure consistent sync
     const pollInterval = setInterval(() => {
-      notificationService.getUnreadCount().then(setUnreadCount).catch(() => {});
+      notificationService.getUnreadCount().then(setUnreadCount).catch(() => { });
     }, 20000);
 
     return () => {
@@ -209,7 +211,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         stompClientRef.current = null;
       }
     };
-  }, [isAuthenticated, user, playNotificationSound, showInfo]);
+  }, [isAuthenticated, user, playNotificationSound, showInfo, tokens?.accessToken]);
 
   return (
     <NotificationContext.Provider

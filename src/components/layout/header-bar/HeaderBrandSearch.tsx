@@ -1,5 +1,6 @@
 import React, { RefObject } from 'react';
 import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Logo } from '../../common/Logo';
 
 interface HeaderBrandSearchProps {
@@ -31,6 +32,15 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
   onNavigateProfile,
   onTabChange,
 }) => {
+  const navigate = useNavigate();
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      setShowSearchResults(false);
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
       <Logo onClick={() => onNavClick('home')} size="sm" />
@@ -42,6 +52,12 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSearchSubmit();
+            }
+          }}
           placeholder={t('nav.search') || 'Tìm kiếm...'}
           className="w-24 xs:w-32 sm:w-40 md:w-44 lg:w-60 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] transition"
         />
@@ -114,6 +130,21 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
                         <p className="text-[10px] text-gray-400 dark:text-[#b0b3b8] mt-1">{p.authorName || (language === 'en' ? 'Member' : 'Thành viên')} • {p.createdAt || (language === 'en' ? 'Just now' : 'Vừa xong')}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+                
+                {/* Full Search Link */}
+                {searchQuery.trim() && (
+                  <div 
+                    className="p-3 hover:bg-gray-50 dark:hover:bg-[#3a3b3c] cursor-pointer transition flex items-center space-x-3"
+                    onClick={handleSearchSubmit}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#1877f2] flex items-center justify-center text-white shrink-0">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-semibold text-[#1877f2] dark:text-[#2d88ff]">
+                      Tìm kiếm kết quả cho "{searchQuery}"
+                    </span>
                   </div>
                 )}
               </div>

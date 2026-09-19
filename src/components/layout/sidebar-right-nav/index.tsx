@@ -3,7 +3,7 @@ import { useSidebarRightData } from './useSidebarRightData';
 import { PendingFriendRequestsSection } from './PendingFriendRequestsSection';
 import { ContactsSection } from './ContactsSection';
 import { GroupChatsSection } from './GroupChatsSection';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 export interface SidebarRightProps {
   onSelectChatUser?: (user: ChatUser) => void;

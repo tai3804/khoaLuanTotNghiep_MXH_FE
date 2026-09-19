@@ -111,7 +111,8 @@ export const mediaService = {
     if (url.includes('s3.amazonaws.com/') || url.includes('.s3.') || url.includes('amazonaws.com')) {
       const parts = url.split('amazonaws.com/');
       if (parts.length > 1) {
-        return `http://localhost:8080/api/v1/media/files/${parts[1]}`;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+        return `${baseUrl}/media/files/${parts[1]}`;
       }
     }
     return url;

@@ -1,11 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { Header } from '../components/layout/Header';
+import { Header } from '../components/layout/header-bar';
 import { SidebarLeft } from '../components/layout/SidebarLeft';
 import { SidebarRight } from '../components/layout/SidebarRight';
-import { StoriesBar } from '../components/post/StoriesBar';
+import { StoriesBar } from '../components/post/stories-bar';
 import { CreatePostBox } from '../components/post/CreatePostBox';
-import { PostCard } from '../components/post/PostCard';
-import { ChatBox, ChatUser } from '../components/chat/ChatBox';
+import { PostCard } from '../components/post/post-card';
+import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -113,6 +113,8 @@ export const HomePage: React.FC<HomePageProps> = ({
             setActiveSidebarFilter(filter);
             if (filter === 'friends' || filter === 'groups') {
               setActiveNavTab('friends');
+            } else if (filter === 'watch') {
+              setActiveNavTab('watch');
             } else {
               setActiveNavTab('home');
             }
