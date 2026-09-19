@@ -8,20 +8,13 @@ import { postService, fetchAuthorProfile } from '../../services/api';
 import { CommentModal } from './CommentModal';
 import { ShareModal } from './ShareModal';
 import {
-  MessageCircle,
-  Share2,
-  Bookmark,
-  MoreHorizontal,
-  Globe,
-  Send,
-  CornerDownRight,
-  Smile,
-  Copy,
-  Check,
-  Trash2,
-  X,
-  ThumbsUp,
-} from 'lucide-react';
+  usePostCardData,
+  PostCardHeader,
+  PostCardContent,
+  PostCardStatsBar,
+  PostCardActionsBar,
+  PostCardCommentsPreview,
+} from './post-card';
 
 interface PostCardProps {
   post: Post;
@@ -666,177 +659,39 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       <div className="mx-3 border-t border-gray-200 dark:border-[#393a3b]" />
 
       {/* Post Actions Bar (Like, Comment, Share) */}
-      <div className="px-2 py-1 flex items-center justify-around">
-        {/* Like Button with Reactions Container */}
-        <div
-          className="relative flex-1"
-          onMouseEnter={() => setShowReactionsMenu(true)}
-          onMouseLeave={() => setShowReactionsMenu(false)}
-        >
-          {/* Reactions floating tooltip menu with seamless hover bridge */}
-          {showReactionsMenu && (
-            <div
-              className="absolute -top-14 left-0 pb-3 z-50 cursor-pointer"
-              onMouseEnter={() => setShowReactionsMenu(true)}
-              onMouseLeave={() => setShowReactionsMenu(false)}
-            >
-              <div className="bg-white dark:bg-[#242526] rounded-full shadow-2xl px-4 py-2 flex items-center space-x-2 sm:space-x-2.5 transition-all duration-200 animate-fade-in border-0">
-                {reactionsList.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectReaction(emoji);
-                    }}
-                    className="text-2xl sm:text-3xl hover:scale-135 hover:-translate-y-2 transition-all duration-150 cursor-pointer p-1.5 transform origin-bottom"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+      <PostCardActionsBar
+        liked={liked}
+        reaction={reaction}
+        showReactionsMenu={showReactionsMenu}
+        setShowReactionsMenu={setShowReactionsMenu}
+        reactionsList={reactionsList}
+        handleLike={handleLike}
+        handleSelectReaction={handleSelectReaction}
+        getReactionLabel={getReactionLabel}
+        handleSharePost={handleSharePost}
+        copied={copied}
+        setShowCommentModal={setShowCommentModal}
+        t={t}
+        language={language}
+      />
 
-          <button
-            onClick={handleLike}
-            className={`w-full flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold transition cursor-pointer hover:bg-gray-100 dark:hover:bg-[#3a3b3c] ${
-              liked
-                ? 'text-[#2d88ff]'
-                : 'text-gray-600 dark:text-[#b0b3b8]'
-            }`}
-          >
-            {liked ? (
-              <span className="text-base">{reaction || '👍'}</span>
-            ) : (
-              <ThumbsUp className="w-5 h-5" />
-            )}
-            <span>{liked ? getReactionLabel(reaction) : (t('like') || 'Thích')}</span>
-          </button>
-        </div>
+      {/* Comments Preview Section */}
+      <PostCardCommentsPreview
+        displayedComments={displayedComments}
+        totalComments={totalComments}
+        user={user}
+        isAuthenticated={isAuthenticated}
+        openLoginModal={openLoginModal}
+        inlineCommentText={inlineCommentText}
+        setInlineCommentText={setInlineCommentText}
+        handleInlineCommentSubmit={handleInlineCommentSubmit}
+        setShowCommentModal={setShowCommentModal}
+        onViewProfile={onViewProfile}
+        t={t}
+        language={language}
+      />
 
-        {/* Comment Button (Opens Comment Modal) */}
-        <button
-          onClick={() => setShowCommentModal(true)}
-          className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-        >
-          <MessageCircle className="w-5 h-5" />
-          <span>{t('comment') || 'Bình luận'}</span>
-        </button>
-
-        {/* Share Button */}
-        <button
-          onClick={handleSharePost}
-          className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-        >
-          <Share2 className="w-5 h-5" />
-          <span>{copied ? (language === 'en' ? 'Copied!' : 'Đã chép!') : (t('share') || 'Chia sẻ')}</span>
-        </button>
-      </div>
-
-      {/* Top 2 Comments Preview Section */}
-      <div className="p-3 bg-gray-50/60 dark:bg-[#242526] space-y-2.5 border-t border-gray-200 dark:border-[#393a3b]">
-        {displayedComments.length > 0 && (
-          <div className="space-y-2">
-            {displayedComments.map((comment) => {
-              const displayName =
-                (comment.userId === user?.id || comment.userId === 'me') && user?.fullName
-                  ? user.fullName
-                  : comment.authorName || 'Thành viên KLTN';
-              const displayAvatar =
-                (comment.userId === user?.id || comment.userId === 'me') && user?.avatar
-                  ? user.avatar
-                  : comment.authorAvatar;
-
-              return (
-                <div key={comment.id} className="flex space-x-2.5 items-start">
-                  <div
-                    onClick={() => {
-                      if (onViewProfile && comment.userId) onViewProfile(comment.userId);
-                    }}
-                    className="cursor-pointer shrink-0"
-                  >
-                    <UserAvatar src={displayAvatar} alt={displayName} size="sm" className="w-8 h-8 rounded-full" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2.5 px-3 rounded-2xl inline-block max-w-full">
-                      <h5
-                        onClick={() => {
-                          if (onViewProfile && comment.userId) onViewProfile(comment.userId);
-                        }}
-                        className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
-                      >
-                        {displayName}
-                      </h5>
-                      <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words">
-                        {comment.content}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">
-                      <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">{t('like') || 'Thích'}</button>
-                      <span>•</span>
-                      <button
-                        onClick={() => setShowCommentModal(true)}
-                        className="hover:underline hover:text-[#2d88ff] flex items-center space-x-1 cursor-pointer"
-                      >
-                        <CornerDownRight className="w-3 h-3" />
-                        <span>{language === 'en' ? 'Reply' : 'Phản hồi'}</span>
-                      </button>
-                      <span>•</span>
-                      <span>{comment.createdAt}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* View All / More Comments button if > 2 comments */}
-        {totalComments > 2 && (
-          <button
-            onClick={() => setShowCommentModal(true)}
-            className="text-xs font-semibold text-gray-500 dark:text-[#b0b3b8] hover:underline cursor-pointer pl-1 py-1 block"
-          >
-            {language === 'en'
-              ? `View all ${totalComments} comments...`
-              : `Xem tất cả ${totalComments} bình luận...`}
-          </button>
-        )}
-
-        {/* Inline Quick Comment Input Form */}
-        <form onSubmit={handleInlineCommentSubmit} className="flex items-center space-x-2 pt-1">
-          <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="sm" className="w-8 h-8 rounded-full shrink-0" />
-          <div className="flex-1 relative flex items-center">
-            <input
-              type="text"
-              value={inlineCommentText}
-              onChange={(e) => setInlineCommentText(e.target.value)}
-              onClick={() => {
-                if (!isAuthenticated) openLoginModal();
-              }}
-              placeholder={!isAuthenticated ? (language === 'en' ? 'Log in to comment...' : 'Đăng nhập để bình luận...') : (t('writeComment') || 'Viết bình luận...')}
-              className="w-full bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full pl-4 pr-10 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#2d88ff]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowCommentModal(true)}
-              className="absolute right-3 text-gray-400 hover:text-amber-500 cursor-pointer"
-            >
-              <Smile className="w-4 h-4" />
-            </button>
-          </div>
-          <button
-            type="submit"
-            disabled={!inlineCommentText.trim()}
-            className="p-2 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full disabled:opacity-40 transition shadow-sm cursor-pointer shrink-0"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
-        </form>
-      </div>
-
-      {/* Clean Standalone Comment Modal Component */}
+      {/* Standalone Comment Modal Component */}
       <CommentModal
         isOpen={showCommentModal}
         onClose={() => setShowCommentModal(false)}

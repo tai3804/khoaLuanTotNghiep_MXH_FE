@@ -4,9 +4,9 @@ import { authorProfileCache, fetchAuthorProfile } from './userService';
 
 export const normalizePost = (p: any): Post => {
   const mediaUrls = Array.isArray(p.mediaList)
-    ? p.mediaList.map((m: any) => m.mediaUrl || m.url || m)
+    ? p.mediaList.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
     : Array.isArray(p.mediaUrls)
-    ? p.mediaUrls
+    ? p.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
     : [];
 
   const authorId = p.authorId ? String(p.authorId) : p.userId || 'me';
