@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { Post, Comment } from '../../types';
+import { UserAvatar } from '../common/UserAvatar';
+import { Globe } from 'lucide-react';
 import {
   useCommentModalData,
   CommentModalHeader,

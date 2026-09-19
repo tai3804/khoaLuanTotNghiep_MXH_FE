@@ -7,6 +7,7 @@ import { UserAvatar } from '../common/UserAvatar';
 import { postService, fetchAuthorProfile } from '../../services/api';
 import { CommentModal } from './CommentModal';
 import { ShareModal } from './ShareModal';
+import { Globe, MoreHorizontal, Bookmark, Check, Copy, Trash2, X } from 'lucide-react';
 import {
   usePostCardData,
   PostCardHeader,
