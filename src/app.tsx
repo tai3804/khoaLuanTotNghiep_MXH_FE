@@ -27,6 +27,11 @@ export const App: React.FC = () => {
 
   // Sync activeNavTab from URL path
   const path = location.pathname;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+
   let activeNavTab = 'home';
   if (path.startsWith('/settings')) activeNavTab = 'settings';
   else if (path.startsWith('/profile')) activeNavTab = 'profile';
@@ -38,30 +43,40 @@ export const App: React.FC = () => {
       setBackendError(null);
     }
     try {
-      const feedData = await postService.getFeed();
-      if (Array.isArray(feedData) && feedData.length > 0) {
-        setPosts((prevPosts) => {
-          if (prevPosts.length === 0) return feedData;
-          // Merge in-place to preserve scroll position and update like/comment counts in real-time
-          const prevMap = new Map(prevPosts.map((p) => [p.id, p]));
-          const merged = feedData.map((newP) => {
-            const existing = prevMap.get(newP.id);
-            if (!existing) return newP;
-            return {
-              ...existing,
-              likesCount: newP.likesCount,
-              commentsCount: newP.commentsCount,
-              sharesCount: newP.sharesCount,
-              content: newP.content,
-              authorName: newP.authorName || existing.authorName,
-              authorAvatar: newP.authorAvatar || existing.authorAvatar,
-            };
+      // Fetch first page (10 posts) [UC-FE02]
+      const pagedRes = await postService.getFeedPaged(1, 10);
+      const feedData = pagedRes.posts;
+
+      if (!isBackground) {
+        setPosts(feedData);
+        setCurrentPage(1);
+        setCursor(pagedRes.nextCursor || null);
+        setHasMore(!pagedRes.last);
+      } else {
+        if (Array.isArray(feedData) && feedData.length > 0) {
+          setPosts((prevPosts) => {
+            if (prevPosts.length === 0) return feedData;
+            // Merge in-place to preserve scroll position and update like/comment counts in real-time
+            const prevMap = new Map(prevPosts.map((p) => [p.id, p]));
+            const merged = feedData.map((newP) => {
+              const existing = prevMap.get(newP.id);
+              if (!existing) return newP;
+              return {
+                ...existing,
+                likesCount: newP.likesCount,
+                commentsCount: newP.commentsCount,
+                sharesCount: newP.sharesCount,
+                content: newP.content,
+                authorName: newP.authorName || existing.authorName,
+                authorAvatar: newP.authorAvatar || existing.authorAvatar,
+              };
+            });
+            // Keep posts from subsequent pages that the user has scrolled to
+            const feedIds = new Set(feedData.map((p) => p.id));
+            const olderPosts = prevPosts.filter((p) => !feedIds.has(p.id));
+            return [...merged, ...olderPosts];
           });
-          // Also include any optimistic posts created locally that haven't appeared in feedData yet
-          const newIds = new Set(feedData.map((p) => p.id));
-          const localOnly = prevPosts.filter((p) => !newIds.has(p.id) && String(p.id).startsWith('post-'));
-          return [...localOnly, ...merged];
-        });
+        }
       }
     } catch (e: any) {
       if (!isBackground) {
@@ -78,6 +93,35 @@ export const App: React.FC = () => {
     }
   };
 
+  // Infinite Scroll Pagination loader [UC-FE02]
+  const loadMorePosts = async () => {
+    if (loadingMore || !hasMore || loading) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const result = await postService.getFeedPaged(nextPage, 10, cursor);
+      if (result.posts && result.posts.length > 0) {
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const uniqueNew = result.posts.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
+        setCurrentPage(nextPage);
+        if (result.nextCursor) {
+          setCursor(result.nextCursor);
+        }
+        setHasMore(!result.last);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading more posts:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     fetchFeed();
 
@@ -90,7 +134,8 @@ export const App: React.FC = () => {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated && location.pathname !== '/auth') {
+    const hasToken = !!localStorage.getItem('token');
+    if (!isAuthenticated && !hasToken && location.pathname !== '/auth') {
       navigate('/auth');
     } else if (isAuthenticated && location.pathname === '/auth') {
       navigate('/');
@@ -161,6 +206,9 @@ export const App: React.FC = () => {
               onNavigateAuth={() => navigate('/auth')}
               activeChatUser={activeChatUser}
               setActiveChatUser={setActiveChatUser}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              onLoadMore={loadMorePosts}
             />
           }
         />

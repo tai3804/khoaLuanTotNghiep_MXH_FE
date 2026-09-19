@@ -4,8 +4,10 @@ export const chatService = {
   getConversations: async () => {
     try {
       const res = await api.get('/chat/conversations');
-      const data = res.data?.data?.content || res.data?.data || [];
-      return Array.isArray(data) ? data : [];
+      const raw = res.data?.data || res.data;
+      if (Array.isArray(raw)) return raw;
+      if (Array.isArray(raw?.content)) return raw.content;
+      return [];
     } catch {
       return [];
     }
@@ -34,5 +36,24 @@ export const chatService = {
   sendMessage: async (conversationId: string, content: string) => {
     const res = await api.post(`/chat/conversations/${conversationId}/messages`, { content, type: 'TEXT' });
     return res.data?.data || res.data;
+  },
+
+  getUserPresence: async (userId: string) => {
+    try {
+      const res = await api.get(`/chat/presence/${userId}`);
+      return res.data?.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  getBatchPresence: async (userIds: string[]) => {
+    try {
+      if (!userIds || userIds.length === 0) return {};
+      const res = await api.post('/chat/presence/batch', userIds);
+      return res.data?.data || {};
+    } catch {
+      return {};
+    }
   },
 };

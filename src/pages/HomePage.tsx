@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Header } from '../components/layout/Header';
 import { SidebarLeft } from '../components/layout/SidebarLeft';
 import { SidebarRight } from '../components/layout/SidebarRight';
@@ -9,7 +9,7 @@ import { ChatBox, ChatUser } from '../components/chat/ChatBox';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion } from 'lucide-react';
+import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface HomePageProps {
   activeNavTab: string;
@@ -29,6 +29,9 @@ interface HomePageProps {
   onNavigateAuth: () => void;
   activeChatUser: ChatUser | null;
   setActiveChatUser: (user: ChatUser | null) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -49,9 +52,42 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigateAuth,
   activeChatUser,
   setActiveChatUser,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }) => {
   const { t } = useLanguage();
   const { isAuthenticated, openLoginModal } = useAuth();
+  const observerRef = useRef<HTMLDivElement | null>(null);
+
+  // Infinite Scroll Intersection Observer [UC-FE02]
+  useEffect(() => {
+    if (!onLoadMore || !hasMore || loadingMore || loading) return;
+
+    const currentSentinel = observerRef.current;
+    if (!currentSentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          onLoadMore();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '250px', // Pre-fetch 250px before the user hits the exact bottom
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(currentSentinel);
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [onLoadMore, hasMore, loadingMore, loading]);
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
@@ -183,14 +219,38 @@ export const HomePage: React.FC<HomePageProps> = ({
               </p>
             </div>
           ) : (
-            posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onDeletePost={onDeletePost}
-                onViewProfile={onViewProfile}
-              />
-            ))
+            <>
+              {posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onDeletePost={onDeletePost}
+                  onViewProfile={onViewProfile}
+                />
+              ))}
+
+              {/* Sentinel trigger element for infinite scrolling */}
+              <div ref={observerRef} className="h-4 w-full pointer-events-none" />
+
+              {/* Loading More Indicator */}
+              {loadingMore && (
+                <div className="flex items-center justify-center py-6 space-x-2.5 text-gray-500 dark:text-[#b0b3b8] bg-white/40 dark:bg-[#242526]/40 rounded-xl my-3">
+                  <Loader2 className="w-5 h-5 border-[#2d88ff] animate-spin text-[#2d88ff]" />
+                  <span className="text-xs font-semibold">Đang tải thêm bài viết...</span>
+                </div>
+              )}
+
+              {/* End of Feed Message */}
+              {!hasMore && posts.length > 0 && !loading && (
+                <div className="text-center py-8 text-xs text-gray-400 dark:text-[#b0b3b8] flex flex-col items-center justify-center space-y-1.5 select-none border-t border-gray-200/60 dark:border-[#393a3b]/60 mt-4 mb-8">
+                  <div className="w-8 h-8 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-500">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <p className="font-semibold text-gray-700 dark:text-[#e4e6eb]">Bạn đã xem hết bài viết mới nhất</p>
+                  <p className="text-[11px] text-gray-400 dark:text-[#8a8d91]">Hãy kết bạn thêm hoặc tạo bài viết mới để bảng tin thêm sôi động!</p>
+                </div>
+              )}
+            </>
           )}
         </main>
 
@@ -201,8 +261,10 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Floating Messenger Active Chat Window */}
       {activeChatUser && (
         <ChatBox
+          key={activeChatUser.userId || activeChatUser.id}
           friend={activeChatUser}
           onClose={() => setActiveChatUser(null)}
+          onNavigateProfile={onViewProfile}
         />
       )}
     </div>

@@ -5,9 +5,32 @@ import { authService, userService } from '../services/api';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
-  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      if (storedToken && storedUser) {
+        return JSON.parse(storedUser);
+      }
+    } catch {}
+    return null;
+  });
+
+  const [tokens, setTokens] = useState<AuthTokens | null>(() => {
+    try {
+      const storedToken = localStorage.getItem('token');
+      const storedRefresh = localStorage.getItem('refreshToken');
+      if (storedToken) {
+        return { accessToken: storedToken, refreshToken: storedRefresh || '' };
+      }
+    } catch {}
+    return null;
+  });
+
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return !localStorage.getItem('token');
+  });
+
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
 
   const refreshUserProfile = async () => {
@@ -43,15 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
-    const storedRefresh = localStorage.getItem('refreshToken');
-    const storedGuest = localStorage.getItem('isGuest');
+    const storedUser = localStorage.getItem('user');
 
     if (storedToken && storedUser) {
-      setUser(JSON.parse(storedUser));
-      setTokens({ accessToken: storedToken, refreshToken: storedRefresh || '' });
-      setIsGuest(false);
       refreshUserProfile();
     } else {
       setIsGuest(true);
