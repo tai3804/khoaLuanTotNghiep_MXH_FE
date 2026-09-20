@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { GroupsSidebar } from '../components/groups/GroupsSidebar';
 import { GroupsDiscover } from '../components/groups/GroupsDiscover';
-import { CreateCommunityGroupModal } from '../components/groups/CreateCommunityGroupModal';
 import { Header } from '../components/layout/header-bar';
 import { ChatUser } from '../components/chat/chat-box';
+import { CreateCommunityGroupModal } from '../components/groups/CreateCommunityGroupModal';
 
 interface GroupsPageProps {
   activeNavTab: string;
@@ -17,12 +17,12 @@ interface GroupsPageProps {
 
 export const GroupsPage: React.FC<GroupsPageProps> = (props) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
+
   return (
     <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
-      <Header 
-        activeTab={props.activeNavTab} 
-        onTabChange={props.setActiveNavTab} 
+      <Header
+        activeTab={props.activeNavTab}
+        onTabChange={props.setActiveNavTab}
         onNavigateSettings={props.onNavigateSettings}
         onNavigateProfile={props.onNavigateProfile}
         onNavigateAuth={props.onNavigateAuth}
@@ -37,10 +37,12 @@ export const GroupsPage: React.FC<GroupsPageProps> = (props) => {
         <GroupsDiscover onCreateGroupClick={() => setShowCreateModal(true)} />
       </div>
 
-      <CreateCommunityGroupModal 
-        isOpen={showCreateModal} 
-        onClose={() => setShowCreateModal(false)} 
-      />
+      {showCreateModal && (
+        <CreateCommunityGroupModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+        />
+      )}
     </div>
   );
 };

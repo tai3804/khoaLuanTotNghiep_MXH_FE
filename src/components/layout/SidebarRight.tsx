@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus } from 'lucide-react';
+import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus, Users } from 'lucide-react';
 import { ChatUser } from '../../components/chat/chat-box';
 import { UserAvatar } from '../common/UserAvatar';
 import { userService } from '../../services/api';
 import { chatService } from '../../services/chatService';
 import { websocketService } from '../../services/websocket';
+import { CreateGroupModal } from '../chat/CreateGroupModal';
 
 interface SidebarRightProps {
   onSelectChatUser?: (user: ChatUser) => void;
@@ -16,10 +17,12 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
   const { t } = useLanguage();
   const { isAuthenticated, tokens } = useAuth();
   const [contacts, setContacts] = useState<ChatUser[]>([]);
+  const [groupChats, setGroupChats] = useState<ChatUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && tokens?.accessToken) {
@@ -35,9 +38,6 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     }
 
     const fetchData = async (silent = false) => {
-      const currentToken = tokens?.accessToken;
-      if (!currentToken) return;
-
       if (!silent) setLoading(true);
       try {
         const [friends, requests] = await Promise.all([
@@ -76,14 +76,41 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
       }
     };
 
+    const fetchGroupChats = async () => {
+      try {
+        const convs = await chatService.getConversations();
+        if (Array.isArray(convs)) {
+          const groups: ChatUser[] = convs
+            .filter((c: any) => c.type === 'GROUP')
+            .map((c: any) => ({
+              id: c.conversationId,
+              conversationId: c.conversationId,
+              isGroup: true,
+              name: c.name || 'Nhóm chat',
+              avatar: c.avatarUrl || '/default-avatar.png',
+              online: true,
+              lastMessageContent: c.lastMessageContent,
+            }));
+          setGroupChats(groups);
+        }
+      } catch (err) {
+        console.error('[SidebarRight] Error loading group chats', err);
+      }
+    };
+
     fetchData(false);
+    fetchGroupChats();
 
     const interval = setInterval(() => {
       fetchData(true);
+      fetchGroupChats();
     }, 15000);
 
     const handleFriendUpdate = () => fetchData(true);
+    const handleGroupUpdate = () => fetchGroupChats();
     window.addEventListener('friend_status_updated', handleFriendUpdate);
+    window.addEventListener('group_chat_created', handleGroupUpdate);
+    window.addEventListener('group_chat_updated', handleGroupUpdate);
 
     const handlePresence = (e: any) => {
       const detail = e.detail;
@@ -107,9 +134,14 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     return () => {
       clearInterval(interval);
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
+      window.removeEventListener('group_chat_created', handleGroupUpdate);
+      window.removeEventListener('group_chat_updated', handleGroupUpdate);
       window.removeEventListener('user_presence_updated', handlePresence);
     };
-  }, [isAuthenticated]);
+  // On a hard reload AuthContext restores `isAuthenticated` before the token
+  // state has finished hydrating.  Re-run when the token arrives; otherwise
+  // fetchData returns early once and contacts stay empty until navigation.
+  }, [isAuthenticated, tokens?.accessToken]);
 
   const handleAccept = async (requestId: string) => {
     try {
@@ -245,25 +277,48 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
       <hr className="border-gray-200 dark:border-[#393a3b]" />
 
       {/* 3. Cuộc trò chuyện nhóm (Facebook Group Chats section) */}
-      <div className="px-1">
+      <div className="px-1 space-y-1">
         <h3 className="text-gray-500 dark:text-[#b0b3b8] font-bold text-sm mb-1.5">
           Cuộc trò chuyện nhóm
         </h3>
+
         <button
-          onClick={() => {
-            if (contacts.length > 0 && onSelectChatUser) {
-              onSelectChatUser(contacts[0]);
-            }
-          }}
-          className="flex items-center space-x-3 w-full p-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition text-left"
+          onClick={() => setShowCreateGroupModal(true)}
+          className="flex items-center space-x-3 w-full p-2 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition text-left group"
         >
-          <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-[#3a3b3c] flex items-center justify-center text-gray-600 dark:text-[#e4e6eb] shrink-0">
+          <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[#1877f2] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
             <Plus className="w-5 h-5" />
           </div>
           <span className="text-sm font-semibold text-gray-900 dark:text-[#e4e6eb]">
             Tạo nhóm mới
           </span>
         </button>
+
+        {groupChats.length > 0 && (
+          <div className="space-y-0.5 pt-1">
+            {groupChats.map((group) => (
+              <div
+                key={group.id}
+                onClick={() => onSelectChatUser && onSelectChatUser(group)}
+                className="flex items-center space-x-3 px-2 py-1.5 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition group"
+              >
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 dark:text-[#e4e6eb] truncate">
+                    {group.name}
+                  </div>
+                  {group.lastMessageContent && (
+                    <div className="text-[11px] text-gray-400 dark:text-[#b0b3b8] truncate">
+                      {group.lastMessageContent}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Floating Messenger Quick Button at Bottom Right */}
@@ -282,6 +337,24 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
           </button>
         </div>
       )}
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onGroupCreated={(conversation) => {
+          if (onSelectChatUser) {
+            onSelectChatUser({
+              id: conversation.id || conversation.conversationId,
+              conversationId: conversation.conversationId || conversation.id,
+              isGroup: true,
+              name: conversation.name || 'Nhóm mới',
+              avatar: conversation.avatarUrl || '/default-avatar.png',
+              online: true,
+            });
+          }
+        }}
+      />
     </aside>
   );
 };

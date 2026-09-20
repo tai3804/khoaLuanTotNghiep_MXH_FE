@@ -14,6 +14,11 @@ export interface CallUserInfo {
   avatar: string;
 }
 
+export interface RemoteCallParticipant extends CallUserInfo {
+  stream: MediaStream;
+  videoMuted: boolean;
+}
+
 interface CallContextType {
   callState: CallState;
   callSession: CallSession | null;
@@ -21,6 +26,8 @@ interface CallContextType {
   mediaType: MediaType;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  remoteVideoMuted: boolean;
+  remoteParticipants: Record<string, RemoteCallParticipant>;
   isAudioMuted: boolean;
   isVideoMuted: boolean;
   isScreenSharing: boolean;
@@ -28,6 +35,7 @@ interface CallContextType {
   isMinimized: boolean;
   isCallHistoryOpen: boolean;
   startCall: (targetUser: CallUserInfo, type: MediaType, conversationId?: string) => Promise<void>;
+  startGroupCall: (groupName: string, memberIds: string[], type: MediaType, conversationId: string) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => Promise<void>;
   endCall: () => Promise<void>;
@@ -58,6 +66,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mediaType, setMediaType] = useState<MediaType>('VIDEO');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remoteVideoMuted, setRemoteVideoMuted] = useState(false);
+  const [remoteParticipants, setRemoteParticipants] = useState<Record<string, RemoteCallParticipant>>({});
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -66,6 +76,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCallHistoryOpen, setIsCallHistoryOpen] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  // A group call is a small WebRTC mesh: one peer connection per member.
+  // Keep the legacy primary reference for the existing single-video UI, but
+  // never replace or close another member's connection when they answer.
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const remoteAudioRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const originalCamTrackRef = useRef<MediaStreamTrack | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
@@ -81,10 +96,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // captured before setCallSession() has completed.
   const endSession = useCallback(async (session: CallSession, targetUserId: string | null) => {
     try {
-      callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'END_CALL');
+      // A group call has no destructive hang-up button. Every participant,
+      // including the original host, only leaves their own seat; the server
+      // keeps the room alive while at least one member remains connected.
+      if (session.channelType === 'GROUP') {
+        callWebSocketService.sendSignal(session.callSessionId, null, 'LEAVE');
+        await callService.leaveCall(session.callSessionId);
+        return;
+      }
+
       if (session.hostUserId === user?.id) {
+        callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'END_CALL');
         await callService.endCall(session.callSessionId).catch(() => callService.leaveCall(session.callSessionId));
       } else {
+        callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'LEAVE');
         await callService.leaveCall(session.callSessionId);
       }
     } catch (error) {
@@ -147,16 +172,24 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       originalCamTrackRef.current = null;
     }
 
-    if (pcRef.current) {
+    peerConnectionsRef.current.forEach((connection) => {
       try {
-        pcRef.current.close();
+        connection.close();
       } catch {}
-      pcRef.current = null;
-    }
+    });
+    peerConnectionsRef.current.clear();
+    pcRef.current = null;
+    remoteAudioRef.current.forEach((audio) => {
+      audio.pause();
+      audio.srcObject = null;
+    });
+    remoteAudioRef.current.clear();
 
     pendingCandidatesRef.current = [];
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteVideoMuted(false);
+    setRemoteParticipants({});
     setIsAudioMuted(false);
     setIsVideoMuted(false);
     setIsScreenSharing(false);
@@ -223,10 +256,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(() => {});
     };
 
+    // A browser can receive the REST invitation before its STOMP subscription
+    // is ready (especially right after F5/token refresh). Keep a lightweight
+    // fallback poll while idle so an incoming call always gets an answer UI.
     const recoveryTimer = setTimeout(recoverIncomingCall, 700);
+    const recoveryInterval = setInterval(recoverIncomingCall, 2500);
     return () => {
       cancelled = true;
       clearTimeout(recoveryTimer);
+      clearInterval(recoveryInterval);
     };
   }, [isAuthenticated, toast, user?.id]);
 
@@ -250,6 +288,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         localStreamRef.current = audioStream;
         setLocalStream(audioStream);
+        if (type === 'VIDEO') {
+          // Do not leave the interface showing an enabled camera when the
+          // browser only granted microphone access.
+          setIsVideoMuted(true);
+          toast.showWarning('Không truy cập được camera. Bạn đã vào cuộc gọi bằng âm thanh; bấm nút camera để cấp quyền và bật lại.');
+        }
         return audioStream;
       } catch (audioErr) {
         console.error('[CallContext] Microphone access also failed:', audioErr);
@@ -260,13 +304,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Create RTCPeerConnection with track routing and ICE gathering
   const createPeerConnection = (sessionId: string, targetUserId: string): RTCPeerConnection => {
-    if (pcRef.current) {
-      try {
-        pcRef.current.close();
-      } catch {}
-    }
+    const existing = peerConnectionsRef.current.get(targetUserId);
+    if (existing) return existing;
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
+    peerConnectionsRef.current.set(targetUserId, pc);
     pcRef.current = pc;
 
     pc.onicecandidate = (event) => {
@@ -279,12 +321,43 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     pc.ontrack = (event) => {
       console.log('[CallContext] Received remote track:', event.track.kind);
+      const stream = event.streams?.[0] || new MediaStream([event.track]);
+      // Only one remote video is featured in the existing modal, but every
+      // participant's audio must play during a group call.
+      let audio = remoteAudioRef.current.get(targetUserId);
+      if (!audio) {
+        audio = new Audio();
+        audio.autoplay = true;
+        remoteAudioRef.current.set(targetUserId, audio);
+      }
+      if (audio.srcObject !== stream) {
+        audio.srcObject = stream;
+        audio.play().catch(() => {});
+      }
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
       } else {
         const stream = new MediaStream([event.track]);
         setRemoteStream(stream);
       }
+      setRemoteParticipants((previous) => ({
+        ...previous,
+        [targetUserId]: {
+          id: targetUserId,
+          name: previous[targetUserId]?.name || 'Thành viên',
+          avatar: previous[targetUserId]?.avatar || '',
+          stream,
+          videoMuted: previous[targetUserId]?.videoMuted || false,
+        },
+      }));
+      userService.getUserProfile(targetUserId).then((profile) => {
+        const name = profile?.displayName || profile?.fullName ||
+          [profile?.lastName, profile?.middleName, profile?.firstName].filter(Boolean).join(' ') ||
+          profile?.username || 'Thành viên';
+        setRemoteParticipants((previous) => previous[targetUserId]
+          ? { ...previous, [targetUserId]: { ...previous[targetUserId], name, avatar: profile?.avatarUrl || profile?.avatar || '' } }
+          : previous);
+      }).catch(() => {});
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -339,7 +412,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const callType = signal.mediaType || 'VIDEO';
           const incomingSession: CallSession = {
             callSessionId: signal.callSessionId,
-            channelType: 'DIRECT',
+            channelType: signal.channelType || 'DIRECT',
             mediaType: callType,
             hostUserId: signal.senderId || '',
             status: 'INITIATED',
@@ -417,6 +490,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         case 'ACCEPT': {
+          if (signal.senderId === user?.id) break;
           // Caller receives ACCEPT from Callee
           callAudio.stopAll();
           if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
@@ -454,7 +528,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!sessionId || !targetId || !signal.sdp) return;
 
           try {
-            let pc = pcRef.current;
+            let pc = peerConnectionsRef.current.get(targetId);
             if (!pc) {
               pc = createPeerConnection(sessionId, targetId);
             }
@@ -476,10 +550,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         case 'ANSWER': {
           // Caller receives ANSWER from Callee
-          if (pcRef.current && signal.sdp) {
+          const peer = signal.senderId ? peerConnectionsRef.current.get(signal.senderId) : pcRef.current;
+          if (peer && signal.sdp) {
             try {
-              await pcRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-              await processPendingIceCandidates(pcRef.current);
+              await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              await processPendingIceCandidates(peer);
             } catch (err) {
               console.error('[CallContext] Error handling WebRTC Answer:', err);
             }
@@ -489,9 +564,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         case 'ICE_CANDIDATE': {
           if (signal.candidate) {
-            if (pcRef.current && pcRef.current.remoteDescription) {
+            const peer = signal.senderId ? peerConnectionsRef.current.get(signal.senderId) : pcRef.current;
+            if (peer && peer.remoteDescription) {
               try {
-                await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
               } catch (e) {
                 console.error('[CallContext] Error adding ICE candidate:', e);
               }
@@ -504,6 +580,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         case 'REJECT': {
           if (callSessionRef.current?.callSessionId !== signal.callSessionId) return;
+          // A decline in a group must only remove that participant.  Ending
+          // the shared session here would disconnect everyone else who is
+          // still ringing or already connected.
+          if (callSessionRef.current.channelType === 'GROUP') {
+            toast.showInfo('Một thành viên đã từ chối cuộc gọi');
+            break;
+          }
           callAudio.playCallEndedTone();
           toast.showInfo('Người dùng đã từ chối cuộc gọi');
           cleanupCall();
@@ -518,6 +601,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case 'LEAVE':
         case 'END_CALL': {
           if (callSessionRef.current?.callSessionId !== signal.callSessionId) return;
+          if (signal.signalType === 'LEAVE' && callSessionRef.current.channelType === 'GROUP') {
+            const peer = signal.senderId ? peerConnectionsRef.current.get(signal.senderId) : null;
+            if (peer) {
+              try { peer.close(); } catch {}
+              peerConnectionsRef.current.delete(signal.senderId!);
+              setRemoteParticipants((previous) => {
+                const next = { ...previous };
+                delete next[signal.senderId!];
+                return next;
+              });
+            }
+            toast.showInfo('Một thành viên đã rời cuộc gọi');
+            break;
+          }
           callAudio.playCallEndedTone();
           toast.showInfo('Cuộc gọi đã kết thúc');
           cleanupCall();
@@ -535,7 +632,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         case 'TOGGLE_VIDEO': {
-          // Remote peer toggled video
+          if (!signal.senderId || signal.senderId === user?.id) break;
+          const muted = Boolean(signal.videoMuted);
+          setRemoteVideoMuted(muted);
+          setRemoteParticipants((previous) => previous[signal.senderId!]
+            ? { ...previous, [signal.senderId!]: { ...previous[signal.senderId!], videoMuted: muted } }
+            : previous);
           break;
         }
       }
@@ -544,7 +646,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       unsub();
     };
-  }, [cleanupCall, mediaType, toast]);
+  }, [cleanupCall, mediaType, toast, user?.id]);
 
   const startDurationTimer = () => {
     if (durationTimerRef.current) clearInterval(durationTimerRef.current);
@@ -553,6 +655,37 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCallDuration((prev) => prev + 1);
     }, 1000);
   };
+
+  // REST fallback for an ACCEPT signal that is lost while the caller's STOMP
+  // connection reconnects. The join endpoint is authoritative, so never keep
+  // ringing once any invited participant has actually joined the session.
+  useEffect(() => {
+    if (callState !== 'calling' || !callSession || !user?.id) return;
+
+    let disposed = false;
+    const syncAcceptedParticipant = async () => {
+      const active = await callService.getActiveCall();
+      if (disposed || !active || active.callSessionId !== callSession.callSessionId) return;
+      const someoneConnected = active.participants.some(
+        (participant) => participant.userId !== user.id && participant.status === 'CONNECTED'
+      );
+      if (!someoneConnected) return;
+
+      callAudio.stopAll();
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+      setCallSession(active);
+      callSessionRef.current = active;
+      setCallState('connected');
+      startDurationTimer();
+    };
+
+    syncAcceptedParticipant();
+    const interval = setInterval(syncAcceptedParticipant, 1200);
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [callSession, callState, user?.id]);
 
   // Start outgoing call
   const startCall = async (targetUser: CallUserInfo, type: MediaType, conversationId?: string) => {
@@ -613,6 +746,67 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCallSession(null);
       setRemoteUser(null);
       toast.showError('Không thể bắt đầu cuộc gọi: ' + (err.response?.data?.message || err.message || 'Lỗi thiết bị'));
+    }
+  };
+
+  // Start a Facebook-style group call. The backend creates one shared session
+  // and sends an incoming-call signal to every other group member; each member
+  // that accepts receives a separate WebRTC connection in the same session.
+  const startGroupCall = async (groupName: string, memberIds: string[], type: MediaType, conversationId: string) => {
+    if (callState !== 'idle') {
+      toast.showWarning('Bạn đang trong một cuộc gọi');
+      return;
+    }
+
+    const targets = [...new Set(memberIds.map(String))].filter((id) => id && id !== String(user?.id));
+    if (targets.length === 0) {
+      toast.showWarning('Nhóm cần có ít nhất một thành viên khác để gọi');
+      return;
+    }
+
+    try {
+      setMediaType(type);
+      setRemoteUser({ id: `group:${conversationId}`, name: groupName, avatar: '' });
+      setCallState('calling');
+      setIsMinimized(false);
+
+      const socketReady = await callWebSocketService.connect(user?.id);
+      if (!socketReady) throw new Error('Không thể kết nối máy chủ cuộc gọi');
+
+      await acquireMediaStream(type);
+      callAudio.startRingbackTone();
+
+      const session = await initiateWithRecovery({
+        channelType: 'GROUP',
+        mediaType: type,
+        conversationId,
+        targetUserIds: targets,
+      });
+
+      callSessionRef.current = session;
+      setCallSession(session);
+      callWebSocketService.subscribeCallRoom(session.callSessionId);
+
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+      timeoutTimerRef.current = setTimeout(() => {
+        if (callSessionRef.current?.callSessionId === session.callSessionId) {
+          callAudio.playCallEndedTone();
+          toast.showInfo('Chưa có thành viên nào trả lời cuộc gọi');
+          endSession(session, null).finally(() => {
+            cleanupCall();
+            setCallState('idle');
+            setCallSession(null);
+            setRemoteUser(null);
+          });
+        }
+      }, 35000);
+    } catch (err: any) {
+      console.error('[CallContext] Error starting group call:', err);
+      cleanupCall();
+      setCallState('idle');
+      setCallSession(null);
+      setRemoteUser(null);
+      toast.showError('Không thể bắt đầu cuộc gọi nhóm: ' + (err.response?.data?.message || err.message || 'Lỗi thiết bị'));
     }
   };
 
@@ -699,7 +893,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (callSession) {
         callService.toggleMedia(callSession.callSessionId, muted, isVideoMuted).catch(() => {});
-        callWebSocketService.sendSignal(callSession.callSessionId, remoteUser?.id || null, 'TOGGLE_AUDIO', {
+        callWebSocketService.sendSignal(callSession.callSessionId, callSession.channelType === 'GROUP' ? null : remoteUser?.id || null, 'TOGGLE_AUDIO', {
           audioMuted: muted,
         });
       }
@@ -707,9 +901,41 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Toggle Camera
-  const toggleVideo = () => {
+  const toggleVideo = async () => {
     if (!localStreamRef.current) return;
-    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    let videoTrack = localStreamRef.current.getVideoTracks()[0];
+    // If answering initially fell back to audio-only (camera was busy or the
+    // permission prompt was delayed), let the camera button recover without
+    // forcing the user to leave and redial.
+    if (!videoTrack) {
+      try {
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          audio: false,
+        });
+        videoTrack = cameraStream.getVideoTracks()[0];
+        if (!videoTrack) throw new Error('Không tìm thấy camera');
+
+        localStreamRef.current.addTrack(videoTrack);
+        originalCamTrackRef.current = videoTrack;
+        await Promise.all([...peerConnectionsRef.current.values()].map(async (peer) => {
+          const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+          if (sender) await sender.replaceTrack(videoTrack!);
+          else peer.addTrack(videoTrack!, localStreamRef.current!);
+        }));
+        setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+        setIsVideoMuted(false);
+        if (callSession) {
+          callService.toggleMedia(callSession.callSessionId, isAudioMuted, false).catch(() => {});
+          callWebSocketService.sendSignal(callSession.callSessionId, callSession.channelType === 'GROUP' ? null : remoteUser?.id || null, 'TOGGLE_VIDEO', { videoMuted: false });
+        }
+        return;
+      } catch (error) {
+        console.warn('[CallContext] Could not enable camera:', error);
+        toast.showError('Không thể bật camera. Hãy kiểm tra quyền Camera hoặc đóng ứng dụng đang dùng camera.');
+        return;
+      }
+    }
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
       const muted = !videoTrack.enabled;
@@ -717,7 +943,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (callSession) {
         callService.toggleMedia(callSession.callSessionId, isAudioMuted, muted).catch(() => {});
-        callWebSocketService.sendSignal(callSession.callSessionId, remoteUser?.id || null, 'TOGGLE_VIDEO', {
+        callWebSocketService.sendSignal(callSession.callSessionId, callSession.channelType === 'GROUP' ? null : remoteUser?.id || null, 'TOGGLE_VIDEO', {
           videoMuted: muted,
         });
       }
@@ -726,16 +952,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Toggle Screen Sharing
   const toggleScreenShare = async () => {
-    if (!pcRef.current) return;
+    if (peerConnectionsRef.current.size === 0) return;
 
     if (isScreenSharing) {
       // Revert to original camera track
       if (originalCamTrackRef.current) {
-        const senders = pcRef.current.getSenders();
-        const videoSender = senders.find((s) => s.track?.kind === 'video');
-        if (videoSender) {
-          await videoSender.replaceTrack(originalCamTrackRef.current);
-        }
+        await Promise.all([...peerConnectionsRef.current.values()].map(async (peer) => {
+          const videoSender = peer.getSenders().find((sender) => sender.track?.kind === 'video');
+          if (videoSender) await videoSender.replaceTrack(originalCamTrackRef.current);
+        }));
 
         // Replace track in localStream
         if (localStreamRef.current) {
@@ -757,20 +982,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!screenTrack) return;
 
-        const senders = pcRef.current.getSenders();
-        const videoSender = senders.find((s) => s.track?.kind === 'video');
-        if (videoSender) {
-          await videoSender.replaceTrack(screenTrack);
-        }
+        await Promise.all([...peerConnectionsRef.current.values()].map(async (peer) => {
+          const videoSender = peer.getSenders().find((sender) => sender.track?.kind === 'video');
+          if (videoSender) await videoSender.replaceTrack(screenTrack);
+        }));
 
         // Handle native "Stop Sharing" bar from browser
         screenTrack.onended = async () => {
-          if (originalCamTrackRef.current && pcRef.current) {
-            const curSenders = pcRef.current.getSenders();
-            const vSender = curSenders.find((s) => s.track?.kind === 'video');
-            if (vSender) {
-              await vSender.replaceTrack(originalCamTrackRef.current);
-            }
+          if (originalCamTrackRef.current) {
+            await Promise.all([...peerConnectionsRef.current.values()].map(async (peer) => {
+              const videoSender = peer.getSenders().find((sender) => sender.track?.kind === 'video');
+              if (videoSender) await videoSender.replaceTrack(originalCamTrackRef.current);
+            }));
           }
           setIsScreenSharing(false);
         };
@@ -801,6 +1024,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         mediaType,
         localStream,
         remoteStream,
+        remoteVideoMuted,
+        remoteParticipants,
         isAudioMuted,
         isVideoMuted,
         isScreenSharing,
@@ -808,6 +1033,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isMinimized,
         isCallHistoryOpen,
         startCall,
+        startGroupCall,
         acceptCall,
         rejectCall,
         endCall,

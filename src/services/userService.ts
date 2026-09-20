@@ -22,14 +22,16 @@ export const fetchAuthorProfile = async (userId: string) => {
     return authorProfileCache[userId];
   }
 
-  const token = store.getState().auth.accessToken;
+  // AuthContext persists the token in localStorage; Redux is not guaranteed
+  // to be hydrated on pages that render the contacts sidebar first.
+  const token = store.getState().auth.accessToken || localStorage.getItem('token');
   if (!token) return null;
   try {
     const profile = await userService.getUserProfile(userId);
     if (profile) {
       const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
-      const name = parts.join(' ').trim() || 'Thành viên KLTN';
-      const avatar = profile.avatarUrl || '/default-avatar.png';
+      const name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username || 'Thành viên KLTN';
+      const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
       authorProfileCache[userId] = { name, avatar };
       return authorProfileCache[userId];
     }
@@ -56,9 +58,9 @@ export const userService = {
       try {
         const stored = localStorage.getItem('user');
         if (stored) {
-          const u = JSON.parse(stored);
-          if (u.id === userId || u.profileId === userId) {
-            return await userService.getMyProfile();
+          const parsed = JSON.parse(stored);
+          if (String(parsed.id) === String(userId) || String(parsed.userId) === String(userId)) {
+            return parsed;
           }
         }
       } catch {}
@@ -67,9 +69,10 @@ export const userService = {
   },
 
   updateMyProfile: async (data: {
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
     middleName?: string;
+    fullName?: string;
     avatarUrl?: string;
     coverUrl?: string;
     bio?: string;
@@ -78,6 +81,11 @@ export const userService = {
     location?: string;
     website?: string;
   }) => {
+    const res = await api.put('/users/profile/me', data);
+    return res.data?.data || res.data;
+  },
+
+  updateProfile: async (data: any) => {
     const res = await api.put('/users/profile/me', data);
     return res.data?.data || res.data;
   },
@@ -97,94 +105,102 @@ export const userService = {
           new Set(
             data
               .map((c: any) => {
-                const isCurrentRequester = String(c.requesterId).toLowerCase() === currentUserId;
-                const fid = isCurrentRequester ? c.targetId : c.requesterId;
+                const responseUserId = c.userId ? String(c.userId) : '';
+                if (responseUserId && responseUserId.toLowerCase() !== currentUserId) return responseUserId;
+                const requesterId = c.requesterId ? String(c.requesterId) : '';
+                const targetId = c.targetId ? String(c.targetId) : '';
+                const fid = requesterId.toLowerCase() === currentUserId ? targetId
+                  : targetId.toLowerCase() === currentUserId ? requesterId
+                  : (targetId || requesterId);
                 return fid ? String(fid) : null;
               })
-              .filter((id) => id && String(id).toLowerCase() !== currentUserId)
+              .filter((id) => id && String(id).toLowerCase() !== currentUserId && id !== 'undefined' && id !== 'null')
           )
         ) as string[];
+
+        try {
+          localStorage.setItem('my_friend_ids', JSON.stringify(friendIds));
+        } catch {}
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
 
         return friendIds.map((fid) => {
-          const c = data.find((item: any) =>
-            String(item.requesterId).toLowerCase() === fid.toLowerCase() ||
-            String(item.targetId).toLowerCase() === fid.toLowerCase()
-          );
+          const connection = data.find((item: any) =>
+            String(item.userId || '').toLowerCase() === fid.toLowerCase() ||
+            String(item.requesterId || '').toLowerCase() === fid.toLowerCase() ||
+            String(item.targetId || '').toLowerCase() === fid.toLowerCase()
+          ) || {};
           const profile = authorProfileCache[fid];
+          const name = profile?.name || connection.name || connection.fullName || connection.username || 'Người dùng';
+          const avatar = profile?.avatar || connection.avatarUrl || connection.avatar || '/default-avatar.png';
           return {
             id: fid,
-            connectionId: String(c?.id || fid),
             userId: fid,
-            name: profile?.name || c?.name || 'Thành viên KLTN',
-            avatar: profile?.avatar || c?.avatar || '/default-avatar.png',
+            connectionId: String(connection.id || connection.connectionId || fid),
+            name: name,
+            fullName: name,
+            avatar: avatar,
+            avatarUrl: avatar,
             online: true,
-            status: c?.status || 'ACCEPTED',
-            createdAt: c?.createdAt,
+            createdAt: connection.createdAt,
           };
         });
       }
       return [];
     } catch {
       return [];
-    }
-  },
-
-  getUserFriends: async (targetUserId: string, page = 0, size = 50) => {
-    if (!targetUserId || targetUserId === 'me') {
-      return userService.getFriends(page, size);
-    }
-    try {
-      const res = await api.get(`/users/connections/friends/user/${targetUserId}`, { params: { page, size } });
-      const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      if (Array.isArray(data)) {
-        const targetLower = String(targetUserId).toLowerCase();
-        const friendIds = Array.from(
-          new Set(
-            data
-              .map((c: any) => {
-                const isTargetRequester = String(c.requesterId).toLowerCase() === targetLower;
-                const fid = isTargetRequester ? c.targetId : c.requesterId;
-                return fid ? String(fid) : null;
-              })
-              .filter((id) => id && String(id).toLowerCase() !== targetLower)
-          )
-        ) as string[];
-
-        await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
-
-        return friendIds.map((fid) => {
-          const c = data.find((item: any) =>
-            String(item.requesterId).toLowerCase() === fid.toLowerCase() ||
-            String(item.targetId).toLowerCase() === fid.toLowerCase()
-          );
-          const profile = authorProfileCache[fid];
-          return {
-            id: fid,
-            connectionId: String(c?.id || fid),
-            userId: fid,
-            name: profile?.name || c?.name || 'Thành viên KLTN',
-            avatar: profile?.avatar || c?.avatar || '/default-avatar.png',
-            online: true,
-            status: c?.status || 'ACCEPTED',
-            createdAt: c?.createdAt,
-          };
-        });
-      }
-      return [];
-    } catch {
-      return userService.getFriends(page, size);
     }
   },
 
   getConnectionStatus: async (targetUserId: string) => {
-    if (!targetUserId || targetUserId === 'me') return null;
     try {
       const res = await api.get(`/users/connections/status/${targetUserId}`);
-      return res.data?.data || null;
+      return res.data?.data || res.data?.result || null;
     } catch {
       return null;
+    }
+  },
+
+  getUserFriends: async (targetUserId: string, page = 0, size = 50) => {
+    try {
+      // The server route is /friends/user/{id}; the old URL returned 404 and
+      // was silently converted to an empty list on another person's profile.
+      const res = await api.get(`/users/connections/friends/user/${targetUserId}`, { params: { page, size } });
+      const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
+      if (!Array.isArray(data)) return [];
+      const ownerId = String(targetUserId).toLowerCase();
+      const normalized = data.map((connection: any) => {
+        const requesterId = String(connection.requesterId || '');
+        const targetId = String(connection.targetId || '');
+        // A connection has two IDs. For another person's profile, display the
+        // ID at the opposite end of that person's friendship.
+        const friendId = requesterId.toLowerCase() === ownerId
+          ? targetId
+          : targetId.toLowerCase() === ownerId
+            ? requesterId
+            : String(connection.userId || targetId || requesterId || '');
+        return { connection, friendId };
+      }).filter(({ friendId }) => Boolean(friendId));
+
+      await Promise.all(normalized.map(({ friendId }) => fetchAuthorProfile(friendId).catch(() => null)));
+
+      return normalized.map(({ connection, friendId }) => {
+        const profile = authorProfileCache[friendId];
+        const name = profile?.name || connection.fullName || connection.name || connection.username || 'Bạn bè';
+        const avatar = profile?.avatar || connection.avatarUrl || connection.avatar || '/default-avatar.png';
+        return {
+          id: friendId,
+          userId: friendId,
+          connectionId: String(connection.id || ''),
+          name,
+          fullName: name,
+          avatar,
+          avatarUrl: avatar,
+          online: Boolean(connection.isOnline),
+        };
+      });
+    } catch {
+      return [];
     }
   },
 
@@ -400,5 +416,24 @@ export const userService = {
   unfollow: async (targetId: string) => {
     const res = await api.post(`/users/connections/unfollow/${targetId}`);
     return res.data;
+  },
+
+  getPrivacySettings: async () => {
+    try {
+      const res = await api.get('/users/privacy');
+      return res.data?.data || res.data?.result || res.data;
+    } catch {
+      return null;
+    }
+  },
+
+  updatePrivacySettings: async (settings: {
+    defaultPostPrivacy?: string;
+    friendRequestPrivacy?: string;
+    friendListPrivacy?: string;
+    searchPrivacy?: string;
+  }) => {
+    const res = await api.put('/users/privacy', settings);
+    return res.data?.data || res.data?.result || res.data;
   },
 };

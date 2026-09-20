@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
@@ -19,7 +19,23 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
   const [imageUrl, setImageUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
+  const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>(() => {
+    const saved = localStorage.getItem('default_post_privacy');
+    if (saved === 'FRIENDS') return 'friends';
+    if (saved === 'PRIVATE') return 'private';
+    return 'public';
+  });
+
+  useEffect(() => {
+    const handlePrivacyChange = (e: any) => {
+      const val = e.detail;
+      if (val === 'FRIENDS') setPrivacy('friends');
+      else if (val === 'PRIVATE') setPrivacy('private');
+      else setPrivacy('public');
+    };
+    window.addEventListener('default_post_privacy_changed', handlePrivacyChange);
+    return () => window.removeEventListener('default_post_privacy_changed', handlePrivacyChange);
+  }, []);
   const [showImageInput, setShowImageInput] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

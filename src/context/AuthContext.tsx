@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleExpired = () => {
       setUser(null);
       dispatch(clearAuth());
+      localStorage.removeItem('token');
       setIsGuest(true);
       setLoginModalOpen(false);
       window.dispatchEvent(new Event('navigate_to_auth'));
@@ -103,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentDev && currentDev.status === 'REVOKED') {
             console.warn('[AuthContext] Session has been revoked remotely.');
             localStorage.removeItem('user');
+            localStorage.removeItem('token');
             dispatch(clearAuth());
             setUser(null);
             setIsGuest(true);
@@ -113,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem('user');
+          localStorage.removeItem('token');
           dispatch(clearAuth());
           setUser(null);
           setIsGuest(true);
@@ -184,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               fullName: username || 'Người dùng',
             };
         localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', accToken);
         localStorage.removeItem('isGuest');
         setUser(userData);
         dispatch(setAccessToken(accToken));
@@ -224,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               fullName: 'Người dùng',
             };
         localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', accToken);
         localStorage.removeItem('isGuest');
         setUser(userData);
         dispatch(setAccessToken(accToken));
@@ -255,6 +260,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginAsGuest = () => {
     localStorage.setItem('isGuest', 'true');
+    localStorage.removeItem('token');
     setIsGuest(true);
     setUser(null);
     dispatch(clearAuth());
@@ -264,6 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout().catch(() => null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     localStorage.setItem('isGuest', 'true');
     setUser(null);
     dispatch(clearAuth());

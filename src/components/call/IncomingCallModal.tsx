@@ -1,10 +1,10 @@
 import React from 'react';
-import { Phone, PhoneOff, Video, Mic } from 'lucide-react';
+import { Phone, PhoneOff, Video, Mic, Users } from 'lucide-react';
 import { useCall } from '../../context/CallContext';
 import { UserAvatar } from '../common/UserAvatar';
 
 export const IncomingCallModal: React.FC = () => {
-  const { callState, remoteUser, mediaType, acceptCall, rejectCall } = useCall();
+  const { callState, callSession, remoteUser, mediaType, acceptCall, rejectCall } = useCall();
 
   React.useEffect(() => {
     if (callState === 'incoming') {
@@ -21,6 +21,7 @@ export const IncomingCallModal: React.FC = () => {
   }
 
   const isVideo = mediaType === 'VIDEO';
+  const isGroupCall = callSession?.channelType === 'GROUP';
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in p-4">
@@ -46,7 +47,12 @@ export const IncomingCallModal: React.FC = () => {
           {remoteUser.name}
         </h3>
         <div className="mt-2 inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-          {isVideo ? (
+          {isGroupCall ? (
+            <>
+              <Users className="w-3.5 h-3.5" />
+              <span>{isVideo ? 'Cuộc gọi video nhóm đến...' : 'Cuộc gọi thoại nhóm đến...'}</span>
+            </>
+          ) : isVideo ? (
             <>
               <Video className="w-3.5 h-3.5" />
               <span>Cuộc gọi video đến...</span>

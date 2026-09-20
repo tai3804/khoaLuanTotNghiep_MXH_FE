@@ -20,9 +20,18 @@ export const FriendSelectionList: React.FC<FriendSelectionListProps> = ({
   onSearchChange,
   maxHeight = '45vh',
 }) => {
-  const filteredFriends = friends.filter((f) => {
-    const name = f.fullName || [f.lastName, f.middleName, f.firstName].filter(Boolean).join(' ') || f.username;
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  const getFriendName = (friend: any): string => {
+    if (!friend || typeof friend !== 'object') return 'Người dùng';
+    const composedName = [friend.lastName, friend.middleName, friend.firstName]
+      .filter((part) => typeof part === 'string' && part.trim())
+      .join(' ')
+      .trim();
+    return String(friend.name || friend.fullName || composedName || friend.displayName || friend.username || friend.email || 'Người dùng');
+  };
+  const safeFriends = Array.isArray(friends) ? friends.filter(Boolean) : [];
+  const normalizedQuery = String(searchQuery || '').trim().toLocaleLowerCase('vi-VN');
+  const filteredFriends = safeFriends.filter((f) => {
+    return getFriendName(f).toLocaleLowerCase('vi-VN').includes(normalizedQuery);
   });
 
   return (
@@ -59,7 +68,7 @@ export const FriendSelectionList: React.FC<FriendSelectionListProps> = ({
         ) : (
           filteredFriends.map((f) => {
             const uid = String(f.userId || f.id);
-            const name = f.fullName || [f.lastName, f.middleName, f.firstName].filter(Boolean).join(' ') || f.username;
+            const name = getFriendName(f);
             const avatar = f.avatarUrl || f.avatar || '/default-avatar.png';
             const isSelected = selectedIds.has(uid);
 

@@ -1,6 +1,9 @@
 import { Client, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { WebRtcSignal } from './callService';
+import { api } from './axiosClient';
+import { store } from '../store/store';
+import { setAccessToken } from '../store/slices/authSlice';
 
 type SignalCallback = (signal: WebRtcSignal) => void;
 
@@ -16,7 +19,10 @@ class CallWebSocketService {
   private recentSignalKeys: Map<string, number> = new Map();
 
   public isConnected(): boolean {
-    return this.connected && this.client !== null && this.client.active;
+    // `active` only means that STOMP is trying to connect. Subscribing while
+    // it is active but before the underlying socket is connected throws
+    // "There is no underlying STOMP connection".
+    return this.connected && this.client !== null && this.client.active && this.client.connected;
   }
 
   public async connect(userId?: string): Promise<boolean> {
@@ -44,7 +50,25 @@ class CallWebSocketService {
       return this.connectionPromise;
     }
 
-    const token = localStorage.getItem('token');
+    // Redux is intentionally memory-only, so it is empty after a hard reload.
+    // Refresh the HttpOnly-cookie session before opening STOMP; otherwise a
+    // user who is visibly logged in cannot start or receive any call.
+    let token = store.getState().auth.accessToken || localStorage.getItem('token');
+    if (!token) {
+      try {
+        const response = await api.post('/auth/refresh', {}, {
+          headers: {
+            'X-Client-Type': 'WEB',
+            'X-Device-Fingerprint': localStorage.getItem('deviceFingerprint') || '',
+          },
+        });
+        const data = response.data?.data || response.data?.result || response.data;
+        token = data?.accessToken || data?.token || null;
+        if (token) store.dispatch(setAccessToken(token));
+      } catch (error) {
+        console.warn('[CallWS] Session refresh failed before WebSocket connection', error);
+      }
+    }
     if (!token) {
       console.warn('[CallWS] Cannot connect: No token available');
       return false;
@@ -87,7 +111,15 @@ class CallWebSocketService {
 
           if (activeUserId) {
             this.currentUserId = activeUserId;
-            this.subscribeUserChannels(activeUserId);
+            // Allow STOMP to finish installing its WebSocket before creating
+            // subscriptions. This also ignores a stale callback from a client
+            // that was replaced while reconnecting.
+            const connectedClient = this.client;
+            setTimeout(() => {
+              if (this.client === connectedClient && this.isConnected()) {
+                this.subscribeUserChannels(activeUserId!);
+              }
+            }, 0);
           } else {
             console.warn('[CallWS] Connected but no activeUserId found to subscribe.');
           }

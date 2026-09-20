@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Lock, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
+import { Globe, Lock, MoreHorizontal, Image as ImageIcon, UserPlus } from 'lucide-react';
 
 export interface GroupData {
   id?: string;
@@ -15,9 +15,17 @@ interface GroupBannerProps {
   group: GroupData;
   activeTab: string;
   setActiveTab: (tab: 'discussion' | 'members' | 'media') => void;
+  onInviteClick?: () => void;
+  onToggleJoin?: () => void;
 }
 
-export const GroupBanner: React.FC<GroupBannerProps> = ({ group, activeTab, setActiveTab }) => {
+export const GroupBanner: React.FC<GroupBannerProps> = ({
+  group,
+  activeTab,
+  setActiveTab,
+  onInviteClick,
+  onToggleJoin,
+}) => {
   return (
     <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] shadow-sm sm:rounded-b-lg overflow-hidden">
       {/* Cover Photo */}
@@ -49,22 +57,39 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({ group, activeTab, setA
 
         <div className="flex items-center gap-2 mt-4 pb-4 border-b border-gray-200 dark:border-[#393a3b]">
           <div className="flex -space-x-2">
-             {/* Fake member avatars */}
+             {/* Member avatar rings */}
              <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white dark:border-[#242526]"></div>
-             <div className="w-8 h-8 rounded-full bg-red-500 border-2 border-white dark:border-[#242526]"></div>
-             <div className="w-8 h-8 rounded-full bg-green-500 border-2 border-white dark:border-[#242526]"></div>
+             <div className="w-8 h-8 rounded-full bg-indigo-500 border-2 border-white dark:border-[#242526]"></div>
+             <div className="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white dark:border-[#242526]"></div>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {group.isMember && onInviteClick && (
+              <button
+                onClick={onInviteClick}
+                className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition shadow-sm cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                + Mời
+              </button>
+            )}
+
             {group.isMember ? (
-              <button className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+              <button
+                onClick={onToggleJoin}
+                className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition cursor-pointer"
+              >
                 Đã tham gia
               </button>
             ) : (
-              <button className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition">
+              <button
+                onClick={onToggleJoin}
+                className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition cursor-pointer"
+              >
                 Tham gia nhóm
               </button>
             )}
+
             <button className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition">
               <MoreHorizontal className="w-5 h-5" />
             </button>

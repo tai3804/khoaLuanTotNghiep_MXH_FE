@@ -64,6 +64,7 @@ export interface WebRtcSignal {
     | 'TOGGLE_AUDIO'
     | 'TOGGLE_VIDEO';
   mediaType?: MediaType;
+  channelType?: ChannelType;
   sdp?: any;
   candidate?: any;
   audioMuted?: boolean;

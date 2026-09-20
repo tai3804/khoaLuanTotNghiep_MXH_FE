@@ -35,12 +35,12 @@ export const StoriesBar: React.FC = () => {
           data.userStoriesList.map((userStoryGrp) => (
             <div
               key={userStoryGrp.userId}
-              onClick={() => data.setSelectedStory(userStoryGrp)}
+              onClick={() => data.openStory(userStoryGrp)}
               className="group relative min-w-[110px] w-[110px] h-full rounded-xl overflow-hidden cursor-pointer shrink-0 shadow-sm border border-black/5 dark:border-white/5"
             >
               <img
-                src={userStoryGrp.stories[0]?.mediaUrl || userStoryGrp.userAvatar || '/default-avatar.png'}
-                alt={userStoryGrp.userName}
+                src={userStoryGrp.stories[0]?.mediaUrl || userStoryGrp.avatarUrl || userStoryGrp.userAvatar || '/default-avatar.png'}
+                alt={userStoryGrp.fullName || userStoryGrp.userName || 'Người dùng'}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/default-avatar.png';
@@ -48,10 +48,10 @@ export const StoriesBar: React.FC = () => {
               />
               <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition duration-300" />
               <div className="absolute top-2 left-2 ring-2 ring-[#1877f2] rounded-full p-[1px] bg-white dark:bg-[#242526]">
-                <UserAvatar src={userStoryGrp.userAvatar} alt={userStoryGrp.userName} size="sm" />
+                <UserAvatar src={userStoryGrp.avatarUrl || userStoryGrp.userAvatar} alt={userStoryGrp.fullName || userStoryGrp.userName || 'Người dùng'} size="sm" />
               </div>
               <div className="absolute bottom-2 left-2 right-2 text-white text-[11px] font-bold leading-tight truncate drop-shadow-md">
-                {userStoryGrp.userName}
+                {userStoryGrp.fullName || userStoryGrp.userName || 'Người dùng'}
               </div>
             </div>
           ))
@@ -82,6 +82,7 @@ export const StoriesBar: React.FC = () => {
       <StoryViewerModal
         selectedStory={data.selectedStory}
         onClose={() => data.setSelectedStory(null)}
+        onStoryDeleted={data.loadStories}
       />
     </div>
   );

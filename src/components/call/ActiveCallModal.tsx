@@ -14,6 +14,25 @@ import {
 import { useCall } from '../../context/CallContext';
 import { UserAvatar } from '../common/UserAvatar';
 
+const CallTile: React.FC<{ stream: MediaStream; name: string; muted?: boolean; videoOff?: boolean }> = ({ stream, name, muted, videoOff }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream]);
+  const hasVideo = stream.getVideoTracks().some((track) => track.enabled && track.readyState === 'live');
+  return (
+    <div className="relative min-h-0 rounded-2xl overflow-hidden bg-[#151515] border border-white/10 flex items-center justify-center">
+      {hasVideo && !videoOff ? <video ref={videoRef} autoPlay playsInline muted={muted} onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})} className="w-full h-full object-cover" /> : (
+        <div className="flex flex-col items-center gap-2"><UserAvatar src="" alt={name} size="xl" /><span className="text-sm font-bold text-white">{name}</span></div>
+      )}
+      <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur">{name}</span>
+    </div>
+  );
+};
+
 const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -23,10 +42,13 @@ const formatDuration = (seconds: number): string => {
 export const ActiveCallModal: React.FC = () => {
   const {
     callState,
+    callSession,
     remoteUser,
     mediaType,
     localStream,
     remoteStream,
+    remoteVideoMuted,
+    remoteParticipants,
     isAudioMuted,
     isVideoMuted,
     isScreenSharing,
@@ -48,6 +70,7 @@ export const ActiveCallModal: React.FC = () => {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
     }
   }, [localStream, isVideoMuted, isScreenSharing]);
 
@@ -55,6 +78,7 @@ export const ActiveCallModal: React.FC = () => {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
 
@@ -75,17 +99,29 @@ export const ActiveCallModal: React.FC = () => {
 
   const isVideo = mediaType === 'VIDEO';
   const hasRemoteVideo = remoteStream && remoteStream.getVideoTracks().some((t) => t.enabled && t.readyState === 'live');
+  const isGroupCall = callSession?.channelType === 'GROUP';
+  const participantTiles = Object.values(remoteParticipants);
+  const tileCount = participantTiles.length + 1;
+  const gridClass = tileCount <= 2 ? 'grid-cols-1 md:grid-cols-2' : tileCount <= 4 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3';
 
   // 1. Minimized Floating PiP Mode (Allows navigating the social network while in call)
   if (isMinimized) {
     return (
       <div className="fixed bottom-6 right-6 z-[100] w-72 bg-gray-900/95 border border-gray-700/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-fade-in text-white transition-all duration-200">
         <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-          {isVideo && hasRemoteVideo ? (
+          {isGroupCall ? (
+            <div className={`grid ${gridClass} gap-2 w-full h-full p-3 md:p-5`}>
+              <CallTile stream={localStream || new MediaStream()} name="Bạn" muted />
+              {participantTiles.map((participant) => (
+                <CallTile key={participant.id} stream={participant.stream} name={participant.name} videoOff={participant.videoMuted} />
+              ))}
+            </div>
+          ) : isVideo && hasRemoteVideo && !remoteVideoMuted ? (
             <video
               ref={remoteVideoRef}
               autoPlay
               playsInline
+              onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -120,7 +156,7 @@ export const ActiveCallModal: React.FC = () => {
           >
             {isAudioMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
           </button>
-          {isVideo && (
+          {isVideo && !isGroupCall && (
             <button
               onClick={toggleVideo}
               className={`p-2 rounded-full transition cursor-pointer ${
@@ -133,7 +169,7 @@ export const ActiveCallModal: React.FC = () => {
           <button
             onClick={endCall}
             className="p-2 rounded-full bg-red-500 hover:bg-red-600 text-white transition cursor-pointer"
-            title="Kết thúc"
+            title={callSession?.channelType === 'GROUP' ? 'Rời cuộc gọi nhóm' : 'Kết thúc'}
           >
             <PhoneOff className="w-3.5 h-3.5" />
           </button>
@@ -163,6 +199,7 @@ export const ActiveCallModal: React.FC = () => {
                   <span className="text-green-400 font-semibold">{formatDuration(callDuration)}</span>
                 )}
                 {callState === 'ended' && <span className="text-red-400">Cuộc gọi kết thúc</span>}
+                {callSession?.channelType === 'GROUP' && callState !== 'ended' && ' · Cuộc gọi nhóm'}
               </p>
             </div>
           </div>
@@ -187,7 +224,14 @@ export const ActiveCallModal: React.FC = () => {
 
         {/* Main Video / Audio Canvas */}
         <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-          {isVideo && hasRemoteVideo ? (
+          {isGroupCall ? (
+            <div className={`grid ${gridClass} gap-2 w-full h-full p-3 md:p-5`}>
+              <CallTile stream={localStream || new MediaStream()} name="Bạn" muted />
+              {participantTiles.map((participant) => (
+                <CallTile key={participant.id} stream={participant.stream} name={participant.name} videoOff={participant.videoMuted} />
+              ))}
+            </div>
+          ) : isVideo && hasRemoteVideo && !remoteVideoMuted ? (
             <video
               ref={remoteVideoRef}
               autoPlay
@@ -225,7 +269,7 @@ export const ActiveCallModal: React.FC = () => {
           )}
 
           {/* Local Camera Preview (Picture-in-Picture) */}
-          {isVideo && (
+          {isVideo && !isGroupCall && (
             <div className="absolute bottom-24 right-4 md:right-6 w-32 md:w-44 aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-gray-900 z-20 backdrop-blur-md transition-all hover:scale-105">
               {!isVideoMuted && localStream ? (
                 <video
@@ -233,6 +277,7 @@ export const ActiveCallModal: React.FC = () => {
                   autoPlay
                   playsInline
                   muted
+                  onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})}
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
               ) : (
@@ -297,7 +342,7 @@ export const ActiveCallModal: React.FC = () => {
           <button
             onClick={endCall}
             className="p-4 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white transition duration-200 cursor-pointer shadow-xl shadow-red-600/40"
-            title="Kết thúc cuộc gọi"
+            title={callSession?.channelType === 'GROUP' ? 'Rời cuộc gọi nhóm' : 'Kết thúc cuộc gọi'}
           >
             <PhoneOff className="w-6 h-6" />
           </button>

@@ -28,7 +28,7 @@ const processQueue = (error: any, token: string | null = null) => {
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = store.getState().auth.accessToken;
+    const token = store.getState().auth.accessToken || localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = 'Bearer ' + token;
     }
@@ -81,6 +81,7 @@ api.interceptors.response.use(
 
         if (newAccessToken) {
           store.dispatch(setAccessToken(newAccessToken));
+          localStorage.setItem('token', newAccessToken);
           
           api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
           originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
@@ -93,6 +94,7 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         store.dispatch(clearAuth());
+        localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.dispatchEvent(new Event('auth_session_expired'));
         return Promise.reject(refreshErr);
