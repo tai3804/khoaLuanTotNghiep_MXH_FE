@@ -1,9 +1,10 @@
 import React, { RefObject } from 'react';
-import { LayoutGrid, Bell, LogIn } from 'lucide-react';
+import { LayoutGrid, Bell, LogIn, Phone } from 'lucide-react';
 import { NotificationDropdown } from '../../notification/NotificationDropdown';
 import { HeaderMessengerDropdown } from './HeaderMessengerDropdown';
 import { HeaderUserDropdown } from './HeaderUserDropdown';
 import { ChatUser } from '../../../components/chat/chat-box';
+import { useCall } from '../../../context/CallContext';
 
 interface HeaderRightControlsProps {
   isAuthenticated: boolean;
@@ -70,6 +71,8 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   onNavigateAuth,
   onTabChange,
 }) => {
+  const { setIsCallHistoryOpen } = useCall();
+
   return (
     <div className="flex items-center space-x-2 shrink-0">
       {/* Menu (Grid) icon */}
@@ -85,6 +88,15 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
 
       {isAuthenticated ? (
         <>
+          {/* Call History button */}
+          <button
+            onClick={() => setIsCallHistoryOpen(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+            title="Lịch sử cuộc gọi"
+          >
+            <Phone className="w-5 h-5" />
+          </button>
+
           {/* Messenger button & dropdown */}
           <HeaderMessengerDropdown
             msgMenuRef={msgMenuRef}

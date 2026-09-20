@@ -2,6 +2,7 @@ import React from 'react';
 import { Phone, Video, Minus, X } from 'lucide-react';
 import { ChatUser } from './types';
 import { UserAvatar } from '../../common/UserAvatar';
+import { useCall } from '../../../context/CallContext';
 
 interface ChatBoxHeaderProps {
   friend: ChatUser;
@@ -10,6 +11,21 @@ interface ChatBoxHeaderProps {
 }
 
 export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({ friend, onMinimize, onClose }) => {
+  const { startCall } = useCall();
+  const targetUserId = friend.userId || friend.id;
+
+  const handleAudioCall = () => {
+    if (targetUserId) {
+      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'AUDIO');
+    }
+  };
+
+  const handleVideoCall = () => {
+    if (targetUserId) {
+      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'VIDEO');
+    }
+  };
+
   return (
     <div className="flex items-center justify-between px-3 py-2.5 bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] shadow-sm">
       <div className="flex items-center space-x-2.5 cursor-pointer" onClick={onMinimize}>
@@ -29,10 +45,18 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({ friend, onMinimize
         </div>
       </div>
       <div className="flex items-center space-x-0.5 text-[#1877f2] dark:text-[#4599ff]">
-        <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer" title="Cuộc gọi thoại">
+        <button
+          onClick={handleAudioCall}
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
+          title="Cuộc gọi thoại"
+        >
           <Phone className="w-4 h-4" />
         </button>
-        <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer" title="Cuộc gọi video">
+        <button
+          onClick={handleVideoCall}
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
+          title="Cuộc gọi video"
+        >
           <Video className="w-4 h-4" />
         </button>
         <button
