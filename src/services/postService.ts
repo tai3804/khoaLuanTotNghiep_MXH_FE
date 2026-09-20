@@ -50,6 +50,8 @@ export const normalizePost = (p: any): Post => {
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),
     sharesCount: Number(p.shareCount ?? p.sharesCount ?? 0),
     isLiked: Boolean(p.isLiked),
+    isPinned: Boolean(p.isPinned),
+    isArchived: Boolean(p.isArchived),
     privacy: p.privacy || 'PUBLIC',
     originalPostId: p.originalPostId ? String(p.originalPostId) : undefined,
     comments: p.comments || [],
@@ -117,6 +119,8 @@ export const postService = {
         }
       }
 
+      // Access control is enforced by post-service; do not wait for an extra
+      // friends request before rendering the feed.
       const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
 
       let nextCursor: string | null = null;
@@ -274,6 +278,76 @@ export const postService = {
   deletePost: async (postId: string) => {
     const res = await api.delete(`/posts/${postId}`);
     return res.data;
+  },
+
+  updatePost: async (
+    postId: string,
+    data: {
+      content?: string;
+      privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
+      allowedUserIds?: string[];
+      isPinned?: boolean;
+      isArchived?: boolean;
+      mediaUrls?: string[];
+    }
+  ): Promise<Post> => {
+    const res = await api.put(`/posts/${postId}`, data);
+    const postData = res.data?.data || res.data;
+    const normalized = normalizePost(postData);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
+  pinPost: async (postId: string, isPinned = true): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/pin`, null, { params: { isPinned } });
+    const postData = res.data?.data || res.data;
+    const normalized = normalizePost(postData);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
+  archivePost: async (postId: string, isArchived = true): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/archive`, null, { params: { isArchived } });
+    const postData = res.data?.data || res.data;
+    const normalized = normalizePost(postData);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
+  updatePostPrivacy: async (postId: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/privacy`, null, { params: { privacy } });
+    const postData = res.data?.data || res.data;
+    const normalized = normalizePost(postData);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
+  updateAllMyPostsPrivacy: async (privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE'): Promise<number> => {
+    const res = await api.patch('/posts/privacy/batch', null, { params: { privacy } });
+    return Number(res.data?.data ?? res.data ?? 0);
+  },
+
+  savePost: async (postId: string, collectionName?: string) => {
+    const res = await api.post('/posts/saved', { postId, collectionName });
+    return res.data;
+  },
+
+  unsavePost: async (postId: string) => {
+    const res = await api.delete(`/posts/saved/${postId}`);
+    return res.data;
+  },
+
+  getSavedPosts: async (page = 0, size = 20): Promise<Post[]> => {
+    try {
+      const res = await api.get('/posts/saved', { params: { page, size } });
+      const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
+      if (Array.isArray(raw)) {
+        return raw.map(normalizePost);
+      }
+      return [];
+    } catch {
+      return [];
+    }
   },
 
   reactPost: async (postId: string, type: 'LIKE' | 'LOVE' | 'HAHA' | 'WOW' | 'SAD' | 'ANGRY' = 'LIKE') => {

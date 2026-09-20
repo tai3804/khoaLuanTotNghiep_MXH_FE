@@ -51,6 +51,18 @@ export const useStoriesData = () => {
     }
   };
 
+  const openStory = (storyGroup: any) => {
+    setSelectedStory(storyGroup);
+    const firstUnviewed = (storyGroup?.stories || []).find((story: any) => !story.isViewedByMe);
+    const isOwnStory = String(storyGroup?.userId) === String(user?.id);
+    if (firstUnviewed?.id && !isOwnStory) {
+      storyService.viewStory(firstUnviewed.id).catch((error) => {
+        console.error('[Stories] Could not record story view:', error);
+        toast.showError('Không thể ghi nhận lượt xem tin. Vui lòng thử lại.');
+      });
+    }
+  };
+
   const handleStoryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -100,9 +112,11 @@ export const useStoriesData = () => {
     uploadingMedia,
     selectedStory,
     setSelectedStory,
+    openStory,
     storyFileInputRef,
     handleScrollRight,
     handleStoryFileSelect,
     handleCreateStorySubmit,
+    loadStories,
   };
 };

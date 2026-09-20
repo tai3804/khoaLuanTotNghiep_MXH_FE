@@ -1,7 +1,9 @@
 import React from 'react';
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { EditProfileModal } from './EditProfileModal';
-import { ChatUser } from '../../components/chat/chat-box';
+import { ProfileManagementModal } from './ProfileManagementModal';
+import { useNavigate } from 'react-router-dom';
+import { ChatUser } from '../chat/chat-box';
 
 import {
   useProfileViewData,
@@ -24,6 +26,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onSelectChatUser,
   onViewProfile,
 }) => {
+  const navigate = useNavigate();
+  const [showManagementModal, setShowManagementModal] = React.useState(false);
+  const [archivedPostIds, setArchivedPostIds] = React.useState<string[]>([]);
   const profileData = useProfileViewData({ userId });
   const {
     currentUser,
@@ -65,6 +70,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     handleRejectFriendRequest,
     handleUnfriendProfile,
   } = profileData;
+  React.useEffect(() => {
+    try { setArchivedPostIds(JSON.parse(localStorage.getItem(`profile_management_archived_posts_${targetUserId || currentUser?.id || 'me'}`) || '[]')); } catch { setArchivedPostIds([]); }
+  }, [targetUserId, currentUser?.id]);
+  const publishedPosts = posts.filter((post) => !archivedPostIds.includes(post.id));
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] pb-12">
@@ -75,7 +84,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         avatarUrl={avatarUrl}
         fullName={fullName}
         friendCount={friends.length}
-        postCount={posts.length}
+        postCount={publishedPosts.length}
         coverError={coverError}
         setCoverError={setCoverError}
         isFriend={isFriend}
@@ -86,6 +95,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onAvatarFileSelect={handleAvatarFileSelect}
         onCoverFileSelect={handleCoverFileSelect}
         onShowEditModal={() => setShowEditModal(true)}
+        onShowManagement={() => setShowManagementModal(true)}
         onShowMediaGallery={() => setShowMediaGalleryModal(true)}
         onAddFriend={handleAddFriendProfile}
         onCancelRequest={handleCancelSentRequest}
@@ -111,7 +121,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             selectedHobbies={selectedHobbies}
             allPostPhotos={allPostPhotos}
             friends={friends}
-            posts={posts}
+            posts={publishedPosts}
             loading={loading}
             setActiveTab={setActiveTab}
             onViewProfile={onViewProfile}
@@ -167,6 +177,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           setCoverError(false);
         }}
       />
+      {isOwnProfile && <ProfileManagementModal
+        isOpen={showManagementModal}
+        onClose={() => setShowManagementModal(false)}
+        posts={posts}
+        userId={targetUserId || currentUser?.id || 'me'}
+        onEditProfile={() => setShowEditModal(true)}
+        onOpenMedia={() => setShowMediaGalleryModal(true)}
+        onOpenPrivacy={() => navigate('/settings/privacy')}
+        onArchiveChange={setArchivedPostIds}
+      />}
     </div>
   );
 };

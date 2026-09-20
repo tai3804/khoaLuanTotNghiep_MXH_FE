@@ -9,6 +9,10 @@ interface ChatBoxMessagesListProps {
   loading: boolean;
   user: any;
   messagesEndRef: RefObject<HTMLDivElement | null>;
+  messagesContainerRef: RefObject<HTMLDivElement | null>;
+  loadingOlder: boolean;
+  hasMoreMessages: boolean;
+  onLoadOlder: () => void;
 }
 
 export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
@@ -17,9 +21,18 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
   loading,
   user,
   messagesEndRef,
+  messagesContainerRef,
+  loadingOlder,
+  hasMoreMessages,
+  onLoadOlder,
 }) => {
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    if (event.currentTarget.scrollTop <= 24 && hasMoreMessages && !loadingOlder) onLoadOlder();
+  };
   return (
-    <div className="h-72 p-3 overflow-y-auto space-y-2 bg-gray-50/50 dark:bg-[#18191a]">
+    <div ref={messagesContainerRef} onScroll={handleScroll} className="h-72 p-3 overflow-y-auto space-y-2 bg-gray-50/50 dark:bg-[#18191a]">
+      {loadingOlder && <div className="py-1 text-center text-[10px] text-gray-400">Đang tải tin nhắn cũ...</div>}
+      {!hasMoreMessages && messages.length > 0 && <div className="py-1 text-center text-[10px] text-gray-400">Đã xem toàn bộ tin nhắn</div>}
       {loading ? (
         <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-[#b0b3b8]">
           <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin mr-2" />
@@ -38,25 +51,46 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
           const isVideo = isMediaUrl && (msg.text.endsWith('.mp4') || msg.text.endsWith('.webm'));
 
           return (
-            <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-              <div
-                className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-sm ${
-                  isMe
-                    ? 'bg-[#1877f2] text-white rounded-br-none'
-                    : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
+            <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} my-0.5`}>
+              {friend.isGroup && !isMe && msg.senderName && (
+                <span className="text-[10px] font-semibold text-gray-500 dark:text-[#b0b3b8] mb-0.5 ml-7 truncate max-w-[200px]">
+                  {msg.senderName}
+                </span>
+              )}
+              <div className={`flex items-end gap-1.5 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                {friend.isGroup && !isMe && (
+                  <UserAvatar
+                    src={msg.senderAvatar}
+                    alt={msg.senderName || 'Thành viên'}
+                    size="sm"
+                    className="w-6 h-6 rounded-full shrink-0 mb-0.5"
+                  />
+                )}
+                <div
+                  className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-sm ${
+                    isMe
+                      ? 'bg-[#1877f2] text-white rounded-br-none'
+                      : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
+                  }`}
+                >
+                  {isMediaUrl ? (
+                    isVideo ? (
+                      <video src={msg.text} controls className="max-w-xs max-h-48 rounded-lg my-1" />
+                    ) : (
+                      <img src={msg.text} alt="Attachment" className="max-w-xs max-h-48 rounded-lg object-cover my-1" />
+                    )
+                  ) : (
+                    msg.text
+                  )}
+                </div>
+              </div>
+              <span
+                className={`text-[9px] text-gray-400 dark:text-[#b0b3b8] mt-0.5 px-1 ${
+                  friend.isGroup && !isMe ? 'ml-7' : ''
                 }`}
               >
-                {isMediaUrl ? (
-                  isVideo ? (
-                    <video src={msg.text} controls className="max-w-xs max-h-48 rounded-lg my-1" />
-                  ) : (
-                    <img src={msg.text} alt="Attachment" className="max-w-xs max-h-48 rounded-lg object-cover my-1" />
-                  )
-                ) : (
-                  msg.text
-                )}
-              </div>
-              <span className="text-[9px] text-gray-400 dark:text-[#b0b3b8] mt-0.5 px-1">{msg.time}</span>
+                {msg.time}
+              </span>
             </div>
           );
         })

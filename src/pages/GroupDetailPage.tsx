@@ -6,8 +6,9 @@ import { GroupBanner } from '../components/groups/GroupBanner';
 import { GroupDiscussionTab } from '../components/groups/GroupDiscussionTab';
 import { GroupMembersTab } from '../components/groups/GroupMembersTab';
 import { GroupMediaTab } from '../components/groups/GroupMediaTab';
+import { InviteCommunityMembersModal } from '../components/groups/InviteCommunityMembersModal';
 import { Skeleton } from '../components/common/Skeleton';
-import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { groupService, GroupResponse } from '../services/groupService';
 
 interface GroupDetailPageProps {
   activeNavTab: string;
@@ -23,27 +24,40 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media'>('discussion');
   const [isLoading, setIsLoading] = useState(true);
+  const [group, setGroup] = useState<GroupResponse | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
-  useEffect(() => {
-    // Giả lập thời gian fetch API
-    const timer = setTimeout(() => {
+  const loadGroup = async (groupId: string) => {
+    try {
+      const g = await groupService.getGroupById(groupId);
+      setGroup(g);
+    } catch (err) {
+      console.error('Failed to load group:', err);
+    } finally {
       setIsLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [id]);
-
-  // Giả lập dữ liệu nhóm để hiển thị giao diện
-  const group = {
-    id,
-    name: "Cộng đồng lập trình viên React",
-    coverUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-    privacy: "PUBLIC",
-    memberCount: 1542,
-    isMember: true,
-    isAdmin: true
+    }
   };
 
-  if (isLoading) {
+  useEffect(() => {
+    if (id) {
+      setIsLoading(true);
+      loadGroup(id);
+    }
+  }, [id]);
+
+  const handleToggleJoin = async () => {
+    if (!group) return;
+    try {
+      const updated = await groupService.toggleJoinGroup(group.id);
+      if (updated) {
+        setGroup(updated);
+      }
+    } catch (err) {
+      console.error('Failed to toggle join group:', err);
+    }
+  };
+
+  if (isLoading || !group) {
     return (
       <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
         <Header 
@@ -107,15 +121,33 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
           group={group} 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
+          onInviteClick={() => setShowInviteModal(true)}
+          onToggleJoin={handleToggleJoin}
         />
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex justify-center w-full max-w-[1000px] mx-auto pt-4 px-4 pb-16">
         {activeTab === 'discussion' && <GroupDiscussionTab group={group} />}
-        {activeTab === 'members' && <GroupMembersTab />}
+        {activeTab === 'members' && (
+          <GroupMembersTab 
+            group={group} 
+            onInviteClick={() => setShowInviteModal(true)} 
+          />
+        )}
         {activeTab === 'media' && <GroupMediaTab />}
       </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <InviteCommunityMembersModal
+          isOpen={showInviteModal}
+          group={group}
+          onClose={() => setShowInviteModal(false)}
+          onMembersAdded={() => loadGroup(group.id)}
+        />
+      )}
     </div>
   );
 };
+

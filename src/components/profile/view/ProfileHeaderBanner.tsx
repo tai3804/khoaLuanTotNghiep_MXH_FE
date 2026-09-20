@@ -9,6 +9,7 @@ import {
   X,
   UserX,
   UserPlus,
+  MoreHorizontal,
 } from 'lucide-react';
 import { ChatUser } from '../../../components/chat/chat-box';
 
@@ -31,6 +32,7 @@ interface ProfileHeaderBannerProps {
   onAvatarFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onShowMediaGallery: () => void;
   onShowEditModal: () => void;
+  onShowManagement: () => void;
   onUnfriend: () => void;
   onAcceptRequest: () => void;
   onRejectRequest: () => void;
@@ -60,6 +62,7 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
   onAvatarFileSelect,
   onShowMediaGallery,
   onShowEditModal,
+  onShowManagement,
   onUnfriend,
   onAcceptRequest,
   onRejectRequest,
@@ -178,6 +181,7 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
                     <Edit3 className="w-4 h-4" />
                     <span>Chỉnh sửa trang cá nhân</span>
                   </button>
+                  <button onClick={onShowManagement} className="p-2.5 rounded-xl bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50]" title="Quản lý trang cá nhân"><MoreHorizontal className="w-5 h-5" /></button>
                 </>
               ) : (
                 <>

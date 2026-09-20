@@ -66,8 +66,8 @@ export const storyService = {
       return [];
     }
   },
-  createStory: async (mediaUrl: string, mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE', content?: string) => {
-    const res = await api.post('/stories', { mediaUrl, mediaType, content });
+  createStory: async (mediaUrl: string, mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE', caption?: string) => {
+    const res = await api.post('/stories', { mediaUrl, mediaType, caption });
     return res.data?.data || res.data;
   },
   viewStory: async (storyId: string) => {

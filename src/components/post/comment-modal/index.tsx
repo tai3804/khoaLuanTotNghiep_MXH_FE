@@ -8,6 +8,7 @@ import { CommentActionsBar } from './CommentActionsBar';
 import { CommentItem } from './CommentItem';
 import { CommentFormFooter } from './CommentFormFooter';
 import { UserAvatar } from '../../common/UserAvatar';
+import { Globe } from 'lucide-react';
 
 interface CommentModalProps {
   isOpen: boolean;

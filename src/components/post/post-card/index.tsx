@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Post } from '../../../types';
 import { CommentModal } from '../comment-modal';
 import { ShareModal } from '../ShareModal';
+import { EditPostModal } from '../EditPostModal';
+import { EditAudienceModal } from '../EditAudienceModal';
 import { usePostCardData } from './usePostCardData';
 import { PostCardHeader } from './PostCardHeader';
 import { PostCardContent, isVideo, VideoPlayer } from './PostCardContent';
@@ -16,9 +18,15 @@ export interface PostCardProps {
   post: Post;
   onDeletePost?: (postId: string) => void;
   onViewProfile?: (userId: string) => void;
+  onPostUpdated?: (updatedPost: Post) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewProfile }) => {
+export const PostCard: React.FC<PostCardProps> = ({
+  post,
+  onDeletePost,
+  onViewProfile,
+  onPostUpdated,
+}) => {
   const data = usePostCardData({ post, onDeletePost });
   
   const [originalPost, setOriginalPost] = useState<Post | null>(post.sharedPost || null);
@@ -61,12 +69,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
     setShowShareModal(true);
   };
 
+  const handlePostUpdateSuccess = (updated: Post) => {
+    data.handlePostUpdated(updated);
+    if (onPostUpdated) onPostUpdated(updated);
+  };
+
   if (data.isDeleting) return null;
 
+  const currentPost = data.currentPost || post;
+
   return (
-    <div id={`post-${post.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden">
+    <div id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden">
       <PostCardHeader
-        post={post}
+        post={currentPost}
         authorName={data.authorName}
         authorAvatar={data.authorAvatar}
         user={data.user}
@@ -80,11 +95,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
         onDeletePost={data.handleDeletePost}
         handleSharePost={handleOpenShareModal}
         handleDeletePost={data.handleDeletePost}
+        onEditPost={() => data.setShowEditModal(true)}
+        onEditAudience={() => data.setShowAudienceModal(true)}
+        isPinned={data.isPinned}
+        onTogglePin={data.handleTogglePin}
+        onSavePost={data.handleSavePost}
+        isMuted={data.isMuted}
+        onToggleMute={data.handleToggleMute}
+        onArchivePost={data.handleArchivePost}
       />
 
-      <PostCardContent post={post} setShowCommentModal={data.setShowCommentModal} />
+      <PostCardContent post={currentPost} setShowCommentModal={data.setShowCommentModal} />
 
-      {post.originalPostId && (
+      {currentPost.originalPostId && (
         <div className="mx-4 mb-3 rounded-2xl border border-gray-200 dark:border-[#3e4042] bg-gray-50/50 dark:bg-[#242526]/50 overflow-hidden hover:border-gray-300 dark:hover:border-[#4e4f50] transition shadow-xs">
           {loadingOriginalPost ? (
             <div className="p-4 flex items-center space-x-3 animate-pulse">
@@ -191,9 +214,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       <CommentModal
         isOpen={data.showCommentModal}
         onClose={() => data.setShowCommentModal(false)}
-        post={{ ...post, sharedPost: originalPost || post.sharedPost }}
-        authorName={data.authorName || post.authorName || 'Thành viên'}
-        authorAvatar={data.authorAvatar || post.authorAvatar || ''}
+        post={{ ...currentPost, sharedPost: originalPost || currentPost.sharedPost }}
+        authorName={data.authorName || currentPost.authorName || 'Thành viên'}
+        authorAvatar={data.authorAvatar || currentPost.authorAvatar || ''}
         liked={data.liked}
         likesCount={data.likesCount}
         commentsCount={data.totalComments}
@@ -209,11 +232,33 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDeletePost, onViewPr
       />
 
       <ShareModal
-        post={post}
+        post={currentPost}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         onShareSuccess={handleShareSuccess}
       />
+
+      {/* Edit Post Modal */}
+      {data.showEditModal && (
+        <EditPostModal
+          isOpen={data.showEditModal}
+          post={currentPost}
+          authorName={data.authorName || currentPost.authorName || 'Thành viên'}
+          authorAvatar={data.authorAvatar || currentPost.authorAvatar || ''}
+          onClose={() => data.setShowEditModal(false)}
+          onPostUpdated={handlePostUpdateSuccess}
+        />
+      )}
+
+      {/* Edit Audience Modal */}
+      {data.showAudienceModal && (
+        <EditAudienceModal
+          isOpen={data.showAudienceModal}
+          currentPrivacy={(currentPost.privacy as any) || 'PUBLIC'}
+          onClose={() => data.setShowAudienceModal(false)}
+          onSave={data.handleUpdateAudience}
+        />
+      )}
     </div>
   );
 };

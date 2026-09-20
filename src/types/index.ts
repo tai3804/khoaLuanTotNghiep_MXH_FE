@@ -86,6 +86,8 @@ export interface Post {
   sharesCount: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
   originalPostId?: string;
   sharedPost?: Post;

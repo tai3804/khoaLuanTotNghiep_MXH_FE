@@ -384,7 +384,9 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     ? `${profile.lastName || ''} ${profile.firstName || ''}`.trim() || profile.fullName || currentUser?.fullName || 'Người dùng'
     : currentUser?.fullName || 'Người dùng';
 
-  const avatarUrl = profile?.avatarUrl || currentUser?.avatar || '';
+  // Never use the viewer's avatar as a fallback on somebody else's profile.
+  // That made profiles without an avatar appear to own the current user's photo.
+  const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar || (isOwnProfile ? currentUser?.avatar : '') || '';
   const coverUrl = profile?.coverUrl || '';
 
   const allPostPhotos: string[] = [];

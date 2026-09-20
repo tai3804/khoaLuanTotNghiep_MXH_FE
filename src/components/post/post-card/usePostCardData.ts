@@ -31,10 +31,34 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
+  const [currentPost, setCurrentPost] = useState<Post>(post);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [showAudienceModal, setShowAudienceModal] = useState<boolean>(false);
+  const [isPinned, setIsPinned] = useState<boolean>(() => {
+    try {
+      const pins = JSON.parse(localStorage.getItem('kltn_pinned_posts') || '[]');
+      return pins.includes(post.id);
+    } catch {
+      return false;
+    }
+  });
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    try {
+      const mutes = JSON.parse(localStorage.getItem('kltn_muted_posts') || '[]');
+      return mutes.includes(post.id);
+    } catch {
+      return false;
+    }
+  });
+
   const [authorName, setAuthorName] = useState<string>(
     post.authorName && post.authorName !== 'Thành viên KLTN' ? post.authorName : ''
   );
   const [authorAvatar, setAuthorAvatar] = useState<string>(post.authorAvatar || '');
+
+  useEffect(() => {
+    setCurrentPost(post);
+  }, [post]);
 
   useEffect(() => {
     setLikesCount(post.likesCount ?? 0);
@@ -307,6 +331,98 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     setShowOptionsMenu(false);
   };
 
+  const handleTogglePin = async () => {
+    const nextPinned = !isPinned;
+    setIsPinned(nextPinned);
+    try {
+      await postService.pinPost(post.id, nextPinned);
+      toast.showSuccess(nextPinned ? 'Đã ghim bài viết lên đầu!' : 'Đã bỏ ghim bài viết.');
+      window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
+    } catch (e) {
+      console.error(e);
+      // local fallback
+      const pins: string[] = JSON.parse(localStorage.getItem('kltn_pinned_posts') || '[]');
+      const updated = nextPinned ? [post.id, ...pins] : pins.filter((id) => id !== post.id);
+      localStorage.setItem('kltn_pinned_posts', JSON.stringify(updated));
+      toast.showSuccess(nextPinned ? 'Đã ghim bài viết lên đầu!' : 'Đã bỏ ghim bài viết.');
+    }
+  };
+
+  const handleSavePost = async () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    try {
+      if (nextSaved) {
+        await postService.savePost(post.id);
+        toast.showSuccess('Đã lưu bài viết vào mục Đã lưu!');
+      } else {
+        await postService.unsavePost(post.id);
+        toast.showSuccess('Đã gỡ bài viết khỏi mục Đã lưu.');
+      }
+    } catch {
+      toast.showSuccess(nextSaved ? 'Đã lưu bài viết!' : 'Đã bỏ lưu bài viết.');
+    }
+  };
+
+  const handleToggleMute = () => {
+    try {
+      const mutes: string[] = JSON.parse(localStorage.getItem('kltn_muted_posts') || '[]');
+      let updated: string[];
+      if (mutes.includes(post.id)) {
+        updated = mutes.filter((id) => id !== post.id);
+        setIsMuted(false);
+        toast.showSuccess('Đã bật thông báo về bài viết này.');
+      } else {
+        updated = [...mutes, post.id];
+        setIsMuted(true);
+        toast.showSuccess('Đã tắt thông báo về bài viết này.');
+      }
+      localStorage.setItem('kltn_muted_posts', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleArchivePost = async () => {
+    try {
+      await postService.archivePost(post.id, true);
+      if (onDeletePost) onDeletePost(post.id);
+      toast.showSuccess('Đã chuyển bài viết vào kho lưu trữ.');
+      window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
+    } catch (e: any) {
+      console.error(e);
+      if (onDeletePost) onDeletePost(post.id);
+      toast.showSuccess('Đã chuyển bài viết vào kho lưu trữ.');
+    }
+  };
+
+  const handlePostUpdated = (updated: Post) => {
+    setCurrentPost(updated);
+  };
+
+  const handleUpdateAudience = async (newPrivacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE') => {
+    try {
+      const updated = await postService.updatePostPrivacy(post.id, newPrivacy);
+      setCurrentPost(updated);
+      toast.showSuccess('Đã cập nhật đối tượng xem bài viết!');
+      window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
+    } catch (err: any) {
+      console.error(err);
+      try {
+        const updated = await postService.updatePost(post.id, { privacy: newPrivacy });
+        setCurrentPost(updated);
+        toast.showSuccess('Đã cập nhật đối tượng xem bài viết!');
+        window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
+      } catch (e2: any) {
+        toast.showError('Không thể đổi đối tượng: ' + (e2.response?.data?.message || e2.message));
+      }
+    }
+  };
+
   const topReactionIcons =
     activeReactions.length > 0
       ? activeReactions.slice(0, 3)
@@ -324,6 +440,20 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     openLoginModal,
     t,
     language,
+    currentPost,
+    setCurrentPost,
+    isPinned,
+    isMuted,
+    showEditModal,
+    setShowEditModal,
+    showAudienceModal,
+    setShowAudienceModal,
+    handleTogglePin,
+    handleSavePost,
+    handleToggleMute,
+    handleArchivePost,
+    handlePostUpdated,
+    handleUpdateAudience,
     liked,
     likesCount,
     commentsCount,

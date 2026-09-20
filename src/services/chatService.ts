@@ -66,4 +66,44 @@ export const chatService = {
       return {};
     }
   },
+
+  getConversationDetail: async (conversationId: string) => {
+    try {
+      const res = await api.get(`/chat/conversations/${conversationId}`);
+      return res.data?.data || res.data;
+    } catch (err) {
+      console.error('[chatService] Error fetching conversation detail:', err);
+      return null;
+    }
+  },
+
+  updateGroupInfo: async (conversationId: string, data: { name?: string; avatarUrl?: string }) => {
+    const res = await api.put(`/chat/conversations/${conversationId}/group-info`, data);
+    return res.data?.data || res.data;
+  },
+
+  addGroupMembers: async (conversationId: string, memberIds: string[]) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/members`, { memberIds });
+    return res.data?.data || res.data;
+  },
+
+  removeGroupMember: async (conversationId: string, targetUserId: string) => {
+    const res = await api.delete(`/chat/conversations/${conversationId}/members/${targetUserId}`);
+    return res.data?.data || res.data;
+  },
+
+  leaveGroup: async (conversationId: string) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/members/leave`);
+    return res.data?.data || res.data;
+  },
+
+  promoteAdmin: async (conversationId: string, targetUserId: string) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/members/${targetUserId}/promote-admin`);
+    return res.data?.data || res.data;
+  },
+
+  demoteAdmin: async (conversationId: string, targetUserId: string) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/members/${targetUserId}/demote-admin`);
+    return res.data?.data || res.data;
+  },
 };
