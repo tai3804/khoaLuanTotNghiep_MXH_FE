@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (
     username?: string,
     password?: string
-  ): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }> => {
+  ): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string; message?: string }> => {
     try {
       const res = await authService.login({ username, password });
       const result = res?.data || res?.result || res;
@@ -192,10 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshUserProfile();
         return { success: true };
       }
-      return { success: false };
-    } catch (e) {
+      return { success: false, message: 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!' };
+    } catch (e: any) {
       console.error('Login failed:', e);
-      return { success: false };
+      return { success: false, message: e.response?.data?.message || 'Đăng nhập thất bại' };
     }
   };
 

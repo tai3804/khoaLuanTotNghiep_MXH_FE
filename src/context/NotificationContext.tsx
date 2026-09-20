@@ -165,6 +165,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         client.subscribe(`/topic/notifications.${userId}`, (msg) => {
           try {
             const newNotif: NotificationItem = JSON.parse(msg.body);
+            
+            // Check if user was banned
+            if (newNotif.type === 'SYSTEM' && newNotif.title === 'ACCOUNT_BANNED') {
+              showInfo(newNotif.content || 'Tài khoản của bạn đã bị khóa.');
+              // We need to logout the user
+              window.dispatchEvent(new Event('auth_session_expired'));
+              return;
+            }
+            
             setNotifications((prev) => {
               if (prev.some((n) => n.id === newNotif.id)) return prev;
               return [newNotif, ...prev];
