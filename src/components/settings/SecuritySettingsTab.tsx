@@ -37,6 +37,13 @@ export const SecuritySettingsTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b]">
+        <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Mật khẩu và bảo mật</h2>
+        <p className="text-[13px] text-gray-500 dark:text-[#b0b3b8] mt-1">
+          Quản lý các thiết bị đăng nhập và cài đặt bảo mật nâng cao như 2FA để bảo vệ tài khoản.
+        </p>
+      </div>
+
       {/* Active Devices Management Section */}
       <ActiveDevicesSection
         devices={devices}

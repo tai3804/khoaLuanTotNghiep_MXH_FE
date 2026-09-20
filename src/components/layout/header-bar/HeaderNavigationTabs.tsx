@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Tv, Store, Users, Gamepad2 } from 'lucide-react';
+import { Home, Tv, Users, Gamepad2, UsersRound } from 'lucide-react';
 
 interface HeaderNavigationTabsProps {
   activeTab: string;
@@ -42,26 +42,16 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
         <Tv className="w-5 h-5 lg:w-6 lg:h-6" />
       </button>
 
-      <button
-        onClick={() => onNavClick('marketplace')}
-        className={`flex items-center justify-center w-12 md:w-14 lg:w-24 xl:w-28 h-full transition ${
-          activeTab === 'marketplace'
-            ? 'text-[#2d88ff] border-b-[3px] border-[#2d88ff]'
-            : 'text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60 border-b-[3px] border-transparent rounded-lg h-12 my-1'
-        }`}
-        title={t('nav.marketplace')}
-      >
-        <Store className="w-5 h-5 lg:w-6 lg:h-6" />
-      </button>
+
 
       <button
         onClick={() => onNavClick('friends')}
         className={`relative flex items-center justify-center w-12 md:w-14 lg:w-24 xl:w-28 h-full transition ${
-          activeTab === 'friends' || activeTab === 'groups'
+          activeTab === 'friends'
             ? 'text-[#2d88ff] border-b-[3px] border-[#2d88ff]'
             : 'text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60 border-b-[3px] border-transparent rounded-lg h-12 my-1'
         }`}
-        title={language === 'en' ? 'Friends & Groups' : 'Bạn bè & Nhóm'}
+        title={language === 'en' ? 'Friends' : 'Bạn bè'}
       >
         <Users className="w-5 h-5 lg:w-6 lg:h-6" />
         {pendingReqCount > 0 && (
@@ -72,16 +62,18 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
       </button>
 
       <button
-        onClick={() => onNavClick('gaming')}
+        onClick={() => onNavClick('groups')}
         className={`flex items-center justify-center w-12 md:w-14 lg:w-24 xl:w-28 h-full transition ${
-          activeTab === 'gaming'
+          activeTab === 'groups'
             ? 'text-[#2d88ff] border-b-[3px] border-[#2d88ff]'
             : 'text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60 border-b-[3px] border-transparent rounded-lg h-12 my-1'
         }`}
-        title={t('nav.gaming')}
+        title={language === 'en' ? 'Groups' : 'Nhóm'}
       >
-        <Gamepad2 className="w-5 h-5 lg:w-6 lg:h-6" />
+        <UsersRound className="w-5 h-5 lg:w-6 lg:h-6" />
       </button>
+
+
     </nav>
   );
 };

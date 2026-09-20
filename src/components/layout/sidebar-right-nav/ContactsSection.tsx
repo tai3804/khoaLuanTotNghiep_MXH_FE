@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, MoreHorizontal, UserX } from 'lucide-react';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 import { UserAvatar } from '../../common/UserAvatar';
 
 interface ContactsSectionProps {

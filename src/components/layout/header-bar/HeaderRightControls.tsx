@@ -3,7 +3,7 @@ import { LayoutGrid, Bell, LogIn } from 'lucide-react';
 import { NotificationDropdown } from '../../notification/NotificationDropdown';
 import { HeaderMessengerDropdown } from './HeaderMessengerDropdown';
 import { HeaderUserDropdown } from './HeaderUserDropdown';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 interface HeaderRightControlsProps {
   isAuthenticated: boolean;
@@ -20,6 +20,8 @@ interface HeaderRightControlsProps {
   userMenuRef: RefObject<HTMLDivElement | null>;
   msgSearch: string;
   setMsgSearch: (query: string) => void;
+  msgSearchResults?: ChatUser[];
+  msgSearching?: boolean;
   chatContacts: ChatUser[];
   loadingChatContacts: boolean;
   theme: string;
@@ -51,6 +53,8 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   userMenuRef,
   msgSearch,
   setMsgSearch,
+  msgSearchResults,
+  msgSearching,
   chatContacts,
   loadingChatContacts,
   theme,
@@ -90,6 +94,8 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
             setShowUserMenu={setShowUserMenu}
             msgSearch={msgSearch}
             setMsgSearch={setMsgSearch}
+            msgSearchResults={msgSearchResults}
+            msgSearching={msgSearching}
             chatContacts={chatContacts}
             loadingChatContacts={loadingChatContacts}
             t={t}

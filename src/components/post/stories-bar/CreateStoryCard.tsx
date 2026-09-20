@@ -15,7 +15,7 @@ export const CreateStoryCard: React.FC<CreateStoryCardProps> = ({
   return (
     <div
       onClick={onOpenModal}
-      className="relative w-28 sm:w-32 h-48 sm:h-52 rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] transition flex flex-col justify-between"
+      className="relative min-w-[110px] w-[110px] h-full rounded-xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer group flex-shrink-0 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] transition flex flex-col justify-between"
     >
       {/* Top 72% area */}
       <div className="h-[72%] w-full overflow-hidden bg-gradient-to-b from-blue-500/15 via-indigo-500/10 to-gray-100 dark:from-[#1877f2]/25 dark:via-blue-900/10 dark:to-[#3a3b3c] flex items-center justify-center relative">

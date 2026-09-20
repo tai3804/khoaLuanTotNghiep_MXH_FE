@@ -13,14 +13,11 @@ export const ProfileSettingsHeader: React.FC<ProfileSettingsHeaderProps> = ({
   return (
     <div className="space-y-4">
       {/* Title Header */}
-      <div className="border-b border-gray-100 dark:border-[#393a3b] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="border-b border-gray-200 dark:border-[#393a3b] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 className="text-base font-extrabold text-gray-900 dark:text-[#e4e6eb] flex items-center space-x-2">
-            <User className="w-5 h-5 text-[#1877f2]" />
-            <span>Chỉnh Sửa Hồ Sơ Cá Nhân</span>
-          </h3>
-          <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-            Tùy chỉnh thông tin hiển thị, ảnh đại diện và thông tin liên hệ của bạn trên mạng xã hội.
+          <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Hồ sơ cá nhân</h2>
+          <p className="text-[13px] text-gray-500 dark:text-[#b0b3b8] mt-1">
+            Quản lý thông tin cá nhân của bạn để kết nối với bạn bè trên mạng xã hội.
           </p>
         </div>
         <div className="flex items-center space-x-2">

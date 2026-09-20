@@ -11,7 +11,7 @@ import {
   UserPlus,
   MoreHorizontal,
 } from 'lucide-react';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 interface ProfileHeaderBannerProps {
   coverUrl: string;

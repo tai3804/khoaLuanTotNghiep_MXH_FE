@@ -1,4 +1,5 @@
 import { api } from './axiosClient';
+import { store } from '../store/store';
 import { fetchAuthorProfile, authorProfileCache } from './userService';
 
 export interface StoryItem {
@@ -30,7 +31,7 @@ export interface StoryViewerItem {
 
 export const storyService = {
   getStories: async (): Promise<UserStories[]> => {
-    const token = localStorage.getItem('token');
+    const token = store.getState().auth.accessToken;
     if (!token) return [];
     try {
       const res = await api.get('/stories');

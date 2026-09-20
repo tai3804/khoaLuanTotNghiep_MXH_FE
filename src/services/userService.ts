@@ -1,4 +1,5 @@
 import { api } from './axiosClient';
+import { store } from '../store/store';
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
 
@@ -21,7 +22,7 @@ export const fetchAuthorProfile = async (userId: string) => {
     return authorProfileCache[userId];
   }
 
-  const token = localStorage.getItem('token');
+  const token = store.getState().auth.accessToken;
   if (!token) return null;
   try {
     const profile = await userService.getUserProfile(userId);

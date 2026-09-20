@@ -11,6 +11,7 @@ export type { ChatUser };
 export interface ChatBoxProps {
   friend: ChatUser;
   onClose: () => void;
+  onNavigateProfile?: (userId?: string) => void;
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {

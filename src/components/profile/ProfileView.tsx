@@ -3,7 +3,7 @@ import { MediaGalleryModal } from './MediaGalleryModal';
 import { EditProfileModal } from './EditProfileModal';
 import { ProfileManagementModal } from './ProfileManagementModal';
 import { useNavigate } from 'react-router-dom';
-import { ChatUser } from '../chat/ChatBox';
+import { ChatUser } from '../chat/chat-box';
 
 import {
   useProfileViewData,

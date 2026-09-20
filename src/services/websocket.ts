@@ -1,5 +1,6 @@
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { store } from '../store/store';
 
 export interface ChatMessagePayload {
   messageId?: string;
@@ -37,15 +38,15 @@ class WebSocketService {
     if (this.isConnected()) return true;
     if (this.connectionPromise) return this.connectionPromise;
 
-    const token = localStorage.getItem('token');
+    const token = store.getState().auth.accessToken;
     if (!token) {
       console.warn('[WebSocket] Cannot connect: No auth token found.');
       return false;
     }
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
-      // Direct chat-service port 8087 or gateway 8080
-      const wsUrl = import.meta.env.VITE_CHAT_WS_URL || 'http://localhost:8087/ws-chat';
+      // Try to connect through API gateway (port 8080) where CORS is configured
+      const wsUrl = import.meta.env.VITE_CHAT_WS_URL || 'http://localhost:8080/ws-chat';
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),
@@ -107,7 +108,7 @@ class WebSocketService {
     conversationId: string,
     callback: (message: ChatMessagePayload) => void
   ): Promise<() => void> {
-    if (!conversationId) return () => {};
+    if (!conversationId) return () => { };
 
     // Register callback
     if (!this.messageCallbacks.has(conversationId)) {

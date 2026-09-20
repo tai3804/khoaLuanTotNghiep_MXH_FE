@@ -23,6 +23,16 @@ export const chatService = {
     return data;
   },
 
+  createGroupChat: async (name: string, memberIds: string[], avatarUrl?: string) => {
+    if (!memberIds || memberIds.length === 0) throw new Error('memberIds is required');
+    const res = await api.post('/chat/conversations/group', { name, memberIds, avatarUrl });
+    const data = res.data?.data || res.data;
+    if (data && data.conversationId && !data.id) {
+      data.id = data.conversationId;
+    }
+    return data;
+  },
+
   getMessages: async (conversationId: string, page = 0, size = 50) => {
     try {
       const res = await api.get(`/chat/conversations/${conversationId}/messages`, { params: { page, size } });

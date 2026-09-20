@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 import { userService } from '../../../services/api';
+import { useAuth } from '../../../context/AuthContext';
 
 export const useSidebarRightData = () => {
   const { t } = useLanguage();
@@ -11,8 +12,10 @@ export const useSidebarRightData = () => {
   const [contactSearch, setContactSearch] = useState('');
   const [showSearchInput, setShowSearchInput] = useState(false);
 
+  const { tokens } = useAuth();
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = tokens?.accessToken;
     if (!token) return;
 
     const fetchData = async (silent = false) => {
