@@ -3,7 +3,7 @@ import { useHeaderData } from './useHeaderData';
 import { HeaderBrandSearch } from './HeaderBrandSearch';
 import { HeaderNavigationTabs } from './HeaderNavigationTabs';
 import { HeaderRightControls } from './HeaderRightControls';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 export interface HeaderProps {
   activeTab?: string;
@@ -49,6 +49,8 @@ export const Header: React.FC<HeaderProps> = ({
     loadingChatContacts,
     msgSearch,
     setMsgSearch,
+    msgSearchResults,
+    msgSearching,
     pendingReqCount,
     userMenuRef,
     msgMenuRef,
@@ -97,6 +99,8 @@ export const Header: React.FC<HeaderProps> = ({
         userMenuRef={userMenuRef}
         msgSearch={msgSearch}
         setMsgSearch={setMsgSearch}
+        msgSearchResults={msgSearchResults}
+        msgSearching={msgSearching}
         chatContacts={chatContacts}
         loadingChatContacts={loadingChatContacts}
         theme={theme}

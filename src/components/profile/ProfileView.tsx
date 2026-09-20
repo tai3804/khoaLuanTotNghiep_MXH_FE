@@ -1,7 +1,7 @@
 import React from 'react';
 import { MediaGalleryModal } from './MediaGalleryModal';
 import { EditProfileModal } from './EditProfileModal';
-import { ChatUser } from '../chat/ChatBox';
+import { ChatUser } from '../../components/chat/chat-box';
 
 import {
   useProfileViewData,

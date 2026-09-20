@@ -1,9 +1,12 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { store } from '../store/store';
+import { setAccessToken, clearAuth } from '../store/slices/authSlice';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -25,7 +28,7 @@ const processQueue = (error: any, token: string | null = null) => {
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
+    const token = store.getState().auth.accessToken;
     if (token && config.headers) {
       config.headers.Authorization = 'Bearer ' + token;
     }
@@ -58,54 +61,43 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
       const deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
 
-      if (refreshToken) {
-        try {
-          const res = await axios.post(
-            BASE_URL + '/auth/refresh',
-            { refreshToken },
-            {
-              headers: {
-                'X-Client-Type': 'WEB',
-                'X-Device-Fingerprint': deviceFingerprint,
-              },
-            }
-          );
-
-          const data = res.data?.data || res.data?.result || res.data;
-          const newAccessToken = data?.accessToken || data?.token;
-          const newRefreshToken = data?.refreshToken;
-
-          if (newAccessToken) {
-            localStorage.setItem('token', newAccessToken);
-            if (newRefreshToken) {
-              localStorage.setItem('refreshToken', newRefreshToken);
-            }
-            api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-            originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
-
-            processQueue(null, newAccessToken);
-            return api(originalRequest);
-          } else {
-            throw new Error('No access token returned');
+      try {
+        const res = await axios.post(
+          BASE_URL + '/auth/refresh',
+          {}, // rely on HttpOnly cookie
+          {
+            withCredentials: true,
+            headers: {
+              'X-Client-Type': 'WEB',
+              'X-Device-Fingerprint': deviceFingerprint,
+            },
           }
-        } catch (refreshErr) {
-          processQueue(refreshErr, null);
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
-          window.dispatchEvent(new Event('auth_session_expired'));
-          return Promise.reject(refreshErr);
-        } finally {
-          isRefreshing = false;
+        );
+
+        const data = res.data?.data || res.data?.result || res.data;
+        const newAccessToken = data?.accessToken || data?.token;
+
+        if (newAccessToken) {
+          store.dispatch(setAccessToken(newAccessToken));
+          
+          api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
+          originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
+
+          processQueue(null, newAccessToken);
+          return api(originalRequest);
+        } else {
+          throw new Error('No access token returned');
         }
-      } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        store.dispatch(clearAuth());
         localStorage.removeItem('user');
         window.dispatchEvent(new Event('auth_session_expired'));
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);

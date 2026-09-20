@@ -1,7 +1,7 @@
 import React from 'react';
-import { Header } from '../components/layout/Header';
+import { Header } from '../components/layout/header-bar';
 import { FriendsView } from '../components/friends/FriendsView';
-import { ChatBox, ChatUser } from '../components/chat/ChatBox';
+import { ChatBox, ChatUser } from '../components/chat/chat-box';
 
 interface FriendsPageProps {
   activeNavTab: string;

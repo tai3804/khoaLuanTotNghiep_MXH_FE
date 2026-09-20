@@ -4,7 +4,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
 import { userService, postService } from '../../../services/api';
-import { ChatUser } from '../../chat/ChatBox';
+import { chatService } from '../../../services/chatService';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 interface UseHeaderDataProps {
   onTabChange?: (tab: string) => void;
@@ -26,6 +27,8 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const [chatContacts, setChatContacts] = useState<ChatUser[]>([]);
   const [loadingChatContacts, setLoadingChatContacts] = useState(false);
   const [msgSearch, setMsgSearch] = useState('');
+  const [msgSearchResults, setMsgSearchResults] = useState<ChatUser[]>([]);
+  const [msgSearching, setMsgSearching] = useState(false);
   const [pendingReqCount, setPendingReqCount] = useState(0);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +88,44 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Messenger search API effect with debounce
+  useEffect(() => {
+    if (!msgSearch.trim()) {
+      setMsgSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setMsgSearching(true);
+      try {
+        const users = await userService.searchUsers(msgSearch.trim());
+        if (Array.isArray(users)) {
+          const formattedUsers = users.map((u: any) => {
+            const uid = String(u.userId || u.id);
+            const nameParts = [u.lastName, u.middleName, u.firstName].filter(Boolean);
+            const name = u.fullName || (nameParts.length > 0 ? nameParts.join(' ').trim() : u.username) || 'Người dùng';
+            const avatar = u.avatarUrl || u.avatar || '/default-avatar.png';
+            return {
+              id: uid,
+              userId: uid,
+              name,
+              avatar,
+              online: false,
+              status: 'ACCEPTED'
+            } as ChatUser;
+          });
+          setMsgSearchResults(formattedUsers);
+        } else {
+          setMsgSearchResults([]);
+        }
+      } catch {
+        setMsgSearchResults([]);
+      } finally {
+        setMsgSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [msgSearch]);
+
   // Fetch pending friend requests
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -106,14 +147,28 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     };
   }, [isAuthenticated]);
 
-  // Fetch chat contacts when messenger dropdown opens
+  // Fetch chat contacts (conversations) when messenger dropdown opens
   useEffect(() => {
     if (showMsgMenu && isAuthenticated) {
       setLoadingChatContacts(true);
-      userService
-        .getFriends()
-        .then((friends) => {
-          setChatContacts(Array.isArray(friends) ? friends : []);
+      chatService
+        .getConversations()
+        .then((convs) => {
+          if (Array.isArray(convs)) {
+            const mapped = convs.map((c: any) => ({
+              id: c.type === 'DIRECT' ? c.otherParticipantId : c.conversationId,
+              userId: c.otherParticipantId,
+              conversationId: c.conversationId,
+              isGroup: c.type === 'GROUP',
+              name: c.name || 'Người dùng',
+              avatar: c.avatarUrl || '/default-avatar.png',
+              online: c.isOnline || false,
+              lastMessageContent: c.lastMessageContent,
+            } as any));
+            setChatContacts(mapped);
+          } else {
+            setChatContacts([]);
+          }
         })
         .catch(() => {
           setChatContacts([]);
@@ -153,6 +208,8 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     loadingChatContacts,
     msgSearch,
     setMsgSearch,
+    msgSearchResults,
+    msgSearching,
     pendingReqCount,
     userMenuRef,
     msgMenuRef,

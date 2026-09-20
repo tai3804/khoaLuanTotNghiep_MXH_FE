@@ -63,13 +63,18 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     const initChat = async () => {
       setLoading(true);
       try {
-        if (!targetUserId) {
+        if (!targetUserId && !friend.conversationId) {
           if (isMounted) setLoading(false);
           return;
         }
 
-        const conv = await chatService.createDirectChat(targetUserId);
-        const convId = conv?.conversationId || conv?.id ? String(conv.conversationId || conv.id) : null;
+        let convId = null;
+        if (friend.isGroup && friend.conversationId) {
+          convId = friend.conversationId;
+        } else if (targetUserId) {
+          const conv = await chatService.createDirectChat(targetUserId);
+          convId = conv?.conversationId || conv?.id ? String(conv.conversationId || conv.id) : null;
+        }
 
         if (isMounted && convId) {
           setConversationId(convId);

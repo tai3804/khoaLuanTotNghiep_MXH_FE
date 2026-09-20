@@ -7,7 +7,7 @@ import { FriendsRequestsTab } from './FriendsRequestsTab';
 import { FriendsSuggestionsTab } from './FriendsSuggestionsTab';
 import { FriendsAllTab } from './FriendsAllTab';
 import { FriendsFollowersTab } from './FriendsFollowersTab';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 export interface FriendsViewProps {
   onSelectChatUser?: (user: ChatUser) => void;

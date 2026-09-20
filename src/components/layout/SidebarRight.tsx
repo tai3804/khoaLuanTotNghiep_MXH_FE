@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus } from 'lucide-react';
-import { ChatUser } from '../chat/ChatBox';
+import { ChatUser } from '../../components/chat/chat-box';
 import { UserAvatar } from '../common/UserAvatar';
 import { userService } from '../../services/api';
 import { chatService } from '../../services/chatService';
@@ -14,12 +14,18 @@ interface SidebarRightProps {
 
 export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) => {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, tokens } = useAuth();
   const [contacts, setContacts] = useState<ChatUser[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [showSearchInput, setShowSearchInput] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && tokens?.accessToken) {
+      websocketService.connect();
+    }
+  }, [isAuthenticated, tokens?.accessToken]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -28,11 +34,8 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
       return;
     }
 
-    // Connect WebSocket to receive live presence notifications [UC-CH06]
-    websocketService.connect();
-
     const fetchData = async (silent = false) => {
-      const currentToken = localStorage.getItem('token');
+      const currentToken = tokens?.accessToken;
       if (!currentToken) return;
 
       if (!silent) setLoading(true);

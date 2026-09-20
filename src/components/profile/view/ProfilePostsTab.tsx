@@ -1,7 +1,7 @@
 import React from 'react';
 import { Post, UserProfile } from '../../../types';
 import { CreatePostBox } from '../../post/CreatePostBox';
-import { PostCard } from '../../post/PostCard';
+import { PostCard } from '../../../components/post/post-card';
 import { ProfileIntroBox } from './ProfileIntroBox';
 import { ProfilePhotosBox } from './ProfilePhotosBox';
 import { ProfileFriendsBox } from './ProfileFriendsBox';

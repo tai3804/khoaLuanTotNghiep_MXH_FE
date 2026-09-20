@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Edit } from 'lucide-react';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 interface GroupChatsSectionProps {
   contacts: ChatUser[];

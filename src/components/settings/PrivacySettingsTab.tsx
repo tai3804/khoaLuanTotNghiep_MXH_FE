@@ -3,11 +3,13 @@ import { Shield } from 'lucide-react';
 
 export const PrivacySettingsTab: React.FC = () => {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-extrabold text-gray-900 dark:text-[#e4e6eb] border-b border-gray-100 dark:border-[#393a3b] pb-3 flex items-center space-x-2">
-        <Shield className="w-4 h-4 text-indigo-500" />
-        <span>Cài Đặt Quyền Riêng Tư</span>
-      </h3>
+    <div className="space-y-6">
+      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b]">
+        <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Quyền riêng tư của trang cá nhân</h2>
+        <p className="text-[13px] text-gray-500 dark:text-[#b0b3b8] mt-1">
+          Quản lý quyền riêng tư cho các hoạt động và thông tin hiển thị trên trang cá nhân của bạn.
+        </p>
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-[#3a3b3c]/50 rounded-xl border border-gray-200/60 dark:border-[#393a3b]">

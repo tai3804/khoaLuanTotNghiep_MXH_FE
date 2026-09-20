@@ -1,34 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthTokens, AuthContextType, RegisterData } from '../types';
 import { authService, userService } from '../services/api';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store/store';
+import { setAccessToken, clearAuth } from '../store/slices/authSlice';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useDispatch();
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+
   const [user, setUser] = useState<User | null>(() => {
     try {
-      const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-      if (storedToken && storedUser) {
+      // We don't check storedToken anymore, if user exists we assume they might still have a valid cookie
+      if (storedUser && !localStorage.getItem('isGuest')) {
         return JSON.parse(storedUser);
       }
     } catch {}
     return null;
   });
 
-  const [tokens, setTokens] = useState<AuthTokens | null>(() => {
-    try {
-      const storedToken = localStorage.getItem('token');
-      const storedRefresh = localStorage.getItem('refreshToken');
-      if (storedToken) {
-        return { accessToken: storedToken, refreshToken: storedRefresh || '' };
-      }
-    } catch {}
-    return null;
-  });
+  const tokens = accessToken ? { accessToken, refreshToken: '' } : null;
 
   const [isGuest, setIsGuest] = useState<boolean>(() => {
-    return !localStorage.getItem('token');
+    return localStorage.getItem('isGuest') === 'true';
   });
 
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
@@ -66,10 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
+    const isGuestUser = localStorage.getItem('isGuest') === 'true';
 
-    if (storedToken && storedUser) {
+    // If we have a user and not a guest, we try to refresh profile.
+    // This will trigger a 401 if accessToken is empty, which in turn triggers axiosClient's refresh interceptor.
+    if (storedUser && !isGuestUser) {
       refreshUserProfile();
     } else {
       setIsGuest(true);
@@ -77,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleExpired = () => {
       setUser(null);
-      setTokens(null);
+      dispatch(clearAuth());
       setIsGuest(true);
       setLoginModalOpen(false);
       window.dispatchEvent(new Event('navigate_to_auth'));
@@ -103,11 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const currentDev = devices.find((d: any) => d.deviceFingerprint === currentFingerprint);
           if (currentDev && currentDev.status === 'REVOKED') {
             console.warn('[AuthContext] Session has been revoked remotely.');
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
+            dispatch(clearAuth());
             setUser(null);
-            setTokens(null);
             setIsGuest(true);
             setLoginModalOpen(false);
             window.dispatchEvent(new Event('navigate_to_auth'));
@@ -115,11 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
+          dispatch(clearAuth());
           setUser(null);
-          setTokens(null);
           setIsGuest(true);
           setLoginModalOpen(false);
           window.dispatchEvent(new Event('navigate_to_auth'));
@@ -133,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check on window focus / tab switch / storage change
     const handleFocus = () => checkDeviceSession();
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'lastRevokedAt' || e.key === 'token') {
+      if (e.key === 'lastRevokedAt' || e.key === 'user') {
         checkDeviceSession();
       }
     };
@@ -153,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (
     username?: string,
     password?: string
-  ): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }> => {
+  ): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string; message?: string }> => {
     try {
       const res = await authService.login({ username, password });
       const result = res?.data || res?.result || res;
@@ -169,8 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (result && (result.token || result.accessToken)) {
-        const accessToken = result.token || result.accessToken;
-        const refreshToken = result.refreshToken || '';
+        const accToken = result.token || result.accessToken;
         const rawUser = result.user;
         const fullName = rawUser
           ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
@@ -189,21 +183,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: (username || 'user') + '@example.com',
               fullName: username || 'Người dùng',
             };
-        localStorage.setItem('token', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.removeItem('isGuest');
         setUser(userData);
-        setTokens({ accessToken, refreshToken });
+        dispatch(setAccessToken(accToken));
         setIsGuest(false);
         setLoginModalOpen(false);
         refreshUserProfile();
         return { success: true };
       }
-      return { success: false };
-    } catch (e) {
+      return { success: false, message: 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!' };
+    } catch (e: any) {
       console.error('Login failed:', e);
-      return { success: false };
+      return { success: false, message: e.response?.data?.message || 'Đăng nhập thất bại' };
     }
   };
 
@@ -212,8 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await authService.verifyMfa(mfaToken, otpCode);
       const result = res?.data || res?.result || res;
       if (result && (result.accessToken || result.token)) {
-        const accessToken = result.token || result.accessToken;
-        const refreshToken = result.refreshToken || '';
+        const accToken = result.token || result.accessToken;
         const rawUser = result.user;
         const fullName = rawUser
           ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
@@ -232,12 +223,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: 'user@example.com',
               fullName: 'Người dùng',
             };
-        localStorage.setItem('token', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.removeItem('isGuest');
         setUser(userData);
-        setTokens({ accessToken, refreshToken });
+        dispatch(setAccessToken(accToken));
         setIsGuest(false);
         setLoginModalOpen(false);
         refreshUserProfile();
@@ -268,18 +257,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('isGuest', 'true');
     setIsGuest(true);
     setUser(null);
-    setTokens(null);
+    dispatch(clearAuth());
     setLoginModalOpen(false);
   };
 
   const logout = () => {
     authService.logout().catch(() => null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     localStorage.setItem('isGuest', 'true');
     setUser(null);
-    setTokens(null);
+    dispatch(clearAuth());
     setIsGuest(true);
     setLoginModalOpen(false);
     window.dispatchEvent(new Event('navigate_to_auth'));

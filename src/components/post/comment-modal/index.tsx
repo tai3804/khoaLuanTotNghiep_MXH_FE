@@ -1,14 +1,13 @@
 import React, { useEffect } from 'react';
-import { Post, Comment } from '../../types';
-import {
-  useCommentModalData,
-  CommentModalHeader,
-  CommentAuthorSection,
-  CommentStatsBar,
-  CommentActionsBar,
-  CommentItem,
-  CommentFormFooter,
-} from './comment-modal';
+import { Post, Comment } from '../../../types';
+import { useCommentModalData } from './useCommentModalData';
+import { CommentModalHeader } from './CommentModalHeader';
+import { CommentAuthorSection } from './CommentAuthorSection';
+import { CommentStatsBar } from './CommentStatsBar';
+import { CommentActionsBar } from './CommentActionsBar';
+import { CommentItem } from './CommentItem';
+import { CommentFormFooter } from './CommentFormFooter';
+import { UserAvatar } from '../../common/UserAvatar';
 
 interface CommentModalProps {
   isOpen: boolean;
@@ -105,51 +104,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
         className="relative w-full max-w-2xl bg-white dark:bg-[#242526] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-200 dark:border-[#393a3b] cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <CommentModalHeader
-          authorName={authorName}
-          language={language}
-          onClose={onClose}
-        />
+        <CommentModalHeader authorName={authorName} language={language} onClose={onClose} />
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {/* Post Author Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div
-                onClick={() => {
-                  if (onViewProfile && post.userId) {
-                    onClose();
-                    onViewProfile(post.userId);
-                  }
-                }}
-                className="cursor-pointer hover:opacity-90 transition"
-              >
-                <UserAvatar src={authorAvatar} alt={authorName} size="md" className="w-10 h-10 rounded-full" />
-              </div>
-              <div>
-                <h4
-                  onClick={() => {
-                    if (onViewProfile && post.userId) {
-                      onClose();
-                      onViewProfile(post.userId);
-                    }
-                  }}
-                  className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb] hover:underline cursor-pointer leading-tight"
-                >
-                  {authorName}
-                </h4>
-                <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-                  <span>{post.createdAt || 'Vừa xong'}</span>
-                  <span>•</span>
-                  <Globe className="w-3 h-3" />
-                </div>
-              </div>
-            </div>
-          </div>
+          <CommentAuthorSection
+            authorName={authorName}
+            authorAvatar={authorAvatar}
+            post={post}
+            onViewProfile={onViewProfile}
+            onClose={onClose}
+          />
 
-          {/* Post Text */}
           {post.content && (
             <p className="text-sm text-gray-900 dark:text-[#e4e6eb] whitespace-pre-line leading-relaxed">
               {post.content}
@@ -212,38 +178,15 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             </div>
           )}
 
-          {/* Post Reaction Stats Bar - Max 3 Icons Display */}
-          <div className="py-2 px-1 flex items-center justify-between border-t border-b border-gray-100 dark:border-[#393a3b] text-xs text-gray-500 dark:text-[#b0b3b8]">
-            <div className="flex items-center space-x-1.5">
-              {likesCount > 0 ? (
-                <div className="flex items-center space-x-1.5">
-                  <div className="flex items-center -space-x-1">
-                    {topReactionIcons.map((ico, idx) => (
-                      <span
-                        key={ico}
-                        className="text-sm sm:text-base leading-none select-none drop-shadow-sm"
-                        style={{ zIndex: 30 - idx * 10 }}
-                      >
-                        {ico}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="font-semibold text-gray-700 dark:text-[#e4e6eb]">{likesCount}</span>
-                </div>
-              ) : (
-                <span className="text-gray-400 dark:text-[#b0b3b8]">
-                  {language === 'en' ? 'Be the first to react' : 'Hãy là người đầu tiên thích'}
-                </span>
-              )}
-            </div>
+          <CommentStatsBar
+            likesCount={likesCount}
+            commentsCount={commentsCount}
+            commentsLength={comments.length}
+            sharesCount={post.sharesCount || 0}
+            topReactionIcons={topReactionIcons}
+            language={language}
+          />
 
-            <div className="flex items-center space-x-3 font-medium">
-              <span>{Math.max(comments.length, commentsCount)} {language === 'en' ? 'comments' : 'bình luận'}</span>
-              <span>{post.sharesCount || 0} {language === 'en' ? 'shares' : 'lượt chia sẻ'}</span>
-            </div>
-          </div>
-
-          {/* Action Buttons: Like, Comment, Share */}
           <CommentActionsBar
             liked={liked}
             userReaction={userReaction}
@@ -260,7 +203,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             language={language}
           />
 
-          {/* Comments List */}
           <div className="space-y-3 pt-2">
             <h4 className="font-bold text-xs uppercase tracking-wider text-gray-500 dark:text-[#b0b3b8]">
               {language === 'en' ? 'All Comments' : 'Tất cả bình luận'}
@@ -273,9 +215,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
               </div>
             ) : rootComments.length === 0 ? (
               <div className="text-center py-8 text-gray-400 text-xs font-semibold">
-                {language === 'en'
-                  ? 'No comments yet. Be the first to comment!'
-                  : 'Chưa có bình luận nào. Hãy là người đầu tiên!'}
+                {language === 'en' ? 'No comments yet. Be the first to comment!' : 'Chưa có bình luận nào. Hãy là người đầu tiên!'}
               </div>
             ) : (
               rootComments.map((c) => (
@@ -296,7 +236,6 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           </div>
         </div>
 
-        {/* Modal Footer / Comment Form */}
         <CommentFormFooter
           user={user}
           isAuthenticated={isAuthenticated}
@@ -314,3 +253,12 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     </div>
   );
 };
+
+export * from './useCommentModalData';
+export * from './CommentModalHeader';
+export * from './CommentAuthorSection';
+export * from './CommentStatsBar';
+export * from './CommentActionsBar';
+export * from './CommentItem';
+export * from './CommentFormFooter';
+

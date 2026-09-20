@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Users } from 'lucide-react';
 import { FacebookFriendCard } from './FacebookFriendCard';
-import { ChatUser } from '../../chat/ChatBox';
+import { ChatUser } from '../../../components/chat/chat-box';
 
 interface FriendsAllTabProps {
   friends: any[];

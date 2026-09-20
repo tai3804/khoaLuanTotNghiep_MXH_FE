@@ -133,7 +133,7 @@ export const useLoginForm = () => {
     setLoading(true);
     try {
       const res = await login(email.trim(), password.trim());
-      if (!res.success) setError('Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
+      if (!res.success) setError(res.message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại!');
     } finally {

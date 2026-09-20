@@ -9,20 +9,25 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 
+import { Provider } from 'react-redux';
+import { store } from './store/store';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <LanguageProvider>
-            <ToastProvider>
-              <NotificationProvider>
-                <App />
-              </NotificationProvider>
-            </ToastProvider>
-          </LanguageProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <Provider store={store}>
+      <BrowserRouter>
+        <AuthProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <ToastProvider>
+                <NotificationProvider>
+                  <App />
+                </NotificationProvider>
+              </ToastProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </Provider>
   </StrictMode>
 );

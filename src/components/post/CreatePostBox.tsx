@@ -9,6 +9,7 @@ import {
 
 interface CreatePostBoxProps {
   onPostCreated: (newPost: Post) => void;
+  groupId?: string;
 }
 
 export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) => {

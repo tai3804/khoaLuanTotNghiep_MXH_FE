@@ -152,6 +152,69 @@ export const postService = {
     }
   },
 
+  getWatchFeed: async (page = 1, size = 10, cursor?: string | null): Promise<PagedPostsResponse> => {
+    try {
+      const params: Record<string, any> = {
+        page,
+        size,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+        'filters[hasVideo]': 'true'
+      };
+      if (cursor) {
+        params.cursor = cursor;
+      }
+
+      const res = await api.get('/posts', { params });
+      const rawData = res.data;
+      const rawPosts = Array.isArray(rawData?.data)
+        ? rawData.data
+        : (rawData?.data?.content || rawData?.result || rawData?.content || []);
+
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        const authorIds = Array.from(
+          new Set(rawPosts.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
+        ) as string[];
+        if (authorIds.length > 0) {
+          Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+        }
+      }
+
+      const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
+
+      let nextCursor: string | null = null;
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        const lastRaw = rawPosts[rawPosts.length - 1];
+        if (lastRaw?.createdAt) {
+          nextCursor = lastRaw.createdAt;
+        }
+      }
+
+      const isLast = rawData?.last !== undefined ? Boolean(rawData.last) : (posts.length < size);
+
+      return {
+        posts,
+        page: rawData?.page ?? page,
+        size: rawData?.size ?? size,
+        totalElements: rawData?.totalElements ?? posts.length,
+        totalPages: rawData?.totalPages ?? 1,
+        last: isLast,
+        nextCursor,
+      };
+    } catch (err: any) {
+      console.error('getWatchFeed error:', err);
+      return {
+        posts: [],
+        page,
+        size,
+        totalElements: 0,
+        totalPages: 0,
+        last: true,
+        nextCursor: null,
+      };
+    }
+  },
+
   getFeed: async (page = 1, size = 10): Promise<Post[]> => {
     const res = await postService.getFeedPaged(page, size);
     return res.posts;
