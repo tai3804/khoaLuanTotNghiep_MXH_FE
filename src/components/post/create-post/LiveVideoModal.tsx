@@ -7,7 +7,7 @@ interface LiveVideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: any;
-  onStartLiveStream: (title: string, description: string) => Promise<void>;
+  onStartLiveStream: (title: string, description: string, stream?: MediaStream | null) => Promise<void>;
 }
 
 export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
@@ -98,10 +98,22 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
 
     setIsStarting(true);
     try {
-      await onStartLiveStream(title.trim(), description.trim());
-      toast.showSuccess('Đã khởi tạo phòng phát trực tiếp thành công!');
+      let broadcastStream = stream;
+      if (!broadcastStream) {
+        try {
+          broadcastStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: true,
+          });
+        } catch {}
+      }
+
+      // Detach local ref so onClose doesn't terminate the active broadcast
+      setStream(null);
+      await onStartLiveStream(title.trim(), description.trim(), broadcastStream);
       onClose();
     } catch (err) {
+      console.error('Failed to start live stream:', err);
       toast.showError('Không thể bắt đầu phát trực tiếp. Vui lòng thử lại!');
     } finally {
       setIsStarting(false);

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
+import { useLiveStream } from '../../../context/LiveStreamContext';
 import { Post } from '../../../types';
 import { postService } from '../../../services/api';
 
@@ -13,6 +14,7 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { startBroadcast } = useLiveStream();
 
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
@@ -97,13 +99,19 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
     }
   };
 
-  const handleStartLiveStream = async (liveTitle: string, liveDescription: string) => {
+  const handleStartLiveStream = async (liveTitle: string, liveDescription: string, stream?: MediaStream | null) => {
     const postPrivacy =
       privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
-    const liveContent = `🔴 [ĐANG PHÁT TRỰC TIẾP] ${liveTitle}${liveDescription ? `\n\n${liveDescription}` : ''}`;
-    
-    const createdPost = await postService.createPost(liveContent, postPrivacy, []);
-    onPostCreated(createdPost);
+
+    if (stream) {
+      await startBroadcast(liveTitle, liveDescription, stream, postPrivacy, onPostCreated);
+    } else {
+      const liveContent = `🔴 [ĐANG PHÁT TRỰC TIẾP] ${liveTitle}${liveDescription ? `\n\n${liveDescription}` : ''}`;
+      const createdPost = await postService.createPost(liveContent, postPrivacy, []);
+      createdPost.isLive = true;
+      createdPost.liveStatus = 'LIVE';
+      onPostCreated(createdPost);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

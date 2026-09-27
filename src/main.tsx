@@ -9,6 +9,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { CallProvider } from './context/CallContext';
+import { LiveStreamProvider } from './context/LiveStreamContext';
 
 import { Provider } from 'react-redux';
 import { store } from './store/store';
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')!).render(
               <ToastProvider>
                 <NotificationProvider>
                   <CallProvider>
-                    <App />
+                    <LiveStreamProvider>
+                      <App />
+                    </LiveStreamProvider>
                   </CallProvider>
                 </NotificationProvider>
               </ToastProvider>
