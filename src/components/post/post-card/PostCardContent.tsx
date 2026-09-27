@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Post } from '../../../types';
-import { LiveStreamPlayer } from './LiveStreamPlayer';
+import { LiveStreamPlayer } from './live-stream';
 
 interface PostCardContentProps {
   post: Post;

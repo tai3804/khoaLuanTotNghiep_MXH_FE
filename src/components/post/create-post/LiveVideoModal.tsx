@@ -18,6 +18,7 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
 }) => {
   const toast = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const isBroadcastingRef = useRef(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
@@ -27,6 +28,7 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
   const [permissionError, setPermissionError] = useState<string | null>(null);
 
   useEffect(() => {
+    isBroadcastingRef.current = false;
     if (!isOpen) {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -59,7 +61,7 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
     startCamera();
 
     return () => {
-      if (activeStream) {
+      if (activeStream && !isBroadcastingRef.current) {
         activeStream.getTracks().forEach((t) => t.stop());
       }
     };
@@ -100,15 +102,14 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
     try {
       let broadcastStream = stream;
       if (!broadcastStream) {
-        try {
-          broadcastStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: true,
-          });
-        } catch {}
+        broadcastStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true,
+        });
       }
 
-      // Detach local ref so onClose doesn't terminate the active broadcast
+      // Mark broadcasting active so cleanup leaves tracks running for the player
+      isBroadcastingRef.current = true;
       setStream(null);
       await onStartLiveStream(title.trim(), description.trim(), broadcastStream);
       onClose();

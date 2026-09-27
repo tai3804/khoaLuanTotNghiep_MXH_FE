@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { Post } from '../types';
@@ -27,7 +27,7 @@ export interface LiveComment {
 export interface LiveReaction {
   id: string;
   emoji: string;
-  x: number; // percentage horizontal offset (10-90%)
+  x: number; // horizontal percentage position (15% to 85%)
 }
 
 interface LiveStreamContextType {
@@ -47,13 +47,15 @@ interface LiveStreamContextType {
   toggleMic: () => void;
   sendLiveComment: (postId: string, content: string) => void;
   sendLiveReaction: (postId: string, emoji: string) => void;
+  incrementViewerCount: (postId: string) => void;
+  decrementViewerCount: (postId: string) => void;
   isPostLive: (post: Post) => boolean;
 }
 
 const LiveStreamContext = createContext<LiveStreamContextType | undefined>(undefined);
 
 export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const toast = useToast();
 
   const [activeBroadcast, setActiveBroadcast] = useState<LiveBroadcastState>({
@@ -65,7 +67,7 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     startedAt: null,
     isCameraOn: true,
     isMicOn: true,
-    viewerCount: 1,
+    viewerCount: 0,
   });
 
   const [liveCommentsMap, setLiveCommentsMap] = useState<Record<string, LiveComment[]>>({});
@@ -73,22 +75,6 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [endedStreamMap, setEndedStreamMap] = useState<Record<string, boolean>>({});
 
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Auto viewer count fluctuation simulation when broadcasting
-  useEffect(() => {
-    if (!activeBroadcast.isBroadcasting) return;
-
-    const interval = setInterval(() => {
-      setActiveBroadcast((prev) => {
-        if (!prev.isBroadcasting) return prev;
-        const delta = Math.floor(Math.random() * 5) - 2; // -2 to +2
-        const nextCount = Math.max(1, prev.viewerCount + delta);
-        return { ...prev, viewerCount: nextCount };
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [activeBroadcast.isBroadcasting]);
 
   const startBroadcast = useCallback(
     async (
@@ -139,21 +125,8 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         startedAt: Date.now(),
         isCameraOn: true,
         isMicOn: true,
-        viewerCount: Math.floor(Math.random() * 10) + 12,
+        viewerCount: 0,
       });
-
-      // Seed initial welcoming message in live chat
-      setLiveCommentsMap((prev) => ({
-        ...prev,
-        [createdPost.id]: [
-          {
-            id: 'init-1',
-            authorName: 'Hệ thống',
-            content: 'Buổi phát trực tiếp đã bắt đầu. Hãy gửi lời chào đến mọi người!',
-            time: 'Vừa xong',
-          },
-        ],
-      }));
 
       onPostCreated(createdPost);
       return createdPost;
@@ -220,12 +193,12 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         authorName: user?.fullName || user?.username || 'Bạn',
         authorAvatar: user?.avatar,
         content: content.trim(),
-        time: 'Vừa xong',
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       };
 
       setLiveCommentsMap((prev) => ({
         ...prev,
-        [postId]: [...(prev[postId] || []).slice(-20), newComment],
+        [postId]: [...(prev[postId] || []).slice(-30), newComment],
       }));
     },
     [user]
@@ -235,7 +208,7 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newReaction: LiveReaction = {
       id: 'lr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
       emoji,
-      x: Math.floor(Math.random() * 60) + 20, // 20% to 80%
+      x: 20 + ((Date.now() % 60)), // clean deterministic spread from 20% to 80%
     };
 
     setLiveReactionsMap((prev) => ({
@@ -243,7 +216,6 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       [postId]: [...(prev[postId] || []).slice(-15), newReaction],
     }));
 
-    // Auto remove reaction after 2.5s animation
     setTimeout(() => {
       setLiveReactionsMap((prev) => {
         const current = prev[postId] || [];
@@ -252,7 +224,25 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           [postId]: current.filter((r) => r.id !== newReaction.id),
         };
       });
-    }, 2500);
+    }, 2400);
+  }, []);
+
+  const incrementViewerCount = useCallback((postId: string) => {
+    setActiveBroadcast((prev) => {
+      if (prev.postId === postId) {
+        return { ...prev, viewerCount: prev.viewerCount + 1 };
+      }
+      return prev;
+    });
+  }, []);
+
+  const decrementViewerCount = useCallback((postId: string) => {
+    setActiveBroadcast((prev) => {
+      if (prev.postId === postId) {
+        return { ...prev, viewerCount: Math.max(0, prev.viewerCount - 1) };
+      }
+      return prev;
+    });
   }, []);
 
   const isPostLive = useCallback(
@@ -260,7 +250,10 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (endedStreamMap[post.id]) return false;
       if (post.liveStatus === 'ENDED') return false;
       if (post.isLive || post.liveStatus === 'LIVE') return true;
-      if (post.content && (post.content.includes('[ĐANG PHÁT TRỰC TIẾP]') || post.content.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]'))) {
+      if (
+        post.content &&
+        (post.content.includes('[ĐANG PHÁT TRỰC TIẾP]') || post.content.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]'))
+      ) {
         return true;
       }
       return false;
@@ -281,6 +274,8 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         toggleMic,
         sendLiveComment,
         sendLiveReaction,
+        incrementViewerCount,
+        decrementViewerCount,
         isPostLive,
       }}
     >
