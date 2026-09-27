@@ -1,4 +1,4 @@
-import { callWebSocketService } from './callWebSocket';
+import { liveStreamWebSocketService, LiveWebRtcSignal } from './liveStreamWebSocket';
 
 export interface LiveSignalPayload {
   type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE' | 'ACCEPT' | 'LEAVE' | 'VIEWER_COUNT';
@@ -20,21 +20,10 @@ const ICE_SERVERS: RTCConfiguration = {
   ],
 };
 
-const toValidUuid = (id: string): string => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(id)) return id;
-  let hex = '';
-  for (let i = 0; i < id.length; i++) {
-    hex += id.charCodeAt(i).toString(16);
-  }
-  hex = (hex + '00000000000000000000000000000000').substring(0, 32);
-  return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-8${hex.substring(17, 20)}-${hex.substring(20, 32)}`;
-};
-
 class LiveWebRtcService {
   private channels: Map<string, BroadcastChannel> = new Map();
   private wsUnsubMap: Map<string, () => void> = new Map();
-  private globalWsUnsub: (() => void) | null = null;
+  private processedSignals: Set<string> = new Set();
 
   // Host sessions: postId -> { hostUserId, stream, peers: Map<viewerId, RTCPeerConnection>, candidateQueues }
   private hostSessions: Map<
@@ -60,35 +49,9 @@ class LiveWebRtcService {
     }
   > = new Map();
 
-  constructor() {
-    this.initGlobalWsListener();
-  }
-
-  private initGlobalWsListener() {
-    if (this.globalWsUnsub) return;
-    this.globalWsUnsub = callWebSocketService.onSignal((signal: any) => {
-      if (!signal) return;
-      const postId = signal.callSessionId;
-      const signalType = signal.signalType;
-      const senderId = signal.senderId;
-      const targetId = signal.targetUserId;
-      const sdp = signal.sdp;
-      const candidate = signal.candidate;
-
-      this.routeSignal({
-        type: signalType as any,
-        postId: String(postId),
-        senderId: String(senderId),
-        targetId: targetId ? String(targetId) : undefined,
-        sdp,
-        candidate,
-      });
-    });
-  }
-
   private getBroadcastChannel(postId: string): BroadcastChannel {
     if (!this.channels.has(postId)) {
-      const ch = new BroadcastChannel(`kltn_live_webrtc_${postId}`);
+      const ch = new BroadcastChannel(`kltn_live_channel_${postId}`);
       ch.onmessage = (e) => {
         this.routeSignal(e.data);
       };
@@ -98,13 +61,17 @@ class LiveWebRtcService {
   }
 
   private sendSignal(msg: LiveSignalPayload) {
-    // 1. BroadcastChannel (fast same-browser cross-tab messaging)
+    const sigKey = `${msg.type}_${msg.postId}_${msg.senderId}_${msg.targetId || ''}_${JSON.stringify(msg.sdp?.type || msg.candidate?.candidate || '')}`;
+    this.processedSignals.add(sigKey);
+    setTimeout(() => this.processedSignals.delete(sigKey), 3000);
+
+    // 1. BroadcastChannel (for same browser tabs)
     try {
       const ch = this.getBroadcastChannel(msg.postId);
       ch.postMessage(msg);
     } catch {}
 
-    // 2. LocalStorage signal bus fallback
+    // 2. Storage event bus fallback
     try {
       localStorage.setItem(
         `kltn_live_signal_${msg.postId}`,
@@ -112,15 +79,18 @@ class LiveWebRtcService {
       );
     } catch {}
 
-    // 3. WebSocket signaling through Call WebSocket broker
-    if (callWebSocketService.isConnected()) {
-      const validSessionId = toValidUuid(msg.postId);
-      const validTargetId = msg.targetId ? toValidUuid(msg.targetId) : null;
-      callWebSocketService.sendSignal(validSessionId, validTargetId, msg.type as any, {
+    // 3. Isolated LiveStream WebSocket service
+    liveStreamWebSocketService.sendSignal(
+      msg.postId,
+      msg.senderId,
+      msg.targetId || null,
+      msg.type,
+      {
         sdp: msg.sdp,
         candidate: msg.candidate,
-      });
-    }
+        viewerCount: msg.viewerCount,
+      }
+    );
   }
 
   // --- HOST REGISTRATION ---
@@ -130,7 +100,7 @@ class LiveWebRtcService {
     stream: MediaStream,
     onViewerCountChange?: (count: number) => void
   ): () => void {
-    console.log(`[LiveWebRtc] Host registered stream for postId: ${postId}`);
+    console.log(`[LiveWebRtc] Registering Host stream for post: ${postId}`);
 
     this.hostSessions.set(postId, {
       hostUserId,
@@ -140,21 +110,19 @@ class LiveWebRtcService {
       onViewerCountChange,
     });
 
-    // Subscribe to STOMP topic for this post
-    if (callWebSocketService.isConnected()) {
-      const validSessionId = toValidUuid(postId);
-      const unsub = callWebSocketService.subscribeCallRoom(validSessionId, (signal: any) => {
-        this.routeSignal({
-          type: signal.signalType as any,
-          postId,
-          senderId: signal.senderId,
-          targetId: signal.targetUserId,
-          sdp: signal.sdp,
-          candidate: signal.candidate,
-        });
+    // Subscribe to isolated live topic
+    const unsubWs = liveStreamWebSocketService.subscribeRoom(postId, (signal: LiveWebRtcSignal) => {
+      this.routeSignal({
+        type: signal.signalType,
+        postId,
+        senderId: String(signal.senderId || ''),
+        targetId: signal.targetUserId ? String(signal.targetUserId) : undefined,
+        sdp: signal.sdp,
+        candidate: signal.candidate,
+        viewerCount: signal.viewerCount,
       });
-      this.wsUnsubMap.set(postId, unsub);
-    }
+    });
+    this.wsUnsubMap.set(postId, unsubWs);
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === `kltn_live_signal_${postId}` && e.newValue) {
@@ -169,7 +137,7 @@ class LiveWebRtcService {
     window.addEventListener('storage', handleStorage);
 
     return () => {
-      console.log(`[LiveWebRtc] Cleaning up host session for postId: ${postId}`);
+      console.log(`[LiveWebRtc] Unregistering Host stream for post: ${postId}`);
       window.removeEventListener('storage', handleStorage);
 
       const host = this.hostSessions.get(postId);
@@ -180,9 +148,9 @@ class LiveWebRtcService {
       }
       this.hostSessions.delete(postId);
 
-      const wsUnsub = this.wsUnsubMap.get(postId);
-      if (wsUnsub) {
-        wsUnsub();
+      const unsub = this.wsUnsubMap.get(postId);
+      if (unsub) {
+        unsub();
         this.wsUnsubMap.delete(postId);
       }
 
@@ -201,13 +169,13 @@ class LiveWebRtcService {
     onStream: (stream: MediaStream) => void,
     onViewerCount?: (count: number) => void
   ): () => void {
-    console.log(`[LiveWebRtc] Viewer subscribing to postId: ${postId}`);
+    console.log(`[LiveWebRtc] Subscribing Viewer to post: ${postId}`);
 
     const peer = new RTCPeerConnection(ICE_SERVERS);
     const candidateQueue: RTCIceCandidateInit[] = [];
 
     peer.ontrack = (event) => {
-      console.log(`[LiveWebRtc] Viewer received live remote track:`, event.track.kind);
+      console.log(`[LiveWebRtc] Viewer received live remote track [${event.track.kind}]`);
       if (event.streams && event.streams[0]) {
         onStream(event.streams[0]);
       }
@@ -232,21 +200,18 @@ class LiveWebRtcService {
       onViewerCount,
     });
 
-    // Subscribe to STOMP topic for this post
-    if (callWebSocketService.isConnected()) {
-      const validSessionId = toValidUuid(postId);
-      const unsub = callWebSocketService.subscribeCallRoom(validSessionId, (signal: any) => {
-        this.routeSignal({
-          type: signal.signalType as any,
-          postId,
-          senderId: signal.senderId,
-          targetId: signal.targetUserId,
-          sdp: signal.sdp,
-          candidate: signal.candidate,
-        });
+    const unsubWs = liveStreamWebSocketService.subscribeRoom(postId, (signal: LiveWebRtcSignal) => {
+      this.routeSignal({
+        type: signal.signalType,
+        postId,
+        senderId: String(signal.senderId || ''),
+        targetId: signal.targetUserId ? String(signal.targetUserId) : undefined,
+        sdp: signal.sdp,
+        candidate: signal.candidate,
+        viewerCount: signal.viewerCount,
       });
-      this.wsUnsubMap.set(postId, unsub);
-    }
+    });
+    this.wsUnsubMap.set(`viewer_${postId}`, unsubWs);
 
     const handleStorage = (e: StorageEvent) => {
       if (e.key === `kltn_live_signal_${postId}` && e.newValue) {
@@ -260,14 +225,14 @@ class LiveWebRtcService {
     };
     window.addEventListener('storage', handleStorage);
 
-    // Request host to send SDP offer
+    // Send Join Live request to host
     this.sendSignal({
       type: 'ACCEPT',
       postId,
       senderId: viewerUserId,
     });
 
-    // Retry ACCEPT request after 1.5s if stream not connected yet
+    // Auto-retry request if not connected within 1.5s
     const retryTimer = setTimeout(() => {
       if (this.viewerSessions.has(postId) && peer.connectionState !== 'connected') {
         this.sendSignal({
@@ -290,6 +255,12 @@ class LiveWebRtcService {
 
       try { peer.close(); } catch {}
       this.viewerSessions.delete(postId);
+
+      const unsub = this.wsUnsubMap.get(`viewer_${postId}`);
+      if (unsub) {
+        unsub();
+        this.wsUnsubMap.delete(`viewer_${postId}`);
+      }
     };
   }
 
@@ -297,14 +268,14 @@ class LiveWebRtcService {
   private async routeSignal(msg: LiveSignalPayload) {
     if (!msg || !msg.postId) return;
 
-    // Check if message is for Host
+    // Check Host Session
     const host = this.hostSessions.get(msg.postId);
     if (host) {
       if (msg.type === 'ACCEPT') {
         const viewerId = msg.senderId;
         if (viewerId === host.hostUserId) return; // Ignore own message
 
-        console.log(`[LiveWebRtc] Host received ACCEPT from viewer ${viewerId}. Creating offer...`);
+        console.log(`[LiveWebRtc] Host creating WebRTC Offer for viewer: ${viewerId}`);
 
         let peer = host.peers.get(viewerId);
         if (peer) {
@@ -315,7 +286,7 @@ class LiveWebRtcService {
         const hostQueue: RTCIceCandidateInit[] = [];
         host.candidateQueues.set(viewerId, hostQueue);
 
-        // Add all video & audio tracks
+        // Add active camera & microphone tracks
         host.stream.getTracks().forEach((track) => {
           peer!.addTrack(track, host.stream);
         });
@@ -333,7 +304,6 @@ class LiveWebRtcService {
         };
 
         peer.onconnectionstatechange = () => {
-          console.log(`[LiveWebRtc] Host-Viewer peer state: ${peer!.connectionState}`);
           if (
             peer!.connectionState === 'disconnected' ||
             peer!.connectionState === 'closed' ||
@@ -379,7 +349,7 @@ class LiveWebRtcService {
         const viewerId = msg.senderId;
         const peer = host.peers.get(viewerId);
         if (peer && msg.sdp && peer.signalingState === 'have-local-offer') {
-          console.log(`[LiveWebRtc] Host applying remote answer from viewer ${viewerId}`);
+          console.log(`[LiveWebRtc] Host applying ANSWER from viewer: ${viewerId}`);
           await peer.setRemoteDescription(new RTCSessionDescription(msg.sdp));
 
           const queue = host.candidateQueues.get(viewerId) || [];
@@ -425,15 +395,20 @@ class LiveWebRtcService {
       }
     }
 
-    // Check if message is for Viewer
+    // Check Viewer Session
     const viewer = this.viewerSessions.get(msg.postId);
     if (viewer) {
       if (msg.type === 'OFFER' && msg.sdp) {
-        if (msg.targetId && msg.targetId !== viewer.viewerUserId && toValidUuid(msg.targetId) !== toValidUuid(viewer.viewerUserId)) {
-          return; // Ignore offer destined for another viewer
+        if (msg.targetId && msg.targetId !== viewer.viewerUserId && msg.targetId !== 'viewer') {
+          return;
         }
 
-        console.log(`[LiveWebRtc] Viewer received OFFER from host. Generating answer...`);
+        // Avoid invalid state if offer is processed twice
+        if (viewer.peer.signalingState === 'stable' && viewer.peer.remoteDescription) {
+          return;
+        }
+
+        console.log(`[LiveWebRtc] Viewer applying OFFER from host and creating ANSWER...`);
         await viewer.peer.setRemoteDescription(new RTCSessionDescription(msg.sdp));
 
         for (const cand of viewer.candidateQueue) {
@@ -441,16 +416,18 @@ class LiveWebRtcService {
         }
         viewer.candidateQueue = [];
 
-        const answer = await viewer.peer.createAnswer();
-        await viewer.peer.setLocalDescription(answer);
+        if (viewer.peer.signalingState === 'have-remote-offer') {
+          const answer = await viewer.peer.createAnswer();
+          await viewer.peer.setLocalDescription(answer);
 
-        this.sendSignal({
-          type: 'ANSWER',
-          postId: msg.postId,
-          senderId: viewer.viewerUserId,
-          targetId: msg.senderId,
-          sdp: answer,
-        });
+          this.sendSignal({
+            type: 'ANSWER',
+            postId: msg.postId,
+            senderId: viewer.viewerUserId,
+            targetId: msg.senderId,
+            sdp: answer,
+          });
+        }
         return;
       }
 
