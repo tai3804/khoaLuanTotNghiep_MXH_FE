@@ -1,20 +1,39 @@
 import React, { useRef, useEffect } from 'react';
 import { UserAvatar } from '../../../common/UserAvatar';
+import { liveWebRtcService } from '../../../../services/liveWebRtcService';
 
 interface LiveStreamHostVideoProps {
+  postId?: string;
+  hostUserId?: string;
   stream: MediaStream | null;
   isCameraOn: boolean;
   userAvatar?: string;
   userName?: string;
+  onViewerCountChange?: (count: number) => void;
 }
 
 export const LiveStreamHostVideo: React.FC<LiveStreamHostVideoProps> = ({
+  postId,
+  hostUserId,
   stream,
   isCameraOn,
   userAvatar,
   userName,
+  onViewerCountChange,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Register WebRTC host stream to answer any incoming viewer connections
+  useEffect(() => {
+    if (!stream || !postId) return;
+    const cleanup = liveWebRtcService.registerHostStream(
+      postId,
+      hostUserId || 'host',
+      stream,
+      onViewerCountChange
+    );
+    return cleanup;
+  }, [postId, hostUserId, stream, onViewerCountChange]);
 
   useEffect(() => {
     const video = videoRef.current;

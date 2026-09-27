@@ -50,6 +50,8 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
       {/* Video Content: Host camera OR Live Viewer WebRTC Stream */}
       {isHost && activeBroadcast.stream ? (
         <LiveStreamHostVideo
+          postId={post.id}
+          hostUserId={post.userId}
           stream={activeBroadcast.stream}
           isCameraOn={activeBroadcast.isCameraOn}
           userAvatar={post.authorAvatar}
