@@ -216,7 +216,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       clearInterval(pollInterval);
       if (stompClientRef.current) {
-        stompClientRef.current.deactivate();
+        try {
+          stompClientRef.current.deactivate().catch(() => {});
+        } catch {}
         stompClientRef.current = null;
       }
     };
