@@ -1,18 +1,16 @@
 import { api } from './axiosClient';
+import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
 
 export const authService = {
   login: async (data: any) => {
-    let deviceFingerprint = localStorage.getItem('deviceFingerprint');
-    if (!deviceFingerprint) {
-      deviceFingerprint = 'web-' + Math.random().toString(36).substring(2, 12);
-      localStorage.setItem('deviceFingerprint', deviceFingerprint);
-    }
+    const deviceFingerprint = await getDeviceFingerprint();
+    const deviceName = getDeviceName();
 
     const payload = {
       email: data.email || data.username,
       password: data.password,
       deviceFingerprint,
-      deviceName: 'Trình duyệt Web',
+      deviceName,
     };
     const res = await api.post('/auth/login', payload, {
       headers: {
@@ -50,7 +48,13 @@ export const authService = {
 
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      const deviceFingerprint = await getDeviceFingerprint();
+      await api.post('/auth/logout', { deviceFingerprint }, {
+        headers: {
+          'X-Client-Type': 'WEB',
+          'X-Device-Fingerprint': deviceFingerprint,
+        },
+      });
     } catch (e) {
       // ignore
     } finally {

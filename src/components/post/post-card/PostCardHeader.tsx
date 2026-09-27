@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
-
+import { AlertTriangle } from 'lucide-react';
+import { ReportModal } from '../../report/ReportModal';
 interface PostCardHeaderProps {
   post: Post;
   authorName: string;
@@ -69,6 +70,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   onArchivePost,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [showReportModal, setShowReportModal] = React.useState(false);
 
   const currentUserId = String(user?.id || user?.userId || user?.profileId || '').toLowerCase();
   const postAuthorId = String(post.userId || (post as any)?.authorId || '').toLowerCase();
@@ -317,6 +319,21 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                     </div>
                   </button>
                 )}
+
+                {/* Report post */}
+                {!isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReportModal(true);
+                      setShowOptionsMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-xl text-xs font-semibold transition cursor-pointer text-left"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                    <span>Báo cáo bài viết</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -333,6 +350,13 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
           </button>
         </div>
       </div>
+
+      <ReportModal 
+        isOpen={showReportModal} 
+        onClose={() => setShowReportModal(false)} 
+        targetId={post.id} 
+        targetType="POST" 
+      />
     </div>
   );
 };
