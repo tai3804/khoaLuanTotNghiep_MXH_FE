@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useMemo } from 'react';
 import { Post } from '../../../../types';
 import { useAuth } from '../../../../context/AuthContext';
 import { useLiveStream } from '../../../../context/LiveStreamContext';
+import { useLiveViewerStream } from './useLiveViewerStream';
 
 export const useLiveStreamPlayer = (post: Post) => {
   const { user } = useAuth();
@@ -24,6 +25,9 @@ export const useLiveStreamPlayer = (post: Post) => {
 
   const isLive = isPostLive(post);
   const isHost = activeBroadcast.isBroadcasting && (activeBroadcast.postId === post.id || user?.id === post.userId);
+
+  // Hook up WebRTC viewer stream when watching someone else's live stream
+  const viewerStream = useLiveViewerStream(!isHost && isLive ? post.id : '');
 
   const comments = liveCommentsMap[post.id] || [];
   const reactions = liveReactionsMap[post.id] || [];
@@ -67,11 +71,15 @@ export const useLiveStreamPlayer = (post: Post) => {
     return firstLine.replace(/^🔴\s*\[ĐANG PHÁT TRỰC TIẾP\]\s*/i, '').trim() || 'Phát trực tiếp';
   }, [post.content]);
 
+  const effectiveViewerCount = isHost ? activeBroadcast.viewerCount : viewerStream.viewerCount;
+
   return {
     containerRef,
     isLive,
     isHost,
     activeBroadcast,
+    viewerStream,
+    effectiveViewerCount,
     comments,
     reactions,
     commentInput,
@@ -88,3 +96,4 @@ export const useLiveStreamPlayer = (post: Post) => {
     sendLiveReaction,
   };
 };
+
