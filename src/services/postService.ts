@@ -3,11 +3,36 @@ import { Post, Comment } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 
 export const normalizePost = (p: any): Post => {
-  const mediaUrls = Array.isArray(p.mediaList)
-    ? p.mediaList.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
-    : Array.isArray(p.mediaUrls)
-    ? p.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
-    : [];
+  const mediaUrls: string[] = [];
+  const mediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
+
+  if (Array.isArray(p.mediaList) && p.mediaList.length > 0) {
+    p.mediaList.forEach((m: any) => {
+      const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
+      const mediaType = typeof m === 'string' ? undefined : (m.mediaType || (m.type ? String(m.type).toUpperCase() : undefined));
+      if (url) {
+        mediaUrls.push(url);
+        mediaList.push({
+          id: m.id ? String(m.id) : undefined,
+          fileUrl: url,
+          fileKey: m.fileKey,
+          mediaType: mediaType || (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) ? 'VIDEO' : 'IMAGE'),
+        });
+      }
+    });
+  } else if (Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0) {
+    p.mediaUrls.forEach((m: any) => {
+      const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
+      const mediaType = typeof m === 'string' ? undefined : m.mediaType;
+      if (url) {
+        mediaUrls.push(url);
+        mediaList.push({
+          fileUrl: url,
+          mediaType: mediaType || (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) ? 'VIDEO' : 'IMAGE'),
+        });
+      }
+    });
+  }
 
   const authorId = p.authorId ? String(p.authorId) : p.userId || 'me';
   const cached = authorProfileCache[authorId];
@@ -45,6 +70,7 @@ export const normalizePost = (p: any): Post => {
     authorAvatar,
     content: p.content || '',
     mediaUrls,
+    mediaList,
     createdAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : 'Vừa xong',
     likesCount: Number(p.likeCount ?? p.likesCount ?? 0),
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),

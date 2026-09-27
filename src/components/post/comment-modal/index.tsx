@@ -9,6 +9,7 @@ import { CommentItem } from './CommentItem';
 import { CommentFormFooter } from './CommentFormFooter';
 import { UserAvatar } from '../../common/UserAvatar';
 import { Globe } from 'lucide-react';
+import { isVideo, VideoPlayer } from '../post-card/PostCardContent';
 
 interface CommentModalProps {
   isOpen: boolean;
@@ -148,11 +149,18 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
                   {post.sharedPost.mediaUrls && post.sharedPost.mediaUrls.length > 0 && (
                     <div className="rounded-xl overflow-hidden border border-gray-100 dark:border-[#393a3b] mt-2">
-                      <img
-                        src={post.sharedPost.mediaUrls[0]}
-                        alt="Shared media"
-                        className="w-full max-h-64 object-cover"
-                      />
+                      {isVideo(post.sharedPost.mediaUrls[0], post.sharedPost.mediaList?.[0]?.mediaType) ? (
+                        <VideoPlayer src={post.sharedPost.mediaUrls[0]} className="w-full max-h-64 object-contain bg-black" />
+                      ) : (
+                        <img
+                          src={post.sharedPost.mediaUrls[0]}
+                          alt="Shared media"
+                          className="w-full max-h-64 object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -168,12 +176,36 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           {!post.originalPostId && post.mediaUrls && post.mediaUrls.length > 0 && (
             <div className="rounded-xl overflow-hidden bg-black/5 dark:bg-black/30 my-2">
               {post.mediaUrls.length === 1 ? (
-                <img src={post.mediaUrls[0]} alt="Media" className="w-full max-h-[450px] object-cover" />
+                isVideo(post.mediaUrls[0], post.mediaList?.[0]?.mediaType) ? (
+                  <VideoPlayer src={post.mediaUrls[0]} />
+                ) : (
+                  <img
+                    src={post.mediaUrls[0]}
+                    alt="Media"
+                    className="w-full max-h-[450px] object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )
               ) : (
                 <div className="grid grid-cols-2 gap-1">
-                  {post.mediaUrls.map((url, idx) => (
-                    <img key={idx} src={url} alt={`Media ${idx}`} className="w-full h-56 object-cover" />
-                  ))}
+                  {post.mediaUrls.map((url, idx) => {
+                    const itemMediaType = post.mediaList?.[idx]?.mediaType;
+                    return isVideo(url, itemMediaType) ? (
+                      <VideoPlayer key={idx} src={url} className="w-full h-56 object-cover bg-black" />
+                    ) : (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`Media ${idx}`}
+                        className="w-full h-56 object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Smile, Video } from 'lucide-react';
+import { Image, Video } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 
 interface QuickCreatePostTriggerProps {
@@ -7,6 +7,8 @@ interface QuickCreatePostTriggerProps {
   userFirstName: string;
   isAuthenticated: boolean;
   onOpen: () => void;
+  onOpenLive: () => void;
+  onOpenFilePicker: () => void;
 }
 
 export const QuickCreatePostTrigger: React.FC<QuickCreatePostTriggerProps> = ({
@@ -14,6 +16,8 @@ export const QuickCreatePostTrigger: React.FC<QuickCreatePostTriggerProps> = ({
   userFirstName,
   isAuthenticated,
   onOpen,
+  onOpenLive,
+  onOpenFilePicker,
 }) => {
   return (
     <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm p-3 mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors select-none">
@@ -31,35 +35,26 @@ export const QuickCreatePostTrigger: React.FC<QuickCreatePostTriggerProps> = ({
           <div className="hidden sm:flex items-center space-x-2 shrink-0">
             <Video className="w-4 h-4 text-[#f3425f]" />
             <Image className="w-4 h-4 text-[#45bd62]" />
-            <Smile className="w-4 h-4 text-[#f7b125]" />
           </div>
         </div>
       </div>
 
-      <div className="border-t border-gray-200 dark:border-[#393a3b] pt-2 mt-3 flex items-center justify-around gap-1">
+      <div className="border-t border-gray-200 dark:border-[#393a3b] pt-2 mt-3 flex items-center justify-around gap-2">
         <button
           type="button"
-          onClick={onOpen}
-          className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
+          onClick={onOpenLive}
+          className="flex-1 flex items-center justify-center space-x-2 py-2 px-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
         >
           <Video className="w-4 h-4 sm:w-5 sm:h-5 text-[#f3425f] shrink-0" />
           <span className="truncate">Video trực tiếp</span>
         </button>
         <button
           type="button"
-          onClick={onOpen}
-          className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
+          onClick={onOpenFilePicker}
+          className="flex-1 flex items-center justify-center space-x-2 py-2 px-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
         >
           <Image className="w-4 h-4 sm:w-5 sm:h-5 text-[#45bd62] shrink-0" />
           <span className="truncate">Ảnh/video</span>
-        </button>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="flex-1 flex items-center justify-center space-x-1.5 sm:space-x-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] text-xs sm:text-sm font-semibold transition cursor-pointer min-w-0"
-        >
-          <Smile className="w-4 h-4 sm:w-5 sm:h-5 text-[#f7b125] shrink-0" />
-          <span className="truncate">Cảm xúc/hoạt động</span>
         </button>
       </div>
     </div>

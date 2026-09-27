@@ -72,6 +72,15 @@ export interface Comment {
   replies?: Comment[];
 }
 
+export interface PostMediaItem {
+  id?: string;
+  fileUrl: string;
+  fileKey?: string;
+  mediaType?: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'OTHER' | string;
+  fileSize?: number;
+  sortOrder?: number;
+}
+
 export interface Post {
   id: string;
   userId: string;
@@ -80,6 +89,7 @@ export interface Post {
   authonAvatar?: string;
   content: string;
   mediaUrls?: string[];
+  mediaList?: PostMediaItem[];
   createdAt: string;
   likesCount: number;
   commentsCount: number;

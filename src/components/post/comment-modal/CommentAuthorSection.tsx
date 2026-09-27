@@ -2,6 +2,7 @@ import React from 'react';
 import { Globe } from 'lucide-react';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
+import { isVideo, VideoPlayer } from '../post-card/PostCardContent';
 
 interface CommentAuthorSectionProps {
   post: Post;
@@ -66,12 +67,36 @@ export const CommentAuthorSection: React.FC<CommentAuthorSectionProps> = ({
       {post.mediaUrls && post.mediaUrls.length > 0 && (
         <div className="rounded-xl overflow-hidden bg-black/5 dark:bg-black/30 my-2">
           {post.mediaUrls.length === 1 ? (
-            <img src={post.mediaUrls[0]} alt="Media" className="w-full max-h-[450px] object-cover" />
+            isVideo(post.mediaUrls[0], post.mediaList?.[0]?.mediaType) ? (
+              <VideoPlayer src={post.mediaUrls[0]} />
+            ) : (
+              <img
+                src={post.mediaUrls[0]}
+                alt="Media"
+                className="w-full max-h-[450px] object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
+              />
+            )
           ) : (
             <div className="grid grid-cols-2 gap-1">
-              {post.mediaUrls.map((url, idx) => (
-                <img key={idx} src={url} alt={`Media ${idx}`} className="w-full h-56 object-cover" />
-              ))}
+              {post.mediaUrls.map((url, idx) => {
+                const itemMediaType = post.mediaList?.[idx]?.mediaType;
+                return isVideo(url, itemMediaType) ? (
+                  <VideoPlayer key={idx} src={url} className="w-full h-56 object-cover bg-black" />
+                ) : (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt={`Media ${idx}`}
+                    className="w-full h-56 object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
 import { postService } from '../../services/api';
+import { isVideo } from './post-card/PostCardContent';
 
 interface ShareModalProps {
   post: Post;
@@ -168,11 +169,22 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
             {post.mediaUrls && post.mediaUrls.length > 0 && (
               <div className="rounded-lg overflow-hidden max-h-48 border border-gray-200 dark:border-[#393a3b] bg-black/5">
-                <img
-                  src={post.mediaUrls[0]}
-                  alt="Post media"
-                  className="w-full h-full object-cover"
-                />
+                {isVideo(post.mediaUrls[0], post.mediaList?.[0]?.mediaType) ? (
+                  <video
+                    src={post.mediaUrls[0]}
+                    controls
+                    className="w-full max-h-48 object-contain bg-black"
+                  />
+                ) : (
+                  <img
+                    src={post.mediaUrls[0]}
+                    alt="Post media"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )}
               </div>
             )}
           </div>
