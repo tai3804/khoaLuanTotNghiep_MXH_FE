@@ -26,16 +26,22 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     reactions,
     commentInput,
     setCommentInput,
+    replyingTo,
+    inputRef,
     formattedTime,
     showEndConfirm,
     setShowEndConfirm,
     cleanTitle,
+    handleStartReply,
+    handleCancelReply,
     handleSendComment,
     handleToggleFullscreen,
     stopBroadcast,
     toggleCamera,
     toggleMic,
     sendLiveReaction,
+    updateViewerCount,
+    openStudio,
   } = useLiveStreamPlayer(post);
 
   if (!isLive) {
@@ -56,6 +62,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
           isCameraOn={activeBroadcast.isCameraOn}
           userAvatar={post.authorAvatar}
           userName={post.authorName}
+          onViewerCountChange={(count) => updateViewerCount(post.id, count)}
         />
       ) : (
         <LiveStreamViewerVideo
@@ -69,7 +76,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
         />
       )}
 
-      {/* Floating Animated Reactions */}
+      {/* Floating Animated Reactions (Visible on both Host and Viewer screens) */}
       <LiveStreamFloatingReactions reactions={reactions} />
 
       {/* Top Header Overlay with accurate real viewer count */}
@@ -77,6 +84,20 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
         formattedTime={formattedTime}
         viewerCount={effectiveViewerCount}
         onToggleFullscreen={handleToggleFullscreen}
+      />
+
+      {/* Live Comments Speech Bubbles & Viewer Reactions Overlay (Rendered for both Host & Viewers) */}
+      <LiveStreamViewerOverlay
+        comments={comments}
+        commentInput={commentInput}
+        replyingTo={replyingTo}
+        inputRef={inputRef}
+        isHost={isHost}
+        onCommentInputChange={setCommentInput}
+        onStartReply={handleStartReply}
+        onCancelReply={handleCancelReply}
+        onSendComment={handleSendComment}
+        onSendReaction={(emoji) => sendLiveReaction(post.id, emoji)}
       />
 
       {/* Host Controls Overlay */}
@@ -89,17 +110,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
           onToggleCamera={toggleCamera}
           onShowEndConfirm={setShowEndConfirm}
           onStopBroadcast={() => stopBroadcast(post.id)}
-        />
-      )}
-
-      {/* Viewer Live Comments & Reactions Overlay */}
-      {!isHost && (
-        <LiveStreamViewerOverlay
-          comments={comments}
-          commentInput={commentInput}
-          onCommentInputChange={setCommentInput}
-          onSendComment={handleSendComment}
-          onSendReaction={(emoji) => sendLiveReaction(post.id, emoji)}
+          onOpenStudio={openStudio}
         />
       )}
     </div>

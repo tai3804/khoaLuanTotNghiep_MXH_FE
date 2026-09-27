@@ -131,7 +131,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full shadow-sm animate-pulse min-w-4 text-center">
+                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-sm min-w-4 text-center leading-none">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}

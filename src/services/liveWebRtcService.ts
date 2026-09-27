@@ -1,13 +1,23 @@
 import { liveStreamWebSocketService, LiveWebRtcSignal } from './liveStreamWebSocket';
 
 export interface LiveSignalPayload {
-  type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE' | 'ACCEPT' | 'LEAVE' | 'VIEWER_COUNT';
+  type:
+  | 'OFFER'
+  | 'ANSWER'
+  | 'ICE_CANDIDATE'
+  | 'ACCEPT'
+  | 'LEAVE'
+  | 'END_CALL'
+  | 'VIEWER_COUNT'
+  | 'LIVE_COMMENT'
+  | 'LIVE_REACTION';
   postId: string;
   senderId: string;
   targetId?: string;
   sdp?: any;
   candidate?: any;
   viewerCount?: number;
+  payload?: any;
 }
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -37,7 +47,7 @@ class LiveWebRtcService {
     }
   > = new Map();
 
-  // Viewer sessions: postId -> { viewerUserId, peer, candidateQueue, onStream, onViewerCount }
+  // Viewer sessions: postId -> { viewerUserId, peer, candidateQueue, onStream, onViewerCount, onEnded }
   private viewerSessions: Map<
     string,
     {
@@ -46,6 +56,7 @@ class LiveWebRtcService {
       candidateQueue: RTCIceCandidateInit[];
       onStream: (s: MediaStream) => void;
       onViewerCount?: (count: number) => void;
+      onEnded?: () => void;
     }
   > = new Map();
 
@@ -69,7 +80,7 @@ class LiveWebRtcService {
     try {
       const ch = this.getBroadcastChannel(msg.postId);
       ch.postMessage(msg);
-    } catch {}
+    } catch { }
 
     // 2. Storage event bus fallback
     try {
@@ -77,7 +88,7 @@ class LiveWebRtcService {
         `kltn_live_signal_${msg.postId}`,
         JSON.stringify({ ...msg, _t: Date.now() + Math.random() })
       );
-    } catch {}
+    } catch { }
 
     // 3. Isolated LiveStream WebSocket service
     liveStreamWebSocketService.sendSignal(
@@ -89,6 +100,7 @@ class LiveWebRtcService {
         sdp: msg.sdp,
         candidate: msg.candidate,
         viewerCount: msg.viewerCount,
+        payload: msg.payload,
       }
     );
   }
@@ -131,7 +143,7 @@ class LiveWebRtcService {
           if (sig.senderId !== hostUserId) {
             this.routeSignal(sig);
           }
-        } catch {}
+        } catch { }
       }
     };
     window.addEventListener('storage', handleStorage);
@@ -143,7 +155,7 @@ class LiveWebRtcService {
       const host = this.hostSessions.get(postId);
       if (host) {
         host.peers.forEach((peer) => {
-          try { peer.close(); } catch {}
+          try { peer.close(); } catch { }
         });
       }
       this.hostSessions.delete(postId);
@@ -167,17 +179,45 @@ class LiveWebRtcService {
     postId: string,
     viewerUserId: string,
     onStream: (stream: MediaStream) => void,
-    onViewerCount?: (count: number) => void
+    onViewerCount?: (count: number) => void,
+    onEnded?: () => void
   ): () => void {
     console.log(`[LiveWebRtc] Subscribing Viewer to post: ${postId}`);
 
     const peer = new RTCPeerConnection(ICE_SERVERS);
     const candidateQueue: RTCIceCandidateInit[] = [];
+    const inboundStream = new MediaStream();
 
     peer.ontrack = (event) => {
       console.log(`[LiveWebRtc] Viewer received live remote track [${event.track.kind}]`);
+      if (event.track) {
+        inboundStream.getTracks().forEach((t) => {
+          if (t.kind === event.track.kind) {
+            inboundStream.removeTrack(t);
+          }
+        });
+        inboundStream.addTrack(event.track);
+      }
+
       if (event.streams && event.streams[0]) {
-        onStream(event.streams[0]);
+        event.streams[0].getTracks().forEach((t) => {
+          if (!inboundStream.getTracks().some((existing) => existing.id === t.id)) {
+            inboundStream.addTrack(t);
+          }
+        });
+      }
+
+      // Create new MediaStream instance so React state detects reference change and re-renders video
+      onStream(new MediaStream(inboundStream.getTracks()));
+    };
+
+    peer.onconnectionstatechange = () => {
+      if (
+        peer.connectionState === 'disconnected' ||
+        peer.connectionState === 'closed' ||
+        peer.connectionState === 'failed'
+      ) {
+        onEnded?.();
       }
     };
 
@@ -198,6 +238,7 @@ class LiveWebRtcService {
       candidateQueue,
       onStream,
       onViewerCount,
+      onEnded,
     });
 
     const unsubWs = liveStreamWebSocketService.subscribeRoom(postId, (signal: LiveWebRtcSignal) => {
@@ -209,6 +250,7 @@ class LiveWebRtcService {
         sdp: signal.sdp,
         candidate: signal.candidate,
         viewerCount: signal.viewerCount,
+        payload: signal.payload,
       });
     });
     this.wsUnsubMap.set(`viewer_${postId}`, unsubWs);
@@ -220,7 +262,7 @@ class LiveWebRtcService {
           if (sig.senderId !== viewerUserId) {
             this.routeSignal(sig);
           }
-        } catch {}
+        } catch { }
       }
     };
     window.addEventListener('storage', handleStorage);
@@ -253,7 +295,7 @@ class LiveWebRtcService {
         senderId: viewerUserId,
       });
 
-      try { peer.close(); } catch {}
+      try { peer.close(); } catch { }
       this.viewerSessions.delete(postId);
 
       const unsub = this.wsUnsubMap.get(`viewer_${postId}`);
@@ -268,6 +310,20 @@ class LiveWebRtcService {
   private async routeSignal(msg: LiveSignalPayload) {
     if (!msg || !msg.postId) return;
 
+    if (msg.type === 'LIVE_COMMENT' || msg.type === 'LIVE_REACTION' || msg.type === 'END_CALL') {
+      window.dispatchEvent(
+        new CustomEvent('kltn_live_chat_event', {
+          detail: {
+            signalType: msg.type,
+            postId: msg.postId,
+            payload: msg.payload,
+            viewerCount: msg.viewerCount,
+            senderId: msg.senderId,
+          },
+        })
+      );
+    }
+
     // Check Host Session
     const host = this.hostSessions.get(msg.postId);
     if (host) {
@@ -279,7 +335,7 @@ class LiveWebRtcService {
 
         let peer = host.peers.get(viewerId);
         if (peer) {
-          try { peer.close(); } catch {}
+          try { peer.close(); } catch { }
         }
 
         peer = new RTCPeerConnection(ICE_SERVERS);
@@ -354,7 +410,7 @@ class LiveWebRtcService {
 
           const queue = host.candidateQueues.get(viewerId) || [];
           for (const cand of queue) {
-            try { await peer.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+            try { await peer.addIceCandidate(new RTCIceCandidate(cand)); } catch { }
           }
           host.candidateQueues.set(viewerId, []);
         }
@@ -366,7 +422,7 @@ class LiveWebRtcService {
         const peer = host.peers.get(viewerId);
         if (peer && msg.candidate) {
           if (peer.remoteDescription) {
-            try { await peer.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
+            try { await peer.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch { }
           } else {
             const queue = host.candidateQueues.get(viewerId) || [];
             queue.push(msg.candidate);
@@ -380,7 +436,7 @@ class LiveWebRtcService {
         const viewerId = msg.senderId;
         const peer = host.peers.get(viewerId);
         if (peer) {
-          try { peer.close(); } catch {}
+          try { peer.close(); } catch { }
           host.peers.delete(viewerId);
           const count = host.peers.size;
           host.onViewerCountChange?.(count);
@@ -412,7 +468,7 @@ class LiveWebRtcService {
         await viewer.peer.setRemoteDescription(new RTCSessionDescription(msg.sdp));
 
         for (const cand of viewer.candidateQueue) {
-          try { await viewer.peer.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+          try { await viewer.peer.addIceCandidate(new RTCIceCandidate(cand)); } catch { }
         }
         viewer.candidateQueue = [];
 
@@ -433,7 +489,7 @@ class LiveWebRtcService {
 
       if (msg.type === 'ICE_CANDIDATE' && msg.candidate) {
         if (viewer.peer.remoteDescription) {
-          try { await viewer.peer.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
+          try { await viewer.peer.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch { }
         } else {
           viewer.candidateQueue.push(msg.candidate);
         }
@@ -442,6 +498,11 @@ class LiveWebRtcService {
 
       if (msg.type === 'VIEWER_COUNT' && msg.viewerCount !== undefined) {
         viewer.onViewerCount?.(msg.viewerCount);
+        return;
+      }
+
+      if (msg.type === 'END_CALL') {
+        viewer.onEnded?.();
         return;
       }
     }

@@ -101,16 +101,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // keeps the room alive while at least one member remains connected.
       if (session.channelType === 'GROUP') {
         callWebSocketService.sendSignal(session.callSessionId, null, 'LEAVE');
-        await callService.leaveCall(session.callSessionId);
+        await callService.leaveCall(session.callSessionId).catch(() => {});
         return;
       }
 
+      // In direct 1-1 calls: ALWAYS notify END_CALL so the other side immediately terminates!
+      callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'END_CALL');
+
       if (session.hostUserId === user?.id) {
-        callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'END_CALL');
-        await callService.endCall(session.callSessionId).catch(() => callService.leaveCall(session.callSessionId));
+        await callService.endCall(session.callSessionId).catch(() => callService.leaveCall(session.callSessionId).catch(() => {}));
       } else {
-        callWebSocketService.sendSignal(session.callSessionId, targetUserId, 'LEAVE');
-        await callService.leaveCall(session.callSessionId);
+        await callService.leaveCall(session.callSessionId).catch(() => {});
       }
     } catch (error) {
       console.warn('[CallContext] Failed to close call session:', error);
@@ -195,6 +196,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsScreenSharing(false);
     setCallDuration(0);
   }, []);
+
+  // Gracefully terminate active/incoming call locally and reset all UI state
+  const terminateCallLocally = useCallback((message = 'Cuộc gọi đã kết thúc') => {
+    callAudio.playCallEndedTone();
+    toast.showInfo(message);
+    cleanupCall();
+    callSessionRef.current = null;
+    remoteUserRef.current = null;
+    setCallState('idle');
+    setCallSession(null);
+    setRemoteUser(null);
+  }, [cleanupCall, toast]);
 
   // Connect to Call WebSocket on auth
   useEffect(() => {
@@ -361,9 +374,50 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[CallContext] ICE State:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        // Peer disconnected
+      console.log('[CallContext] ICE State for', targetUserId, ':', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+        if (!callSessionRef.current || callSessionRef.current.channelType === 'DIRECT') {
+          terminateCallLocally('Cuộc gọi đã kết thúc');
+        } else {
+          peerConnectionsRef.current.delete(targetUserId);
+          setRemoteParticipants((previous) => {
+            const next = { ...previous };
+            delete next[targetUserId];
+            return next;
+          });
+        }
+      } else if (pc.iceConnectionState === 'disconnected') {
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+            if (!callSessionRef.current || callSessionRef.current.channelType === 'DIRECT') {
+              terminateCallLocally('Kết nối cuộc gọi đã kết thúc');
+            }
+          }
+        }, 3500);
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('[CallContext] Connection State for', targetUserId, ':', pc.connectionState);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        if (!callSessionRef.current || callSessionRef.current.channelType === 'DIRECT') {
+          terminateCallLocally('Cuộc gọi đã kết thúc');
+        } else {
+          peerConnectionsRef.current.delete(targetUserId);
+          setRemoteParticipants((previous) => {
+            const next = { ...previous };
+            delete next[targetUserId];
+            return next;
+          });
+        }
+      } else if (pc.connectionState === 'disconnected') {
+        setTimeout(() => {
+          if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            if (!callSessionRef.current || callSessionRef.current.channelType === 'DIRECT') {
+              terminateCallLocally('Kết nối cuộc gọi đã kết thúc');
+            }
+          }
+        }, 3500);
       }
     };
 
@@ -600,8 +654,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         case 'LEAVE':
         case 'END_CALL': {
-          if (callSessionRef.current?.callSessionId !== signal.callSessionId) return;
-          if (signal.signalType === 'LEAVE' && callSessionRef.current.channelType === 'GROUP') {
+          const currentId = callSessionRef.current?.callSessionId;
+          const incomingId = signal.callSessionId;
+          if (currentId && incomingId && String(currentId).toLowerCase() !== String(incomingId).toLowerCase()) {
+            return;
+          }
+          if (signal.signalType === 'LEAVE' && callSessionRef.current?.channelType === 'GROUP') {
             const peer = signal.senderId ? peerConnectionsRef.current.get(signal.senderId) : null;
             if (peer) {
               try { peer.close(); } catch {}
@@ -615,14 +673,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             toast.showInfo('Một thành viên đã rời cuộc gọi');
             break;
           }
-          callAudio.playCallEndedTone();
-          toast.showInfo('Cuộc gọi đã kết thúc');
-          cleanupCall();
-          callSessionRef.current = null;
-          remoteUserRef.current = null;
-          setCallState('idle');
-          setCallSession(null);
-          setRemoteUser(null);
+          terminateCallLocally('Cuộc gọi đã kết thúc');
           break;
         }
 
@@ -677,6 +728,22 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       callSessionRef.current = active;
       setCallState('connected');
       startDurationTimer();
+
+      const connectedParticipant = active.participants.find(
+        (p) => p.userId !== user.id && p.status === 'CONNECTED'
+      );
+      const targetId = connectedParticipant?.userId || remoteUserRef.current?.id;
+      if (targetId && active.callSessionId) {
+        const pc = createPeerConnection(active.callSessionId, targetId);
+        if (!pc.localDescription) {
+          pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: mediaType === 'VIDEO' })
+            .then(async (offer) => {
+              await pc.setLocalDescription(offer);
+              callWebSocketService.sendSignal(active.callSessionId, targetId, 'OFFER', { sdp: offer });
+            })
+            .catch((e) => console.warn('[CallContext] Fallback offer generation notice:', e));
+        }
+      }
     };
 
     syncAcceptedParticipant();
@@ -686,6 +753,61 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearInterval(interval);
     };
   }, [callSession, callState, user?.id]);
+
+  // Periodically verify active call status on the server while connected.
+  // If the remote peer closed their tab, network crashed, or hung up,
+  // this guarantees the remaining client closes automatically.
+  useEffect(() => {
+    if (callState !== 'connected' || !callSession || !user?.id) return;
+
+    let disposed = false;
+    const checkCallLiveness = async () => {
+      try {
+        const active = await callService.getActiveCall();
+        if (disposed) return;
+        if (!active || active.status === 'ENDED' || String(active.callSessionId).toLowerCase() !== String(callSession.callSessionId).toLowerCase()) {
+          console.log('[CallContext] Server call session ended or inactive, terminating locally');
+          terminateCallLocally('Cuộc gọi đã kết thúc');
+          return;
+        }
+        if (active.channelType === 'DIRECT') {
+          const otherParticipant = active.participants?.find((p) => p.userId !== user.id);
+          if (otherParticipant && (otherParticipant.status === 'LEFT' || otherParticipant.status === 'DECLINED')) {
+            console.log('[CallContext] Remote participant has left, terminating locally');
+            terminateCallLocally('Người dùng đã ngắt kết nối');
+          }
+        }
+      } catch {
+        // Transient network flicker, continue
+      }
+    };
+
+    const interval = setInterval(checkCallLiveness, 2000);
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [callSession, callState, terminateCallLocally, user?.id]);
+
+  // Handle unexpected browser close / refresh
+  useEffect(() => {
+    const handleUnload = () => {
+      const active = callSessionRef.current;
+      if (active) {
+        try {
+          const targetId = remoteUserRef.current?.id || null;
+          callWebSocketService.sendSignal(active.callSessionId, targetId, 'LEAVE');
+        } catch {}
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
+  }, []);
 
   // Start outgoing call
   const startCall = async (targetUser: CallUserInfo, type: MediaType, conversationId?: string) => {
@@ -867,7 +989,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const endCall = async () => {
     callAudio.playCallEndedTone();
     const sessionId = callSession?.callSessionId;
-    const targetId = remoteUser?.id || null;
+    const targetId = remoteUser?.id ||
+      callSession?.participants?.find((p) => p.userId !== user?.id)?.userId ||
+      (callSession?.hostUserId !== user?.id ? callSession?.hostUserId : null) ||
+      null;
 
     if (sessionId && callSession) {
       await endSession(callSession, targetId);
@@ -879,7 +1004,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCallState('idle');
       setCallSession(null);
       setRemoteUser(null);
-    }, 1200);
+    }, 800);
   };
 
   // Toggle Microphone

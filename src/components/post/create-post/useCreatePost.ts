@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useLiveStream } from '../../../context/LiveStreamContext';
 import { Post } from '../../../types';
 import { postService } from '../../../services/api';
+import { mediaService } from '../../../services/mediaService';
 
 interface UseCreatePostProps {
   onPostCreated: (newPost: Post) => void;
@@ -80,6 +81,8 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageUrl('');
+      setShowImageInput(false);
       setSelectedFile(file);
       const isVid = file.type.startsWith('video/') || /\.(mp4|webm|ogg|mov|m4v|mkv)$/i.test(file.name);
       setSelectedFileType(isVid ? 'video' : 'image');
@@ -111,6 +114,7 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
       createdPost.isLive = true;
       createdPost.liveStatus = 'LIVE';
       onPostCreated(createdPost);
+      window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
     }
   };
 
@@ -131,27 +135,43 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
       const uploadedUrl = imageUrl.trim();
       const isVideoFile = selectedFileType === 'video' || (uploadedUrl && /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(uploadedUrl));
 
-      const files: File[] = selectedFile ? [selectedFile] : [];
-      const createdPost = await postService.createPost(fullContent, postPrivacy, files);
-
-      // Ensure optimistic media preview is available if backend processes media asynchronously
-      if (!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) {
-        if (filePreview) {
-          createdPost.mediaUrls = [filePreview];
-          createdPost.mediaList = [{
-            fileUrl: filePreview,
-            mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
-          }];
-        } else if (uploadedUrl) {
-          createdPost.mediaUrls = [uploadedUrl];
-          createdPost.mediaList = [{
-            fileUrl: uploadedUrl,
-            mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
-          }];
+      let mediaUrls: string[] = [];
+      if (selectedFile) {
+        try {
+          const mediaItem = await mediaService.uploadMedia(selectedFile, 'posts');
+          if (mediaItem && mediaItem.fileUrl) {
+            mediaUrls = [mediaItem.fileUrl];
+          }
+        } catch (uploadErr) {
+          console.warn('Failed to upload file to media service, attempting direct multipart fallback:', uploadErr);
         }
+      } else if (uploadedUrl) {
+        mediaUrls = [uploadedUrl];
+      }
+
+      const files: File[] = (selectedFile && mediaUrls.length === 0) ? [selectedFile] : [];
+      const createdPost = await postService.createPost(fullContent, postPrivacy, files, mediaUrls);
+
+      // Ensure mediaUrls are populated on the created post object
+      if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
+        createdPost.mediaUrls = mediaUrls;
+        createdPost.mediaList = [{
+          fileUrl: mediaUrls[0],
+          mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
+        }];
+      }
+
+      // Ensure author details are present immediately for crisp display
+      if (!createdPost.authorName || createdPost.authorName === 'Thành viên KLTN') {
+        createdPost.authorName = user?.fullName || user?.username || 'Bạn';
+      }
+      if (!createdPost.authorAvatar && user?.avatar) {
+        createdPost.authorAvatar = user.avatar;
       }
 
       onPostCreated(createdPost);
+      window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
+
       setContent('');
       setImageUrl('');
       handleClearFile();
@@ -160,34 +180,7 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
       toast.showSuccess(isVideoFile ? 'Đã đăng video thành công!' : 'Đã đăng bài viết mới thành công!');
     } catch (err: any) {
       console.error('Failed to create post:', err);
-      const isVideoFile = selectedFileType === 'video' || (imageUrl.trim() && /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(imageUrl.trim()));
-      const previewUrl = filePreview || (imageUrl.trim() ? imageUrl.trim() : '');
-
-      const fallbackPost: Post = {
-        id: 'post-' + Date.now(),
-        userId: user?.id || 'me',
-        authorName: user?.fullName || user?.username || 'Bạn',
-        authorAvatar: user?.avatar || '',
-        content: content.trim(),
-        mediaUrls: previewUrl ? [previewUrl] : [],
-        mediaList: previewUrl ? [{
-          fileUrl: previewUrl,
-          mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
-        }] : [],
-        createdAt: 'Vừa xong',
-        likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        isLiked: false,
-        privacy: privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC',
-        comments: [],
-      };
-      onPostCreated(fallbackPost);
-      setContent('');
-      setImageUrl('');
-      handleClearFile();
-      setShowImageInput(false);
-      setIsOpenModal(false);
+      toast.showError('Không thể đăng bài viết: ' + (err.response?.data?.message || err.message));
     } finally {
       setIsSubmitting(false);
     }

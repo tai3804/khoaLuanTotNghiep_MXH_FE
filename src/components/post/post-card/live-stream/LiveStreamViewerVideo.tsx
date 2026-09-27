@@ -27,14 +27,25 @@ export const LiveStreamViewerVideo: React.FC<LiveStreamViewerVideoProps> = ({
     const video = videoRef.current;
     if (!video || !remoteStream) return;
 
-    video.srcObject = remoteStream;
-    const playPromise = video.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((err) => {
-        console.warn('[LiveStreamViewerVideo] Autoplay policy prevented unmuted play:', err);
-      });
+    if (video.srcObject !== remoteStream) {
+      video.srcObject = remoteStream;
     }
-  }, [remoteStream]);
+
+    const tryPlay = () => {
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('[LiveStreamViewerVideo] Autoplay blocked, forcing muted play:', err);
+          video.muted = true;
+          video.play().catch((e) => console.warn('[LiveStreamViewerVideo] Play retry error:', e));
+        });
+      }
+    };
+
+    tryPlay();
+    video.onloadedmetadata = () => tryPlay();
+    video.onloadeddata = () => tryPlay();
+  }, [remoteStream, isMuted]);
 
   if (!remoteStream || !isConnected) {
     return (

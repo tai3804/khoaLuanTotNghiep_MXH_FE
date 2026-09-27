@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, Video, VideoOff, Square } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Square, Radio } from 'lucide-react';
 
 interface LiveStreamHostControlsProps {
   isMicOn: boolean;
@@ -9,6 +9,7 @@ interface LiveStreamHostControlsProps {
   onToggleCamera: () => void;
   onShowEndConfirm: (show: boolean) => void;
   onStopBroadcast: () => void;
+  onOpenStudio?: () => void;
 }
 
 export const LiveStreamHostControls: React.FC<LiveStreamHostControlsProps> = ({
@@ -19,6 +20,7 @@ export const LiveStreamHostControls: React.FC<LiveStreamHostControlsProps> = ({
   onToggleCamera,
   onShowEndConfirm,
   onStopBroadcast,
+  onOpenStudio,
 }) => {
   return (
     <div className="absolute bottom-3 inset-x-3 flex items-center justify-between bg-black/75 backdrop-blur-md p-2.5 rounded-xl z-30 border border-white/10 pointer-events-auto shadow-2xl">
@@ -44,6 +46,17 @@ export const LiveStreamHostControls: React.FC<LiveStreamHostControlsProps> = ({
           {isCameraOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
           <span className="hidden sm:inline">{isCameraOn ? 'Camera: Bật' : 'Camera: Tắt'}</span>
         </button>
+
+        {onOpenStudio && (
+          <button
+            type="button"
+            onClick={onOpenStudio}
+            className="p-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 bg-blue-600/30 text-blue-400 hover:bg-blue-600/50 border border-blue-500/30 transition cursor-pointer"
+          >
+            <Radio className="w-4 h-4 text-red-400 animate-pulse" />
+            <span className="hidden sm:inline">Mở Live Studio</span>
+          </button>
+        )}
       </div>
 
       <div>

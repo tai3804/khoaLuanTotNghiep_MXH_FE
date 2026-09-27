@@ -18,7 +18,12 @@ export const fetchAuthorProfile = async (userId: string) => {
     }
   } catch {}
 
-  if (authorProfileCache[userId] && authorProfileCache[userId].name !== 'Thành viên KLTN' && authorProfileCache[userId].name !== 'Người dùng') {
+  if (
+    authorProfileCache[userId] &&
+    authorProfileCache[userId].name !== 'Thành viên KLTN' &&
+    authorProfileCache[userId].name !== 'Người dùng' &&
+    authorProfileCache[userId].name !== 'Người Dùng'
+  ) {
     return authorProfileCache[userId];
   }
 
@@ -30,7 +35,12 @@ export const fetchAuthorProfile = async (userId: string) => {
     const profile = await userService.getUserProfile(userId);
     if (profile) {
       const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
-      const name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username || 'Thành viên KLTN';
+      let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
+      if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
+        if (profile.username) name = profile.username;
+        else if (profile.email) name = profile.email.split('@')[0];
+      }
+      if (!name) name = 'Thành viên KLTN';
       const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
       authorProfileCache[userId] = { name, avatar };
       return authorProfileCache[userId];

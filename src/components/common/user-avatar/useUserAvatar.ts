@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export const DEFAULT_AVATAR_URL = '/default-avatar.png';
 
@@ -9,13 +9,24 @@ interface UseUserAvatarProps {
 export const useUserAvatar = ({ src }: UseUserAvatarProps) => {
   const [imageError, setImageError] = useState(false);
 
-  const effectiveSrc = src && !imageError && src.trim() !== '' ? src : DEFAULT_AVATAR_URL;
+  useEffect(() => {
+    setImageError(false);
+  }, [src]);
+
+  const cleanSrc =
+    src && typeof src === 'string' && src.trim() !== '' && src !== 'null' && src !== 'undefined'
+      ? src.trim()
+      : null;
+
+  const hasError = imageError || !cleanSrc;
+  const effectiveSrc = cleanSrc;
 
   const handleError = () => {
-    if (!imageError) setImageError(true);
+    setImageError(true);
   };
 
   return {
+    hasError,
     effectiveSrc,
     handleError,
   };

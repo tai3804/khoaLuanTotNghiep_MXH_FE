@@ -3,16 +3,16 @@ import { Post, Comment } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 
 export const normalizePost = (p: any): Post => {
-  const mediaUrls: string[] = [];
-  const mediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
+  const rawMediaUrls: string[] = [];
+  const rawMediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
 
   if (Array.isArray(p.mediaList) && p.mediaList.length > 0) {
     p.mediaList.forEach((m: any) => {
       const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
       const mediaType = typeof m === 'string' ? undefined : (m.mediaType || (m.type ? String(m.type).toUpperCase() : undefined));
       if (url) {
-        mediaUrls.push(url);
-        mediaList.push({
+        rawMediaUrls.push(url);
+        rawMediaList.push({
           id: m.id ? String(m.id) : undefined,
           fileUrl: url,
           fileKey: m.fileKey,
@@ -25,13 +25,29 @@ export const normalizePost = (p: any): Post => {
       const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
       const mediaType = typeof m === 'string' ? undefined : m.mediaType;
       if (url) {
-        mediaUrls.push(url);
-        mediaList.push({
+        rawMediaUrls.push(url);
+        rawMediaList.push({
           fileUrl: url,
           mediaType: mediaType || (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) ? 'VIDEO' : 'IMAGE'),
         });
       }
     });
+  }
+
+  // Deduplicate media entries by fileUrl to prevent duplicated images/videos
+  const seenUrls = new Set<string>();
+  const mediaUrls: string[] = [];
+  const mediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
+
+  for (let i = 0; i < rawMediaUrls.length; i++) {
+    const u = rawMediaUrls[i];
+    if (u && !seenUrls.has(u)) {
+      seenUrls.add(u);
+      mediaUrls.push(u);
+      if (rawMediaList[i]) {
+        mediaList.push(rawMediaList[i]);
+      }
+    }
   }
 
   const authorId = p.authorId ? String(p.authorId) : p.userId || 'me';
@@ -267,13 +283,23 @@ export const postService = {
     }
   },
 
-  createPost: async (content: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC', files: File[] = []): Promise<Post> => {
+  createPost: async (
+    content: string,
+    privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC',
+    files: File[] = [],
+    mediaUrls?: string[]
+  ): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
     files.forEach((file) => {
       formData.append('files', file);
     });
+    if (mediaUrls && mediaUrls.length > 0) {
+      mediaUrls.forEach((url) => {
+        formData.append('mediaUrls', url);
+      });
+    }
 
     const res = await api.post('/posts', formData, {
       headers: {

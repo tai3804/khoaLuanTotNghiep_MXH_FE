@@ -9,10 +9,20 @@ export interface LiveWebRtcSignal {
   postId?: string;
   senderId?: string;
   targetUserId?: string;
-  signalType: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE' | 'ACCEPT' | 'LEAVE' | 'VIEWER_COUNT';
+  signalType:
+    | 'OFFER'
+    | 'ANSWER'
+    | 'ICE_CANDIDATE'
+    | 'ACCEPT'
+    | 'LEAVE'
+    | 'END_CALL'
+    | 'VIEWER_COUNT'
+    | 'LIVE_COMMENT'
+    | 'LIVE_REACTION';
   sdp?: any;
   candidate?: any;
   viewerCount?: number;
+  payload?: any;
 }
 
 type LiveSignalCallback = (signal: LiveWebRtcSignal) => void;
@@ -23,6 +33,7 @@ class LiveStreamWebSocketService {
   private connectionPromise: Promise<boolean> | null = null;
   private roomSubscriptions: Map<string, StompSubscription> = new Map();
   private signalCallbacks: Map<string, Set<LiveSignalCallback>> = new Map();
+  private subscribedRooms: Set<string> = new Set();
 
   public isConnected(): boolean {
     return this.connected && this.client !== null && this.client.active && this.client.connected;
@@ -66,9 +77,9 @@ class LiveStreamWebSocketService {
           this.connected = true;
           this.connectionPromise = null;
 
-          // Re-subscribe pending rooms if any
-          this.signalCallbacks.forEach((_, postId) => {
-            this.subscribeRoom(postId);
+          // Re-subscribe all tracked rooms
+          this.subscribedRooms.forEach((pId) => {
+            this.setupStompSubscription(pId);
           });
 
           resolve(true);
@@ -102,7 +113,57 @@ class LiveStreamWebSocketService {
     return this.connectionPromise;
   }
 
+  private setupStompSubscription(postId: string) {
+    if (!this.isConnected() || !this.client || this.roomSubscriptions.has(postId)) {
+      return;
+    }
+
+    const topic = `/topic/live/${postId}`;
+    try {
+      console.log(`[LiveStreamWS] Subscribing to live topic: ${topic}`);
+      const sub = this.client.subscribe(topic, (msg) => {
+        try {
+          const signal: LiveWebRtcSignal = JSON.parse(msg.body);
+          if (!signal.postId) {
+            signal.postId = postId;
+          }
+
+          console.log(`[LiveStreamWS] Received live signal [${signal.signalType}] on ${topic}:`, signal);
+
+          // Always dispatch global custom event for live comments, reactions & status changes
+          window.dispatchEvent(
+            new CustomEvent('kltn_live_chat_event', {
+              detail: {
+                ...signal,
+                postId,
+                type: signal.signalType,
+              },
+            })
+          );
+
+          const cbs = this.signalCallbacks.get(postId);
+          if (cbs) {
+            cbs.forEach((cb) => {
+              try {
+                cb(signal);
+              } catch (e) {
+                console.error('[LiveStreamWS] Callback error:', e);
+              }
+            });
+          }
+        } catch (e) {
+          console.error('[LiveStreamWS] Parse signal error:', e);
+        }
+      });
+      this.roomSubscriptions.set(postId, sub);
+    } catch (err) {
+      console.error(`[LiveStreamWS] Failed to subscribe ${topic}:`, err);
+    }
+  }
+
   public subscribeRoom(postId: string, callback?: LiveSignalCallback): () => void {
+    this.subscribedRooms.add(postId);
+
     if (callback) {
       if (!this.signalCallbacks.has(postId)) {
         this.signalCallbacks.set(postId, new Set());
@@ -112,48 +173,24 @@ class LiveStreamWebSocketService {
 
     if (!this.isConnected() || !this.client) {
       this.connect().then((ok) => {
-        if (ok) this.subscribeRoom(postId);
+        if (ok) this.setupStompSubscription(postId);
       });
-      return () => {
-        if (callback && this.signalCallbacks.has(postId)) {
-          this.signalCallbacks.get(postId)!.delete(callback);
-        }
-      };
-    }
-
-    const topic = `/topic/live/${postId}`;
-    if (!this.roomSubscriptions.has(postId)) {
-      try {
-        const sub = this.client.subscribe(topic, (msg) => {
-          try {
-            const signal: LiveWebRtcSignal = JSON.parse(msg.body);
-            const cbs = this.signalCallbacks.get(postId);
-            if (cbs) {
-              cbs.forEach((cb) => {
-                try { cb(signal); } catch (e) { console.error('[LiveStreamWS] Callback error:', e); }
-              });
-            }
-          } catch (e) {
-            console.error('[LiveStreamWS] Parse signal error:', e);
-          }
-        });
-        this.roomSubscriptions.set(postId, sub);
-      } catch (err) {
-        console.error(`[LiveStreamWS] Failed to subscribe ${topic}:`, err);
-      }
+    } else {
+      this.setupStompSubscription(postId);
     }
 
     return () => {
       if (callback && this.signalCallbacks.has(postId)) {
         this.signalCallbacks.get(postId)!.delete(callback);
-        if (this.signalCallbacks.get(postId)!.size === 0) {
-          const sub = this.roomSubscriptions.get(postId);
-          if (sub) {
-            try { sub.unsubscribe(); } catch {}
-            this.roomSubscriptions.delete(postId);
-          }
-          this.signalCallbacks.delete(postId);
+      }
+      if (!this.signalCallbacks.has(postId) || this.signalCallbacks.get(postId)!.size === 0) {
+        const sub = this.roomSubscriptions.get(postId);
+        if (sub) {
+          try { sub.unsubscribe(); } catch {}
+          this.roomSubscriptions.delete(postId);
         }
+        this.signalCallbacks.delete(postId);
+        this.subscribedRooms.delete(postId);
       }
     };
   }
@@ -167,6 +204,7 @@ class LiveStreamWebSocketService {
       sdp?: any;
       candidate?: any;
       viewerCount?: number;
+      payload?: any;
     }
   ): boolean {
     if (!this.isConnected() || !this.client) {
@@ -176,19 +214,21 @@ class LiveStreamWebSocketService {
       return false;
     }
 
-    const payload = {
+    const messagePayload = {
       callSessionId: postId,
       senderId,
       targetUserId: targetUserId || undefined,
       signalType,
       sdp: extra?.sdp,
       candidate: extra?.candidate,
+      viewerCount: extra?.viewerCount,
+      payload: extra?.payload,
     };
 
     try {
       this.client.publish({
         destination: `/app/live.signal/${postId}`,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(messagePayload),
       });
       return true;
     } catch (err) {

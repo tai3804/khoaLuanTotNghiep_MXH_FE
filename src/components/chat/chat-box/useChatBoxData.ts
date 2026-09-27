@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { chatService, websocketService } from '../../../services/api';
-import { userService } from '../../../services/userService';
+import { userService, fetchAuthorProfile } from '../../../services/userService';
 import { mediaService } from '../../../services/mediaService';
 import { ChatUser } from './types';
 
@@ -47,6 +47,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const [isWsLive, setIsWsLive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [groupDetail, setGroupDetail] = useState<any>(null);
+  const [partnerProfile, setPartnerProfile] = useState<{ userId?: string; name: string; avatar: string } | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
 
@@ -65,15 +66,38 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     try {
       const uploaded = await mediaService.uploadMedia(file, 'chats');
       if (uploaded && uploaded.fileUrl) {
-        await chatService.sendMessage(conversationId, uploaded.fileUrl);
-        const newMsg: Message = {
-          id: 'msg-' + Date.now(),
+        const fileUrl = uploaded.fileUrl;
+        const tempId = 'msg-' + Date.now();
+        const optimisticMsg: Message = {
+          id: tempId,
           senderId: user?.id || 'me',
           senderName: 'Bạn',
-          text: uploaded.fileUrl,
+          senderAvatar: user?.avatar,
+          text: fileUrl,
           time: formatMessageTime(new Date()),
         };
-        setMessages((prev) => [...prev, newMsg]);
+
+        // 1. Add optimistic message immediately so UI displays it without waiting
+        setMessages((prev) => [...prev, optimisticMsg]);
+
+        // 2. Send via WS if possible, or fallback to REST API
+        let actualId: string | null = null;
+        const sentViaWs = websocketService.sendMessage(conversationId, fileUrl);
+        if (sentViaWs) {
+          setIsWsLive(true);
+        } else {
+          const res = await chatService.sendMessage(conversationId, fileUrl);
+          actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
+        }
+
+        // 3. Reconcile temporary message with server message ID
+        setMessages((prev) => {
+          if (actualId && prev.some((m) => m.id === actualId)) {
+            return prev.filter((m) => m.id !== tempId);
+          }
+          return prev.map((m) => (m.id === tempId ? { ...m, id: actualId || m.id } : m));
+        });
+
         toast.showSuccess('Đã gửi file qua S3!');
       }
     } catch (err: any) {
@@ -126,13 +150,16 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     const initChat = async () => {
       setLoading(true);
       try {
-        let convId: string | null = null;
-        if (friend.isGroup) {
-          convId = friend.conversationId || friend.id;
-        } else if (friend.userId || (!friend.isGroup && friend.id)) {
-          const directTarget = friend.userId || friend.id;
-          const conv = await chatService.createDirectChat(directTarget);
+        let convId: string | null = friend.conversationId || null;
+        let directTargetId: string | null = friend.userId || (!friend.isGroup && !friend.conversationId ? friend.id : null);
+
+        if (!convId && directTargetId) {
+          const conv = await chatService.createDirectChat(directTargetId);
           convId = conv?.conversationId || conv?.id ? String(conv.conversationId || conv.id) : null;
+        }
+
+        if (!convId && friend.id) {
+          convId = friend.id;
         }
 
         if (!convId) {
@@ -145,8 +172,37 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
         }
 
         let profilesMap: Record<string, { name: string; avatar: string }> = {};
+        let resolvedPartnerProf: { name: string; avatar: string } | null = null;
+
         if (friend.isGroup) {
           profilesMap = await loadGroupMembers(convId);
+        } else {
+          // If directTargetId is missing or equals convId, retrieve members from conversation detail
+          if (!directTargetId || directTargetId === convId) {
+            try {
+              const detail = await chatService.getConversationDetail(convId);
+              if (detail && Array.isArray(detail.members)) {
+                const partnerMember = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
+                if (partnerMember) {
+                  directTargetId = String(partnerMember.userId);
+                }
+              }
+            } catch (err) {
+              console.warn('[ChatBox] Could not get conversation detail for direct chat:', err);
+            }
+          }
+
+          if (directTargetId) {
+            try {
+              resolvedPartnerProf = await fetchAuthorProfile(directTargetId);
+              if (resolvedPartnerProf && isMounted) {
+                setPartnerProfile({ userId: directTargetId, ...resolvedPartnerProf });
+                profilesMap[directTargetId] = resolvedPartnerProf;
+              }
+            } catch (err) {
+              console.warn('[ChatBox] Error fetching partner profile:', err);
+            }
+          }
         }
 
         messagePageRef.current = 0;
@@ -162,8 +218,8 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
               return {
                 id: String(m.messageId || m.id),
                 senderId: sId,
-                senderName: isCurrentUser ? 'Bạn' : prof?.name || friend.name,
-                senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
+                senderName: isCurrentUser ? 'Bạn' : prof?.name || resolvedPartnerProf?.name || partnerProfile?.name || friend.name,
+                senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : resolvedPartnerProf?.avatar || partnerProfile?.avatar || friend.avatar),
                 text: m.content || '',
                 time: formatMessageTime(m.createdAt),
               };
@@ -258,6 +314,11 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
               const isCurrentUser = incomingSender === String(user?.id);
               const prof = memberProfilesRef.current[incomingSender];
 
+              // If message already exists by ID, clean up any lingering temporary message and return
+              if (incomingId && prev.some((m) => m.id === incomingId)) {
+                return prev.filter((m) => !(m.id.startsWith('msg-') && m.text === incomingContent));
+              }
+
               const matchIdx = prev.findIndex(
                 (m) =>
                   (incomingId && m.id === incomingId) ||
@@ -276,7 +337,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
               if (matchIdx >= 0) {
                 const updated = [...prev];
                 updated[matchIdx] = formatted;
-                return updated;
+                return updated.filter((m, idx) => idx === matchIdx || !(m.id.startsWith('msg-') && m.text === incomingContent));
               }
 
               return [...prev, formatted];
@@ -381,6 +442,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     uploading,
     conversationId,
     groupDetail,
+    partnerProfile,
     reloadGroupDetail: () => conversationId && loadGroupMembers(conversationId),
     messagesEndRef,
     messagesContainerRef,

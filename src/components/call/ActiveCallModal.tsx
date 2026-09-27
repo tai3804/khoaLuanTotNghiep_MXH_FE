@@ -65,6 +65,7 @@ export const ActiveCallModal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   // Attach local media stream
   useEffect(() => {
@@ -79,6 +80,10 @@ export const ActiveCallModal: React.FC = () => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.play().catch(() => {});
+    }
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
 
@@ -181,6 +186,7 @@ export const ActiveCallModal: React.FC = () => {
   // 2. Full Active Call Window
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-6 animate-fade-in">
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       <div
         ref={containerRef}
         className="relative w-full max-w-4xl h-[88vh] bg-gradient-to-b from-gray-900 to-gray-950 rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-800"

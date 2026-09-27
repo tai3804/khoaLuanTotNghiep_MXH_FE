@@ -22,6 +22,11 @@ export const LiveStreamHostVideo: React.FC<LiveStreamHostVideoProps> = ({
   onViewerCountChange,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const onViewerCountChangeRef = useRef(onViewerCountChange);
+
+  useEffect(() => {
+    onViewerCountChangeRef.current = onViewerCountChange;
+  }, [onViewerCountChange]);
 
   // Register WebRTC host stream to answer any incoming viewer connections
   useEffect(() => {
@@ -30,10 +35,10 @@ export const LiveStreamHostVideo: React.FC<LiveStreamHostVideoProps> = ({
       postId,
       hostUserId || 'host',
       stream,
-      onViewerCountChange
+      (count) => onViewerCountChangeRef.current?.(count)
     );
     return cleanup;
-  }, [postId, hostUserId, stream, onViewerCountChange]);
+  }, [postId, hostUserId, stream]);
 
   useEffect(() => {
     const video = videoRef.current;

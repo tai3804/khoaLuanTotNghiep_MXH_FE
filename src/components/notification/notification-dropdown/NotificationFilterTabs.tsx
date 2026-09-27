@@ -39,7 +39,7 @@ export const NotificationFilterTabs: React.FC<NotificationFilterTabsProps> = ({
         >
           <span>{isEn ? 'Unread' : 'Chưa đọc'}</span>
           {unreadCount > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+            <span className="bg-red-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none">
               {unreadCount}
             </span>
           )}

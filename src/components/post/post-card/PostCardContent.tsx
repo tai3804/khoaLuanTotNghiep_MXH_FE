@@ -18,7 +18,13 @@ export const isVideo = (url: string, mediaType?: string) => {
 
 export const isLivePost = (post: Post) => {
   if (post.isLive || post.liveStatus === 'LIVE' || post.liveStatus === 'ENDED') return true;
-  if (post.content && (post.content.includes('[ĐANG PHÁT TRỰC TIẾP]') || post.content.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]'))) {
+  if (
+    post.content &&
+    (post.content.includes('[ĐANG PHÁT TRỰC TIẾP]') ||
+      post.content.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]') ||
+      post.content.includes('[ĐÃ KẾT THÚC]') ||
+      post.content.includes('⏹ [ĐÃ KẾT THÚC]'))
+  ) {
     return true;
   }
   return false;

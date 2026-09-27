@@ -4,6 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
 import { userService, postService } from '../../../services/api';
+import { fetchAuthorProfile } from '../../../services/userService';
 import { chatService } from '../../../services/chatService';
 import { ChatUser } from '../../../components/chat/chat-box';
 
@@ -153,19 +154,64 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
       setLoadingChatContacts(true);
       chatService
         .getConversations()
-        .then((convs) => {
+        .then(async (convs) => {
           if (Array.isArray(convs)) {
-            const mapped = convs.map((c: any) => ({
-              id: c.type === 'DIRECT' ? c.otherParticipantId : c.conversationId,
-              userId: c.otherParticipantId,
-              conversationId: c.conversationId,
-              isGroup: c.type === 'GROUP',
-              name: c.name || 'Người dùng',
-              avatar: c.avatarUrl || '/default-avatar.png',
-              online: c.isOnline || false,
-              lastMessageContent: c.lastMessageContent,
-            } as any));
-            setChatContacts(mapped);
+            const mapped = await Promise.all(
+              convs.map(async (c: any) => {
+                let name = c.name;
+                let avatar = c.avatarUrl;
+                let otherId = c.otherParticipantId || c.other_participant_id || c.partnerId;
+
+                if (c.type === 'DIRECT') {
+                  if (!otherId && c.conversationId) {
+                    try {
+                      const detail = await chatService.getConversationDetail(c.conversationId);
+                      if (detail && Array.isArray(detail.members)) {
+                        const partner = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
+                        if (partner) otherId = partner.userId;
+                      }
+                    } catch {}
+                  }
+
+                  if (otherId) {
+                    const prof = await fetchAuthorProfile(String(otherId));
+                    if (prof) {
+                      name = prof.name || name;
+                      avatar = prof.avatar || avatar;
+                    }
+                  }
+                }
+
+                return {
+                  id: otherId || c.conversationId,
+                  userId: otherId,
+                  conversationId: c.conversationId,
+                  isGroup: c.type === 'GROUP',
+                  name: name || (c.type === 'GROUP' ? 'Nhóm trò chuyện' : 'Người dùng'),
+                  avatar: avatar || '/default-avatar.png',
+                  online: c.isOnline || false,
+                  lastMessageContent: c.lastMessageContent,
+                } as any;
+              })
+            );
+            // Sort: prioritize conversations with messages
+            mapped.sort((a, b) => {
+              if (a.lastMessageContent && !b.lastMessageContent) return -1;
+              if (!a.lastMessageContent && b.lastMessageContent) return 1;
+              return 0;
+            });
+
+            // Deduplicate: Keep only 1 entry per partner for DIRECT chats, and 1 per conversationId for GROUP chats
+            const seen = new Set<string>();
+            const deduped: any[] = [];
+            for (const item of mapped) {
+              const key = item.isGroup ? `group_${item.conversationId}` : `direct_${item.userId || item.id}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                deduped.push(item);
+              }
+            }
+            setChatContacts(deduped);
           } else {
             setChatContacts([]);
           }

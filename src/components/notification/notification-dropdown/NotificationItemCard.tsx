@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { NotificationItem, NotificationType } from '../../../types/notification';
+import { UserAvatar } from '../../common/UserAvatar';
 
 interface NotificationItemCardProps {
   item: NotificationItem;
@@ -210,13 +211,11 @@ export const NotificationItemCard: React.FC<NotificationItemCardProps> = ({
     >
       {/* Avatar with Facebook Reaction/Action Badge */}
       <div className="relative shrink-0 mt-0.5">
-        <img
+        <UserAvatar
           src={avatarSrc}
-          alt="Actor"
-          className="w-13 h-13 rounded-full object-cover shadow-sm bg-gray-200 dark:bg-[#3a3b3c]"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = '/default-avatar.png';
-          }}
+          alt={profile?.name || item.title || 'User'}
+          size="lg"
+          className="w-13 h-13"
         />
         <span
           className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full ${bg} flex items-center justify-center ring-2 ring-white dark:ring-[#242526] shadow-md`}

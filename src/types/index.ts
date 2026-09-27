@@ -102,6 +102,8 @@ export interface Post {
   originalPostId?: string;
   sharedPost?: Post;
   comments?: Comment[];
+  isLive?: boolean;
+  liveStatus?: 'LIVE' | 'ENDED' | string;
 }
 
 export interface ApiResponse<T = any> {
