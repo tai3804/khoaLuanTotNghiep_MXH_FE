@@ -13,6 +13,7 @@ export interface Message {
   senderAvatar?: string;
   text: string;
   time: string;
+  status?: 'SENDING' | 'SENT' | 'DELIVERED' | 'SEEN';
 }
 
 // Messenger-style timestamp: keep a compact clock for the last 24 hours;
@@ -56,6 +57,17 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const prependingMessagesRef = useRef(false);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
   const memberProfilesRef = useRef<Record<string, { name: string; avatar: string }>>({});
+
+  const markConversationAsRead = async (convId: string, messageId?: string) => {
+    try {
+      await chatService.markAsRead(convId, messageId);
+      window.dispatchEvent(new CustomEvent('chat_conversation_read', { detail: { conversationId: convId } }));
+      window.dispatchEvent(new Event('chat_unread_changed'));
+    } catch (error) {
+      // Keep the badge intact when the server did not accept the read marker.
+      console.warn('[ChatBox] Unable to mark conversation as read:', error);
+    }
+  };
 
   const handleChatFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,11 +178,16 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
                 text: m.content || '',
                 time: formatMessageTime(m.createdAt),
+                status: isCurrentUser ? 'SENT' : 'DELIVERED',
               };
             })
           );
         } else if (isMounted) {
           setMessages([]);
+        }
+        if (isMounted) {
+          const latest = Array.isArray(rawMsgs) ? rawMsgs[0] : null;
+          await markConversationAsRead(convId, latest?.messageId || latest?.id);
         }
       } catch (err) {
         console.error('[ChatBox] Error initializing chat conversation:', err);
@@ -236,6 +253,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     if (!conversationId) return;
 
     let unsubscribe: (() => void) | null = null;
+    let unsubscribeReceipts: (() => void) | null = null;
     let isSubscribed = true;
 
     const setupWebSocket = async () => {
@@ -271,7 +289,13 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
                 text: incomingContent,
                 time: formatMessageTime(incoming.createdAt),
+                status: isCurrentUser ? 'SENT' : 'DELIVERED',
               };
+
+              if (!isCurrentUser && incomingId) {
+                chatService.markAsDelivered(conversationId, incomingId).catch(() => {});
+                markConversationAsRead(conversationId, incomingId);
+              }
 
               if (matchIdx >= 0) {
                 const updated = [...prev];
@@ -283,6 +307,12 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
             });
           }
         );
+        unsubscribeReceipts = await websocketService.subscribeToReceipts(conversationId, (receipt) => {
+          if (String(receipt.userId) === String(user?.id)) return;
+          setMessages((previous) => previous.map((message) => message.senderId === String(user?.id)
+            ? { ...message, status: receipt.type === 'SEEN' ? 'SEEN' : (message.status === 'SEEN' ? 'SEEN' : 'DELIVERED') }
+            : message));
+        });
       } catch (err) {
         console.warn('[ChatBox] WebSocket subscription notice:', err);
       }
@@ -293,6 +323,8 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     const handleFocus = async () => {
       try {
         const raw = await chatService.getMessages(conversationId, 0, 20);
+        const latest = Array.isArray(raw) ? raw[0] : null;
+        await markConversationAsRead(conversationId, latest?.messageId || latest?.id);
         if (Array.isArray(raw) && raw.length > 0) {
           const sorted = [...raw].reverse();
           setMessages(
@@ -318,6 +350,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     return () => {
       isSubscribed = false;
       if (unsubscribe) unsubscribe();
+      if (unsubscribeReceipts) unsubscribeReceipts();
       window.removeEventListener('focus', handleFocus);
     };
   }, [conversationId, user?.id]);
@@ -345,6 +378,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
       senderAvatar: user?.avatar,
       text: textToSend,
       time: formatMessageTime(new Date()),
+      status: 'SENDING',
     };
 
     setMessages((prev) => [...prev, optimisticMsg]);
@@ -360,7 +394,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
           if (res && (res.messageId || res.id)) {
             const actualId = String(res.messageId || res.id);
             setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, id: actualId } : m))
+              prev.map((m) => (m.id === tempId ? { ...m, id: actualId, status: 'SENT' } : m))
             );
           }
         }

@@ -12,7 +12,8 @@ export interface CommunityGroupMember {
   id: string;
   name: string;
   avatar: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'ADMIN' | 'MODERATOR' | 'MEMBER';
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
   joinedAt: string;
 }
 
@@ -27,6 +28,10 @@ export interface GroupResponse {
   isMember: boolean;
   isAdmin: boolean;
   memberIds?: string[];
+  isModerator?: boolean;
+  joinStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
+  postApprovalRequired?: boolean;
+  rules?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,7 +104,7 @@ export const groupService = {
       // Try backend if route exists in future
       const response = await api.post('/groups', request);
       const data = response.data?.data || response.data;
-      if (data && data.id) return data;
+      if (data && data.id) return data as GroupResponse;
     } catch {
       // Fallback to client storage
     }
@@ -140,7 +145,7 @@ export const groupService = {
     try {
       const response = await api.get('/groups');
       const data = response.data?.data || response.data;
-      if (Array.isArray(data) && data.length > 0) return data;
+      if (Array.isArray(data)) return data as GroupResponse[];
     } catch {}
     return getStoredGroups();
   },
@@ -149,7 +154,7 @@ export const groupService = {
     try {
       const response = await api.get(`/groups/${id}`);
       const data = response.data?.data || response.data;
-      if (data && data.id) return data;
+      if (data && data.id) return data as GroupResponse;
     } catch {}
 
     const groups = getStoredGroups();
@@ -174,6 +179,11 @@ export const groupService = {
   },
 
   toggleJoinGroup: async (id: string): Promise<GroupResponse | null> => {
+    try {
+      const response = await api.post(`/groups/${id}/join`);
+      const data = response.data?.data || response.data;
+      if (data?.id) return data as GroupResponse;
+    } catch {}
     const groups = getStoredGroups();
     const idx = groups.findIndex((g) => g.id === id);
     if (idx >= 0) {
@@ -193,6 +203,11 @@ export const groupService = {
   },
 
   addGroupMembers: async (groupId: string, memberIdsToAdd: string[]): Promise<GroupResponse | null> => {
+    try {
+      const response = await api.post(`/groups/${groupId}/members`, memberIdsToAdd);
+      const data = response.data?.data || response.data;
+      if (data?.id) return data as GroupResponse;
+    } catch {}
     const groups = getStoredGroups();
     const idx = groups.findIndex((g) => g.id === groupId);
     if (idx >= 0) {
@@ -215,6 +230,20 @@ export const groupService = {
   },
 
   getGroupMembers: async (groupId: string): Promise<CommunityGroupMember[]> => {
+    try {
+      const response = await api.get(`/groups/${groupId}/members`);
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data)) {
+        return data.map((member: any) => ({
+          id: String(member.userId || member.id),
+          name: member.name || 'Thành viên',
+          avatar: member.avatarUrl || member.avatar || '/default-avatar.png',
+          role: member.role || 'MEMBER',
+          status: member.status,
+          joinedAt: member.joinedAt || new Date().toISOString(),
+        }));
+      }
+    } catch {}
     const groups = getStoredGroups();
     const group = groups.find((g) => g.id === groupId);
     if (!group) return [];
@@ -248,5 +277,23 @@ export const groupService = {
       })
     );
     return members;
+  },
+
+  updateGroup: async (groupId: string, data: Partial<CreateGroupRequest>) => {
+    const response = await api.put(`/groups/${groupId}`, data);
+    return (response.data?.data || response.data) as GroupResponse;
+  },
+
+  reviewMember: async (groupId: string, memberId: string, approved: boolean) => {
+    const response = await api.post(`/groups/${groupId}/members/${memberId}/review`, null, { params: { approved } });
+    return (response.data?.data || response.data) as GroupResponse;
+  },
+
+  changeMemberRole: async (groupId: string, memberId: string, role: 'ADMIN' | 'MODERATOR' | 'MEMBER') => {
+    await api.put(`/groups/${groupId}/members/${memberId}/role`, null, { params: { role } });
+  },
+
+  removeMember: async (groupId: string, memberId: string, ban = false) => {
+    await api.delete(`/groups/${groupId}/members/${memberId}`, { params: { ban } });
   },
 };

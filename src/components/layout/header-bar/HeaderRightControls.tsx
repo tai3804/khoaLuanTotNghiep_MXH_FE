@@ -10,6 +10,7 @@ interface HeaderRightControlsProps {
   isAuthenticated: boolean;
   user: any;
   unreadCount: number;
+  messageUnreadCount: number;
   showNotifMenu: boolean;
   setShowNotifMenu: (show: boolean | ((prev: boolean) => boolean)) => void;
   showMsgMenu: boolean;
@@ -43,6 +44,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   isAuthenticated,
   user,
   unreadCount,
+  messageUnreadCount,
   showNotifMenu,
   setShowNotifMenu,
   showMsgMenu,
@@ -71,7 +73,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   onNavigateAuth,
   onTabChange,
 }) => {
-  const { setIsCallHistoryOpen } = useCall();
+  const { setIsCallHistoryOpen, callState } = useCall();
 
   return (
     <div className="flex items-center space-x-2 shrink-0">
@@ -91,10 +93,11 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
           {/* Call History button */}
           <button
             onClick={() => setIsCallHistoryOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+            className="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
             title="Lịch sử cuộc gọi"
           >
             <Phone className="w-5 h-5" />
+            {callState === 'incoming' && <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-red-500 dark:border-[#242526]" />}
           </button>
 
           {/* Messenger button & dropdown */}
@@ -110,6 +113,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
             msgSearching={msgSearching}
             chatContacts={chatContacts}
             loadingChatContacts={loadingChatContacts}
+            unreadCount={messageUnreadCount}
             t={t}
             onSelectChatUser={onSelectChatUser}
           />

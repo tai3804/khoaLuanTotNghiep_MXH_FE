@@ -1,5 +1,5 @@
-import React from 'react';
-import { CornerDownRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { CornerDownRight, Pencil, Trash2 } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 
@@ -12,6 +12,8 @@ interface CommentItemProps {
   onViewProfile?: (userId: string) => void;
   onClose: () => void;
   handleStartReply: (commentId: string, author: string) => void;
+  onUpdate: (commentId: string, content: string) => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
 }
 
 export const CommentItem: React.FC<CommentItemProps> = ({
@@ -23,7 +25,21 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   onViewProfile,
   onClose,
   handleStartReply,
+  onUpdate,
+  onDelete,
 }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(c.content);
+  const [saving, setSaving] = useState(false);
+  const isOwner = Boolean(user && (String(c.userId) === String(user.id) || c.userId === 'me'));
+  const saveEdit = async () => {
+    if (!draft.trim() || saving) return;
+    setSaving(true);
+    try { await onUpdate(c.id, draft.trim()); setEditing(false); } finally { setSaving(false); }
+  };
+  const remove = async () => {
+    if (window.confirm(language === 'en' ? 'Delete this comment?' : 'Xóa bình luận này?')) await onDelete(c.id);
+  };
   const displayName =
     (c.userId === user?.id || c.userId === 'me') && user?.fullName
       ? user.fullName
@@ -61,9 +77,13 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             >
               {displayName}
             </h5>
-            <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
-              {c.content}
-            </p>
+            {editing ? (
+              <div className="mt-1 flex gap-1">
+                <input value={draft} onChange={(event) => setDraft(event.target.value)} className="min-w-48 rounded bg-white dark:bg-[#242526] px-2 py-1 text-xs text-gray-900 dark:text-white" autoFocus />
+                <button type="button" onClick={saveEdit} disabled={saving} className="text-xs text-blue-600 font-bold">{language === 'en' ? 'Save' : 'Lưu'}</button>
+                <button type="button" onClick={() => { setDraft(c.content); setEditing(false); }} className="text-xs">{language === 'en' ? 'Cancel' : 'Hủy'}</button>
+              </div>
+            ) : <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{c.content}</p>}
           </div>
           <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-1 ml-2 font-semibold">
             <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">{t('like') || 'Thích'}</button>
@@ -77,6 +97,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             </button>
             <span>•</span>
             <span>{c.createdAt}</span>
+            {isOwner && <><span>•</span><button type="button" onClick={() => setEditing(true)} aria-label="Edit comment"><Pencil className="w-3 h-3" /></button><button type="button" onClick={remove} aria-label="Delete comment" className="text-red-500"><Trash2 className="w-3 h-3" /></button></>}
           </div>
         </div>
       </div>

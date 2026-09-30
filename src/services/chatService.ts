@@ -48,6 +48,16 @@ export const chatService = {
     return res.data?.data || res.data;
   },
 
+  markAsRead: async (conversationId: string, messageId?: string) => {
+    await api.post(`/chat/conversations/${conversationId}/messages/read`, null, {
+      params: messageId ? { messageId } : undefined,
+    });
+  },
+
+  markAsDelivered: async (conversationId: string, messageId: string) => {
+    await api.post(`/chat/conversations/${conversationId}/messages/delivered`, null, { params: { messageId } });
+  },
+
   getUserPresence: async (userId: string) => {
     try {
       const res = await api.get(`/chat/presence/${userId}`);

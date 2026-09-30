@@ -12,7 +12,7 @@ interface CreatePostBoxProps {
   groupId?: string;
 }
 
-export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) => {
+export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, groupId }) => {
   const {
     user,
     isAuthenticated,
@@ -39,7 +39,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated }) =
     handleOpen,
     handleFileChange,
     handleSubmit,
-  } = useCreatePost({ onPostCreated });
+  } = useCreatePost({ onPostCreated, groupId });
 
   return (
     <>

@@ -37,6 +37,14 @@ export const App: React.FC = () => {
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
+  const isPostHidden = (postId: string) => {
+    try {
+      return (JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]') as string[]).includes(String(postId));
+    } catch {
+      return false;
+    }
+  };
+
   let activeNavTab = 'home';
   if (path.startsWith('/settings')) activeNavTab = 'settings';
   else if (path.startsWith('/profile')) activeNavTab = 'profile';
@@ -52,7 +60,7 @@ export const App: React.FC = () => {
     try {
       // Fetch first page (10 posts) [UC-FE02]
       const pagedRes = await postService.getFeedPaged(1, 10);
-      const feedData = pagedRes.posts;
+      const feedData = pagedRes.posts.filter((post) => !isPostHidden(post.id));
 
       if (!isBackground) {
         setPosts(feedData);
@@ -111,7 +119,7 @@ export const App: React.FC = () => {
       if (result.posts && result.posts.length > 0) {
         setPosts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
-          const uniqueNew = result.posts.filter((p) => !existingIds.has(p.id));
+          const uniqueNew = result.posts.filter((p) => !existingIds.has(p.id) && !isPostHidden(p.id));
           return [...prev, ...uniqueNew];
         });
         setCurrentPage(nextPage);
@@ -160,7 +168,7 @@ export const App: React.FC = () => {
   }, [navigate]);
 
   const handlePostCreated = (newPost: Post) => {
-    setPosts((prev) => [newPost, ...prev]);
+    if (!isPostHidden(newPost.id)) setPosts((prev) => [newPost, ...prev]);
   };
 
   const handlePostDeleted = (postId: string) => {
@@ -188,9 +196,10 @@ export const App: React.FC = () => {
   // Filter posts based on active category
   let displayedPosts = [...posts];
   if (feedCategory === 'recent') {
-    displayedPosts = [...posts].reverse();
+    displayedPosts = [...posts].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   } else if (feedCategory === 'popular') {
-    displayedPosts = [...posts].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
+    const engagement = (post: Post) => (post.likesCount || 0) + (post.commentsCount || 0) * 2 + (post.sharesCount || 0) * 3;
+    displayedPosts = [...posts].sort((a, b) => engagement(b) - engagement(a));
   }
 
   return (

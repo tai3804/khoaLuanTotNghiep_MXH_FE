@@ -240,7 +240,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (callSessionRef.current?.callSessionId === activeCall.callSessionId) {
           callAudio.stopAll();
           callWebSocketService.sendSignal(activeCall.callSessionId, activeCall.hostUserId, 'REJECT');
-          callService.rejectCall(activeCall.callSessionId).catch(() => {});
+          callService.rejectCall(activeCall.callSessionId, true).catch(() => {});
           setCallState('idle');
           setCallSession(null);
           setRemoteUser(null);
@@ -478,7 +478,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const callerId = remoteUserRef.current?.id || signal.senderId || null;
               if (activeSession) {
                 callWebSocketService.sendSignal(activeSession.callSessionId, callerId, 'REJECT');
-                callService.rejectCall(activeSession.callSessionId).catch(() => {});
+                callService.rejectCall(activeSession.callSessionId, true).catch(() => {});
               }
               setCallState('idle');
               setCallSession(null);

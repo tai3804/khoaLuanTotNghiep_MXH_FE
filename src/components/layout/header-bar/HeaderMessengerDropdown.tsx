@@ -16,6 +16,7 @@ interface HeaderMessengerDropdownProps {
   msgSearching?: boolean;
   chatContacts: ChatUser[];
   loadingChatContacts: boolean;
+  unreadCount: number;
   t: (key: string) => string;
   onSelectChatUser?: (user: ChatUser) => void;
 }
@@ -32,6 +33,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
   msgSearching = false,
   chatContacts,
   loadingChatContacts,
+  unreadCount,
   t,
   onSelectChatUser,
 }) => {
@@ -64,7 +66,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
           setShowNotifMenu(false);
           setShowUserMenu(false);
         }}
-        className={`w-10 h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+        className={`relative w-10 h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
           showMsgMenu
             ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
             : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
@@ -72,6 +74,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
         title="Messenger"
       >
         <MessageCircle className="w-5 h-5" />
+        {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-extrabold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}
       </button>
 
       {showMsgMenu && (
@@ -141,6 +144,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
                       {contact.lastMessageContent || t('messenger.clickToChat')}
                     </div>
                   </div>
+                  {Number((contact as any).unreadCount || 0) > 0 && <span className="min-w-5 rounded-full bg-[#1877f2] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{Number((contact as any).unreadCount) > 99 ? '99+' : (contact as any).unreadCount}</span>}
                 </div>
               ))
             )}

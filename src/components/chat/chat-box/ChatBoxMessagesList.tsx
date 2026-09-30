@@ -89,7 +89,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
                   friend.isGroup && !isMe ? 'ml-7' : ''
                 }`}
               >
-                {msg.time}
+                {msg.time}{isMe && <span className="ml-1">· {msg.status === 'SENDING' ? 'Đang gửi' : msg.status === 'SEEN' ? 'Đã xem' : msg.status === 'DELIVERED' ? 'Đã nhận' : 'Đã gửi'}</span>}
               </span>
             </div>
           );

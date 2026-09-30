@@ -33,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
     setLanguage,
     t,
     unreadCount,
+    messageUnreadCount,
     searchQuery,
     setSearchQuery,
     searchResults,
@@ -88,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
         isAuthenticated={isAuthenticated}
         user={user}
         unreadCount={unreadCount}
+        messageUnreadCount={messageUnreadCount}
         showNotifMenu={showNotifMenu}
         setShowNotifMenu={setShowNotifMenu}
         showMsgMenu={showMsgMenu}

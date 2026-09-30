@@ -56,12 +56,16 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
   post,
   setShowCommentModal,
 }) => {
+  const renderContent = (content: string) => content.split(/(#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.-]+)/gu).map((part, index) =>
+    part.startsWith('#') ? <button key={index} type="button" className="text-[#1877f2] font-semibold hover:underline">{part}</button> :
+    part.startsWith('@') ? <span key={index} className="text-[#1877f2] font-semibold">{part}</span> : part
+  );
   return (
     <>
       {/* Post Text Content */}
       {post.content && (
         <div className="px-4 pb-2.5 text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line">
-          {post.content}
+          {renderContent(post.content)}
         </div>
       )}
 

@@ -17,12 +17,14 @@ export interface UserPresencePayload {
   online: boolean;
   lastActiveAt?: string | null;
 }
+export interface ChatReceiptPayload { type: 'DELIVERED' | 'SEEN'; userId: string; messageId: string; }
 
 class WebSocketService {
   private client: Client | null = null;
   private connected: boolean = false;
   private subscriptions: Map<string, StompSubscription> = new Map();
   private messageCallbacks: Map<string, Set<(msg: ChatMessagePayload) => void>> = new Map();
+  private receiptCallbacks: Map<string, Set<(receipt: ChatReceiptPayload) => void>> = new Map();
   private presenceCallbacks: Set<(presence: UserPresencePayload) => void> = new Set();
   private connectionPromise: Promise<boolean> | null = null;
 
@@ -142,6 +144,23 @@ class WebSocketService {
     };
   }
 
+  public async subscribeToReceipts(conversationId: string, callback: (receipt: ChatReceiptPayload) => void): Promise<() => void> {
+    if (!this.receiptCallbacks.has(conversationId)) this.receiptCallbacks.set(conversationId, new Set());
+    this.receiptCallbacks.get(conversationId)!.add(callback);
+    await this.connect();
+    const key = `receipt:${conversationId}`;
+    if (!this.subscriptions.has(key) && this.client?.connected) {
+      this.subscriptions.set(key, this.client.subscribe(`/topic/conversations/${conversationId}/receipts`, (frame: IMessage) => {
+        try { this.receiptCallbacks.get(conversationId)?.forEach((cb) => cb(JSON.parse(frame.body))); } catch {}
+      }));
+    }
+    return () => {
+      const callbacks = this.receiptCallbacks.get(conversationId);
+      callbacks?.delete(callback);
+      if (callbacks?.size === 0) { this.receiptCallbacks.delete(conversationId); this.subscriptions.get(key)?.unsubscribe(); this.subscriptions.delete(key); }
+    };
+  }
+
   private createSubscription(conversationId: string, topic: string) {
     if (!this.client || !this.client.connected) return;
 
@@ -169,6 +188,12 @@ class WebSocketService {
     for (const [conversationId] of this.messageCallbacks.entries()) {
       const topic = `/topic/conversations/${conversationId}`;
       this.createSubscription(conversationId, topic);
+    }
+    for (const [conversationId] of this.receiptCallbacks.entries()) {
+      const key = `receipt:${conversationId}`;
+      this.subscriptions.set(key, this.client!.subscribe(`/topic/conversations/${conversationId}/receipts`, (frame: IMessage) => {
+        try { this.receiptCallbacks.get(conversationId)?.forEach((cb) => cb(JSON.parse(frame.body))); } catch {}
+      }));
     }
   }
 
@@ -229,6 +254,7 @@ class WebSocketService {
       this.subscriptions.forEach((sub) => sub.unsubscribe());
       this.subscriptions.clear();
       this.messageCallbacks.clear();
+      this.receiptCallbacks.clear();
       this.client.deactivate();
       this.client = null;
       this.connected = false;

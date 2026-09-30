@@ -1,25 +1,33 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { CreatePostBox } from '../post/CreatePostBox';
-// import { PostList } from '../post/PostList';
+import { PostCard } from '../post/post-card';
 import { GroupData } from './GroupBanner';
+import { postService } from '../../services/api';
+import { Post } from '../../types';
 
 interface GroupDiscussionTabProps {
   group: GroupData;
 }
 
 export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group }) => {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const loadPosts = async () => {
+    setLoading(true);
+    if (!group.id) { setPosts([]); setLoading(false); return; }
+    setPosts(await postService.getGroupPosts(group.id));
+    setLoading(false);
+  };
+  useEffect(() => { loadPosts(); }, [group.id]);
   return (
     <div className="flex w-full gap-4">
       <div className="flex-1 max-w-[680px]">
         {group.isMember && (
           <div className="mb-4">
-            <CreatePostBox onPostCreated={() => {}} groupId={group.id} />
+            <CreatePostBox onPostCreated={(post) => setPosts((current) => [post, ...current])} groupId={group.id} />
           </div>
         )}
-        {/* <PostList posts={[]} loading={false} /> */}
-        <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow text-center mt-4">
-          <p className="text-gray-500 dark:text-[#b0b3b8]">Chưa có bài viết nào trong nhóm này.</p>
-        </div>
+        {loading ? <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow text-center text-sm text-gray-500">Đang tải bài viết...</div> : posts.length === 0 ? <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow text-center mt-4"><p className="text-gray-500 dark:text-[#b0b3b8]">Chưa có bài viết nào trong nhóm này.</p></div> : posts.map((post) => <PostCard key={post.id} post={post} onDeletePost={(id) => setPosts((current) => current.filter((item) => item.id !== id))} />)}
       </div>
       <div className="hidden lg:block w-[300px]">
         <div className="bg-white dark:bg-[#242526] p-4 rounded-2xl shadow sticky top-20">

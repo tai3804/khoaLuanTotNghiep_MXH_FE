@@ -89,6 +89,7 @@ export interface Post {
   isPinned?: boolean;
   isArchived?: boolean;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
+  groupId?: string;
   originalPostId?: string;
   sharedPost?: Post;
   comments?: Comment[];
@@ -129,7 +130,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isGuest: boolean;
   loginModalOpen: boolean;
-  login: (username?: string, password?: string) => Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }>;
+  login: (username?: string, password?: string) => Promise<{ success: boolean; message?: string; mfaRequired?: boolean; mfaToken?: string; mfaType?: string }>;
   verifyMfaLogin: (mfaToken: string, otpCode: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   loginAsGuest: () => void;

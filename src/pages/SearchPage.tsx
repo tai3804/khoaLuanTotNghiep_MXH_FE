@@ -6,7 +6,7 @@ import { PostCard } from '../components/post/post-card';
 import { userService, postService } from '../services/api';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
-import { Search, Users, FileText, LayoutGrid, Loader2 } from 'lucide-react';
+import { Search, Users, FileText, LayoutGrid, Loader2, Hash, History, X } from 'lucide-react';
 
 interface SearchPageProps {
   activeNavTab: string;
@@ -36,6 +36,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [history, setHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('kltn_search_history') || '[]'); } catch { return []; }
+  });
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -57,6 +60,24 @@ export const SearchPage: React.FC<SearchPageProps> = ({
 
     fetchResults();
   }, [query]);
+
+  useEffect(() => {
+    const keyword = query.trim();
+    if (!keyword) return;
+    setHistory((previous) => {
+      const next = [keyword, ...previous.filter((item) => item.toLocaleLowerCase() !== keyword.toLocaleLowerCase())].slice(0, 10);
+      localStorage.setItem('kltn_search_history', JSON.stringify(next));
+      return next;
+    });
+  }, [query]);
+
+  const removeHistoryItem = (keyword: string) => {
+    setHistory((previous) => {
+      const next = previous.filter((item) => item !== keyword);
+      localStorage.setItem('kltn_search_history', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const renderUsers = () => {
     if (users.length === 0) return null;
@@ -166,6 +187,16 @@ export const SearchPage: React.FC<SearchPageProps> = ({
                 <span className="font-semibold text-sm">Bài viết</span>
               </button>
             </nav>
+            <div className="mt-3 border-t border-gray-100 dark:border-[#393a3b] pt-2">
+              <div className="px-3 py-1.5 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-[#b0b3b8]"><History className="w-3.5 h-3.5" />Tìm kiếm gần đây</div>
+              {history.length === 0 ? <p className="px-3 pb-2 text-xs text-gray-400">Chưa có lịch sử tìm kiếm</p> : history.map((item) => (
+                <div key={item} className="group flex items-center gap-2 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-lg">
+                  {item.startsWith('#') ? <Hash className="w-3.5 h-3.5 text-blue-500" /> : <Search className="w-3.5 h-3.5 text-gray-400" />}
+                  <button onClick={() => navigate(`/search?q=${encodeURIComponent(item)}`)} className="min-w-0 flex-1 truncate text-left text-xs text-gray-700 dark:text-[#e4e6eb]">{item}</button>
+                  <button onClick={() => removeHistoryItem(item)} aria-label={`Xóa ${item}`} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

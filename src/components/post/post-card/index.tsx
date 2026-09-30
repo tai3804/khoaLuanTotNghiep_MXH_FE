@@ -4,6 +4,7 @@ import { CommentModal } from '../comment-modal';
 import { ShareModal } from '../ShareModal';
 import { EditPostModal } from '../EditPostModal';
 import { EditAudienceModal } from '../EditAudienceModal';
+import { EditPostDateModal } from '../EditPostDateModal';
 import { usePostCardData } from './usePostCardData';
 import { PostCardHeader } from './PostCardHeader';
 import { PostCardContent, isVideo, VideoPlayer } from './PostCardContent';
@@ -79,7 +80,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   const currentPost = data.currentPost || post;
 
   return (
-    <div id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden">
+    <div id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-visible">
       <PostCardHeader
         post={currentPost}
         authorName={data.authorName}
@@ -103,6 +104,9 @@ export const PostCard: React.FC<PostCardProps> = ({
         isMuted={data.isMuted}
         onToggleMute={data.handleToggleMute}
         onArchivePost={data.handleArchivePost}
+        translationDisabled={data.translationDisabled}
+        onToggleTranslation={data.handleToggleTranslation}
+        onEditDate={() => data.setShowDateModal(true)}
       />
 
       <PostCardContent post={currentPost} setShowCommentModal={data.setShowCommentModal} />
@@ -225,6 +229,8 @@ export const PostCard: React.FC<PostCardProps> = ({
         onLike={data.handleLike}
         onSelectReaction={data.handleSelectReaction}
         onSubmitComment={data.submitCommentText}
+        onUpdateComment={data.updateComment}
+        onDeleteComment={data.deleteComment}
         onViewProfile={onViewProfile}
         onShare={handleOpenShareModal}
         userReaction={data.reaction}
@@ -259,6 +265,13 @@ export const PostCard: React.FC<PostCardProps> = ({
           onSave={data.handleUpdateAudience}
         />
       )}
+
+      <EditPostDateModal
+        isOpen={data.showDateModal}
+        post={currentPost}
+        onClose={() => data.setShowDateModal(false)}
+        onUpdated={handlePostUpdateSuccess}
+      />
     </div>
   );
 };

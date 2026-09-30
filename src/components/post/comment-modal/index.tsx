@@ -24,6 +24,8 @@ interface CommentModalProps {
   onLike: () => void;
   onSelectReaction: (emoji: string) => void;
   onSubmitComment: (text: string, parentCommentId?: string) => Promise<void>;
+  onUpdateComment: (commentId: string, content: string) => Promise<void>;
+  onDeleteComment: (commentId: string) => Promise<void>;
   onViewProfile?: (userId: string) => void;
   onShare?: () => void;
   userReaction?: string;
@@ -44,6 +46,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   onLike,
   onSelectReaction,
   onSubmitComment,
+  onUpdateComment,
+  onDeleteComment,
   onViewProfile,
   onShare,
   userReaction = '👍',
@@ -230,6 +234,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                   onViewProfile={onViewProfile}
                   onClose={onClose}
                   handleStartReply={handleStartReply}
+                  onUpdate={onUpdateComment}
+                  onDelete={onDeleteComment}
                 />
               ))
             )}

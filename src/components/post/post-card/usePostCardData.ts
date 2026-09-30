@@ -22,7 +22,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const [reaction, setReaction] = useState<string>('👍');
   const [activeReactions, setActiveReactions] = useState<string[]>([]);
   const [showReactionsMenu, setShowReactionsMenu] = useState<boolean>(false);
-  const [saved, setSaved] = useState<boolean>(false);
+  const [saved, setSaved] = useState<boolean>(Boolean(post.isSaved));
   const [comments, setComments] = useState<Comment[]>(post.comments || []);
   const [loadingComments, setLoadingComments] = useState<boolean>(false);
   const [inlineCommentText, setInlineCommentText] = useState<string>('');
@@ -34,6 +34,8 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const [currentPost, setCurrentPost] = useState<Post>(post);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [showAudienceModal, setShowAudienceModal] = useState<boolean>(false);
+  const [showDateModal, setShowDateModal] = useState<boolean>(false);
+  const [translationDisabled, setTranslationDisabled] = useState<boolean>(() => localStorage.getItem(`post_translation_disabled_${post.id}`) === 'true');
   const [isPinned, setIsPinned] = useState<boolean>(() => {
     try {
       const pins = JSON.parse(localStorage.getItem('kltn_pinned_posts') || '[]');
@@ -177,6 +179,11 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   }, [post.id, user?.id, isAuthenticated, post.isLiked]);
 
   useEffect(() => {
+    if (!isAuthenticated || !post.id) return;
+    postService.isPostSaved(post.id).then(setSaved).catch(() => {});
+  }, [post.id, isAuthenticated]);
+
+  useEffect(() => {
     let isMounted = true;
     setLoadingComments(true);
     postService
@@ -294,6 +301,17 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     await submitCommentText(text);
   };
 
+  const updateComment = async (commentId: string, content: string) => {
+    const updated = await postService.updateComment(post.id, commentId, content);
+    setComments((prev) => prev.map((comment) => comment.id === commentId ? { ...comment, ...updated, authorName: comment.authorName, authorAvatar: comment.authorAvatar } : comment));
+  };
+
+  const deleteComment = async (commentId: string) => {
+    await postService.deleteComment(post.id, commentId);
+    setComments((prev) => prev.filter((comment) => comment.id !== commentId && comment.parentCommentId !== commentId));
+    setCommentsCount((prev) => Math.max(0, prev - 1));
+  };
+
   const handleDeletePost = async () => {
     if (
       !window.confirm(
@@ -387,6 +405,13 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     }
   };
 
+  const handleToggleTranslation = () => {
+    const next = !translationDisabled;
+    setTranslationDisabled(next);
+    localStorage.setItem(`post_translation_disabled_${post.id}`, String(next));
+    toast.showSuccess(next ? 'Đã tắt bản dịch cho bài viết này.' : 'Đã bật bản dịch cho bài viết này.');
+  };
+
   const handleArchivePost = async () => {
     try {
       await postService.archivePost(post.id, true);
@@ -448,9 +473,13 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     setShowEditModal,
     showAudienceModal,
     setShowAudienceModal,
+    showDateModal,
+    setShowDateModal,
     handleTogglePin,
     handleSavePost,
     handleToggleMute,
+    translationDisabled,
+    handleToggleTranslation,
     handleArchivePost,
     handlePostUpdated,
     handleUpdateAudience,
@@ -481,6 +510,8 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     handleLike,
     handleSelectReaction,
     submitCommentText,
+    updateComment,
+    deleteComment,
     handleInlineCommentSubmit,
     handleDeletePost,
     handleSharePost,

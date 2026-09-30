@@ -53,6 +53,7 @@ export const normalizePost = (p: any): Post => {
     isPinned: Boolean(p.isPinned),
     isArchived: Boolean(p.isArchived),
     privacy: p.privacy || 'PUBLIC',
+    groupId: p.groupId ? String(p.groupId) : undefined,
     originalPostId: p.originalPostId ? String(p.originalPostId) : undefined,
     comments: p.comments || [],
   };
@@ -241,10 +242,11 @@ export const postService = {
     }
   },
 
-  createPost: async (content: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC', files: File[] = []): Promise<Post> => {
+  createPost: async (content: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC', files: File[] = [], groupId?: string): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
+    if (groupId) formData.append('groupId', groupId);
     files.forEach((file) => {
       formData.append('files', file);
     });
@@ -322,6 +324,21 @@ export const postService = {
     return normalized;
   },
 
+  getGroupPosts: async (groupId: string, page = 1, size = 30): Promise<Post[]> => {
+    try {
+      const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
+      const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
+      return Array.isArray(raw) ? raw.map(normalizePost) : [];
+    } catch { return []; }
+  },
+
+  updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/date`, { createdAt });
+    const normalized = normalizePost(res.data?.data || res.data);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
   updateAllMyPostsPrivacy: async (privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE'): Promise<number> => {
     const res = await api.patch('/posts/privacy/batch', null, { params: { privacy } });
     return Number(res.data?.data ?? res.data ?? 0);
@@ -335,6 +352,11 @@ export const postService = {
   unsavePost: async (postId: string) => {
     const res = await api.delete(`/posts/saved/${postId}`);
     return res.data;
+  },
+
+  isPostSaved: async (postId: string): Promise<boolean> => {
+    const res = await api.get(`/posts/saved/${postId}/status`);
+    return Boolean(res.data?.data ?? res.data?.result ?? res.data);
   },
 
   getSavedPosts: async (page = 0, size = 20): Promise<Post[]> => {
@@ -507,6 +529,17 @@ export const postService = {
   deleteComment: async (postId: string, commentId: string) => {
     const res = await api.delete(`/posts/${postId}/comments/${commentId}`);
     return res.data;
+  },
+
+  updateComment: async (postId: string, commentId: string, content: string): Promise<Comment> => {
+    const res = await api.put(`/posts/${postId}/comments/${commentId}`, { content });
+    const c = res.data?.data || res.data;
+    return {
+      id: String(c.id), postId: String(c.postId || postId), userId: String(c.authorId || c.userId || ''),
+      authorName: c.authorName || '', authorAvatar: c.authorAvatar || '', content: c.content || content,
+      createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+      likesCount: Number(c.likeCount || 0), parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
+    };
   },
 
   getReactions: async (postId: string) => {

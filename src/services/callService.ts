@@ -86,8 +86,8 @@ export const callService = {
   },
 
   // Reject / decline an incoming call
-  async rejectCall(callSessionId: string): Promise<void> {
-    await api.post(`/calls/${callSessionId}/reject`);
+  async rejectCall(callSessionId: string, missed = false): Promise<void> {
+    await api.post(`/calls/${callSessionId}/reject`, null, { params: missed ? { missed: true } : undefined });
   },
 
   // Leave active call session

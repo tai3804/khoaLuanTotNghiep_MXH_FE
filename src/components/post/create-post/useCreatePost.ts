@@ -7,9 +7,10 @@ import { postService } from '../../../services/api';
 
 interface UseCreatePostProps {
   onPostCreated: (newPost: Post) => void;
+  groupId?: string;
 }
 
-export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
+export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
@@ -91,7 +92,7 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
       let uploadedUrl = imageUrl.trim();
 
       const files: File[] = selectedFile ? [selectedFile] : [];
-      const createdPost = await postService.createPost(fullContent, postPrivacy, files);
+      const createdPost = await postService.createPost(fullContent, postPrivacy, files, groupId);
 
       if (uploadedUrl && (!createdPost.mediaUrls || createdPost.mediaUrls.length === 0)) {
         createdPost.mediaUrls = [uploadedUrl];
@@ -122,6 +123,7 @@ export const useCreatePost = ({ onPostCreated }: UseCreatePostProps) => {
         isLiked: false,
         privacy: privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC',
         comments: [],
+        groupId,
       };
       onPostCreated(newPost);
       setContent('');

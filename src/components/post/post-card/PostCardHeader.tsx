@@ -15,6 +15,8 @@ import {
   Bell,
   BellOff,
   Archive,
+  Calendar,
+  Languages,
 } from 'lucide-react';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
@@ -42,6 +44,9 @@ interface PostCardHeaderProps {
   isMuted?: boolean;
   onToggleMute?: () => void;
   onArchivePost?: () => void;
+  translationDisabled?: boolean;
+  onToggleTranslation?: () => void;
+  onEditDate?: () => void;
 }
 
 export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
@@ -67,6 +72,9 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   isMuted = false,
   onToggleMute,
   onArchivePost,
+  translationDisabled = false,
+  onToggleTranslation,
+  onEditDate,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -270,6 +278,20 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                   </button>
                 )}
 
+                {onToggleTranslation && (
+                  <button type="button" onClick={() => { onToggleTranslation(); setShowOptionsMenu(false); }} className="w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] transition cursor-pointer text-left">
+                    <Languages className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>{translationDisabled ? 'Bật bản dịch' : 'Tắt bản dịch'}</span>
+                  </button>
+                )}
+
+                {isOwner && onEditDate && (
+                  <button type="button" onClick={() => { onEditDate(); setShowOptionsMenu(false); }} className="w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] transition cursor-pointer text-left">
+                    <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Chỉnh sửa ngày</span>
+                  </button>
+                )}
+
                 {/* 6. Copy link */}
                 <button
                   type="button"
@@ -324,6 +346,12 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
           <button
             type="button"
             onClick={() => {
+              try {
+                const hidden = JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]') as string[];
+                if (!hidden.includes(String(post.id))) {
+                  localStorage.setItem('kltn_hidden_post_ids', JSON.stringify([...hidden, String(post.id)]));
+                }
+              } catch {}
               if (onDeletePost) onDeletePost(post.id);
             }}
             className="text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer"
