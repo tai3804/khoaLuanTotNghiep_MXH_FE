@@ -6,6 +6,8 @@ export interface CreateGroupRequest {
   privacy: 'PUBLIC' | 'PRIVATE';
   coverUrl?: string;
   initialMemberIds?: string[];
+  postApprovalRequired?: boolean;
+  rules?: string;
 }
 
 export interface CommunityGroupMember {
@@ -38,58 +40,24 @@ export interface GroupResponse {
 
 const STORAGE_KEY = 'kltn_community_groups';
 
-const DEFAULT_GROUPS: GroupResponse[] = [
-  {
-    id: 'group-1',
-    name: 'Cộng đồng lập trình viên React & Spring Boot',
-    description: 'Nơi giao lưu, chia sẻ kiến thức công nghệ, ReactJS, Microservices và đồ án tốt nghiệp.',
-    privacy: 'PUBLIC',
-    ownerId: 'system',
-    coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    memberCount: 1542,
-    isMember: true,
-    isAdmin: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'group-2',
-    name: 'Hội Sinh Viên IUH - KLTN',
-    description: 'Cộng đồng sinh viên Đại học Công nghiệp TP.HCM, chia sẻ học tập, việc làm và kinh nghiệm.',
-    privacy: 'PUBLIC',
-    ownerId: 'system',
-    coverUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    memberCount: 3820,
-    isMember: false,
-    isAdmin: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'group-3',
-    name: 'Góc Tuyển Dụng & Thực Tập IT',
-    description: 'Tổng hợp cơ hội việc làm, thực tập IT mới nhất cho sinh viên năm cuối và lập trình viên.',
-    privacy: 'PUBLIC',
-    ownerId: 'system',
-    coverUrl: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    memberCount: 2190,
-    isMember: false,
-    isAdmin: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const LEGACY_SAMPLE_GROUP_IDS = new Set(['group-1', 'group-2', 'group-3']);
 
 const getStoredGroups = (): GroupResponse[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        // Remove the old demo groups while preserving groups created by users.
+        const groups = parsed.filter((group) => !LEGACY_SAMPLE_GROUP_IDS.has(group.id));
+        if (groups.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+        }
+        return groups;
+      }
     }
   } catch {}
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_GROUPS));
-  return DEFAULT_GROUPS;
+  return [];
 };
 
 const saveStoredGroups = (groups: GroupResponse[]) => {
@@ -202,6 +170,24 @@ export const groupService = {
     return null;
   },
 
+  leaveGroup: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/groups/${id}/members/me`);
+      return;
+    } catch {}
+    const groups = getStoredGroups();
+    const idx = groups.findIndex((group) => group.id === id);
+    if (idx < 0) return;
+    const group = groups[idx];
+    if (group.isAdmin) throw new Error('Quản trị viên tạo nhóm không thể rời nhóm. Hãy chuyển quyền quản trị hoặc xóa nhóm.');
+    let currentUserId = 'me';
+    try { currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id || currentUserId; } catch {}
+    const memberIds = (group.memberIds || []).filter((memberId) => String(memberId) !== String(currentUserId));
+    groups[idx] = { ...group, isMember: false, memberIds, memberCount: Math.max(0, group.memberCount - 1) };
+    saveStoredGroups(groups);
+    window.dispatchEvent(new CustomEvent('community_group_updated', { detail: groups[idx] }));
+  },
+
   addGroupMembers: async (groupId: string, memberIdsToAdd: string[]): Promise<GroupResponse | null> => {
     try {
       const response = await api.post(`/groups/${groupId}/members`, memberIdsToAdd);
@@ -229,9 +215,9 @@ export const groupService = {
     return null;
   },
 
-  getGroupMembers: async (groupId: string): Promise<CommunityGroupMember[]> => {
+  getGroupMembers: async (groupId: string, includePending = false): Promise<CommunityGroupMember[]> => {
     try {
-      const response = await api.get(`/groups/${groupId}/members`);
+      const response = await api.get(`/groups/${groupId}/members`, { params: { includePending } });
       const data = response.data?.data || response.data;
       if (Array.isArray(data)) {
         return data.map((member: any) => ({
@@ -280,8 +266,28 @@ export const groupService = {
   },
 
   updateGroup: async (groupId: string, data: Partial<CreateGroupRequest>) => {
-    const response = await api.put(`/groups/${groupId}`, data);
-    return (response.data?.data || response.data) as GroupResponse;
+    try {
+      const response = await api.put(`/groups/${groupId}`, data);
+      const updated = (response.data?.data || response.data) as GroupResponse;
+      if (updated?.id) return updated;
+    } catch {}
+    const groups = getStoredGroups();
+    const index = groups.findIndex((group) => group.id === groupId);
+    if (index < 0) throw new Error('Không tìm thấy nhóm để cập nhật.');
+    const updated: GroupResponse = { ...groups[index], ...data, updatedAt: new Date().toISOString() };
+    groups[index] = updated;
+    saveStoredGroups(groups);
+    window.dispatchEvent(new CustomEvent('community_group_updated', { detail: updated }));
+    return updated;
+  },
+
+  deleteGroup: async (groupId: string): Promise<void> => {
+    try {
+      await api.delete(`/groups/${groupId}`);
+      return;
+    } catch {}
+    saveStoredGroups(getStoredGroups().filter((group) => group.id !== groupId));
+    window.dispatchEvent(new CustomEvent('community_group_updated'));
   },
 
   reviewMember: async (groupId: string, memberId: string, approved: boolean) => {

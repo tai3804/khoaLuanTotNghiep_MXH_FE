@@ -118,8 +118,10 @@ export const WatchPage: React.FC<WatchPageProps> = ({
           activeFilter={activeSidebarFilter}
           onFilterChange={(filter) => {
             setActiveSidebarFilter(filter);
-            if (filter === 'friends' || filter === 'groups') {
+            if (filter === 'friends') {
               setActiveNavTab('friends');
+            } else if (filter === 'groups') {
+              setActiveNavTab('groups');
             } else if (filter === 'watch') {
               setActiveNavTab('watch');
             } else {

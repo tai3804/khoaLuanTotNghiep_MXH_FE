@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '../components/layout/header-bar';
 import { ChatUser } from '../components/chat/chat-box';
 import { GroupBanner } from '../components/groups/GroupBanner';
 import { GroupDiscussionTab } from '../components/groups/GroupDiscussionTab';
 import { GroupMembersTab } from '../components/groups/GroupMembersTab';
 import { GroupMediaTab } from '../components/groups/GroupMediaTab';
+import { GroupSettingsTab } from '../components/groups/GroupSettingsTab';
 import { InviteCommunityMembersModal } from '../components/groups/InviteCommunityMembersModal';
 import { Skeleton } from '../components/common/Skeleton';
-import { groupService, GroupResponse } from '../services/groupService';
+import { CommunityGroupMember, groupService, GroupResponse } from '../services/groupService';
+import { useToast } from '../context/ToastContext';
 
 interface GroupDetailPageProps {
   activeNavTab: string;
@@ -22,15 +24,21 @@ interface GroupDetailPageProps {
 
 export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media'>('discussion');
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media' | 'settings'>('discussion');
   const [isLoading, setIsLoading] = useState(true);
   const [group, setGroup] = useState<GroupResponse | null>(null);
+  const [members, setMembers] = useState<CommunityGroupMember[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const loadGroup = async (groupId: string) => {
     try {
       const g = await groupService.getGroupById(groupId);
       setGroup(g);
+      if (g) {
+        setMembers(await groupService.getGroupMembers(g.id));
+      }
     } catch (err) {
       console.error('Failed to load group:', err);
     } finally {
@@ -51,9 +59,23 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
       const updated = await groupService.toggleJoinGroup(group.id);
       if (updated) {
         setGroup(updated);
+        setMembers(await groupService.getGroupMembers(updated.id));
+        toast.showSuccess(updated.joinStatus === 'PENDING' ? 'Yêu cầu tham gia đã được gửi.' : 'Bạn đã tham gia nhóm.');
       }
     } catch (err) {
       console.error('Failed to toggle join group:', err);
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!group) return;
+    if (!window.confirm('Bạn có chắc muốn rời khỏi nhóm này?')) return;
+    try {
+      await groupService.leaveGroup(group.id);
+      toast.showSuccess('Bạn đã rời nhóm.');
+      navigate('/groups');
+    } catch (error: any) {
+      toast.showError(error?.message || 'Không thể rời nhóm. Quản trị viên tạo nhóm cần chuyển quyền quản trị trước.');
     }
   };
 
@@ -121,8 +143,11 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
           group={group} 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
+          members={members}
+          onNavigateProfile={(userId) => props.onNavigateProfile(userId)}
           onInviteClick={() => setShowInviteModal(true)}
           onToggleJoin={handleToggleJoin}
+          onLeaveGroup={handleLeaveGroup}
         />
       </div>
 
@@ -133,9 +158,11 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
           <GroupMembersTab 
             group={group} 
             onInviteClick={() => setShowInviteModal(true)} 
+            onNavigateProfile={(userId) => props.onNavigateProfile(userId)}
           />
         )}
-        {activeTab === 'media' && <GroupMediaTab />}
+        {activeTab === 'media' && <GroupMediaTab group={group} />}
+        {activeTab === 'settings' && <GroupSettingsTab group={group} onUpdated={(updated) => { setGroup(updated); loadGroup(updated.id); }} onDeleted={() => navigate('/groups')} />}
       </div>
 
       {/* Invite Modal */}

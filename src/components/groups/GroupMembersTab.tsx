@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, UserPlus, Search, Loader2 } from 'lucide-react';
+import { ShieldCheck, UserPlus, Search, Loader2, UserMinus, UserX, Check, X } from 'lucide-react';
 import { groupService, GroupResponse, CommunityGroupMember } from '../../services/groupService';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface GroupMembersTabProps {
   group: GroupResponse;
   onInviteClick?: () => void;
+  onNavigateProfile?: (userId: string) => void;
 }
 
-export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInviteClick }) => {
+export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInviteClick, onNavigateProfile }) => {
   const [members, setMembers] = useState<CommunityGroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [actionMemberId, setActionMemberId] = useState<string | null>(null);
+  const canModerate = Boolean(group.isAdmin || group.isModerator);
 
   useEffect(() => {
     if (group?.id) {
@@ -22,7 +25,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const data = await groupService.getGroupMembers(group.id);
+      const data = await groupService.getGroupMembers(group.id, canModerate);
       setMembers(data);
     } catch (err) {
       console.error('Failed to load group members:', err);
@@ -37,6 +40,11 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
 
   const admins = filteredMembers.filter((m) => m.role === 'ADMIN');
   const regularMembers = filteredMembers.filter((m) => m.role !== 'ADMIN');
+  const pendingMembers = members.filter((m) => m.status === 'PENDING');
+
+  const runAction = async (memberId: string, action: () => Promise<unknown>) => {
+    try { setActionMemberId(memberId); await action(); await loadMembers(); } catch (err) { console.error('Group member action failed', err); } finally { setActionMemberId(null); }
+  };
 
   return (
     <div className="w-full space-y-4">
@@ -85,6 +93,15 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
         </div>
       ) : (
         <div className="space-y-4">
+          {canModerate && pendingMembers.length > 0 && (
+            <div className="bg-white dark:bg-[#242526] rounded-2xl shadow p-5">
+              <h3 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb] mb-4">Yêu cầu tham gia ({pendingMembers.length})</h3>
+              <div className="space-y-2">{pendingMembers.map((member) => <div key={member.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-[#393a3b] p-3">
+                <div className="flex items-center gap-3 min-w-0"><UserAvatar src={member.avatar} alt={member.name} size="md" /><span className="font-semibold text-sm truncate">{member.name}</span></div>
+                <div className="flex gap-2 shrink-0"><button disabled={actionMemberId === member.id} onClick={() => runAction(member.id, () => groupService.reviewMember(group.id, member.id, true))} className="rounded-lg bg-[#1877f2] px-3 py-1.5 text-xs font-bold text-white"><Check className="w-3.5 h-3.5 inline mr-1" />Duyệt</button><button disabled={actionMemberId === member.id} onClick={() => runAction(member.id, () => groupService.reviewMember(group.id, member.id, false))} className="rounded-lg bg-gray-100 dark:bg-[#3a3b3c] px-3 py-1.5 text-xs font-bold"><X className="w-3.5 h-3.5 inline mr-1" />Từ chối</button></div>
+              </div>)}</div>
+            </div>
+          )}
           {/* Admin Section */}
           {admins.length > 0 && (
             <div className="bg-white dark:bg-[#242526] rounded-2xl shadow p-5">
@@ -102,7 +119,14 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                     className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-[#3a3b3c]/60 transition border border-gray-100 dark:border-transparent"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <UserAvatar src={admin.avatar} alt={admin.name} size="md" className="w-11 h-11 rounded-full" />
+                      <button
+                        type="button"
+                        onClick={() => onNavigateProfile?.(admin.id)}
+                        title={`Xem trang cá nhân của ${admin.name}`}
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#1877f2]"
+                      >
+                        <UserAvatar src={admin.avatar} alt={admin.name} size="md" className="w-11 h-11 rounded-full" />
+                      </button>
                       <div className="min-w-0">
                         <div className="font-semibold text-sm text-gray-900 dark:text-[#e4e6eb] truncate">
                           {admin.name}
@@ -112,6 +136,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                         </span>
                       </div>
                     </div>
+                    {group.isAdmin && admin.id !== group.ownerId && <select disabled={actionMemberId === admin.id} value={admin.role} onChange={(e) => runAction(admin.id, () => groupService.changeMemberRole(group.id, admin.id, e.target.value as 'ADMIN' | 'MODERATOR' | 'MEMBER'))} className="text-xs rounded-lg bg-gray-100 dark:bg-[#3a3b3c] p-1.5"><option value="ADMIN">Admin</option><option value="MODERATOR">Kiểm duyệt</option><option value="MEMBER">Thành viên</option></select>}
                   </div>
                 ))}
               </div>
@@ -136,7 +161,14 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                     className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-[#3a3b3c]/60 transition border border-gray-100 dark:border-transparent"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <UserAvatar src={member.avatar} alt={member.name} size="md" className="w-11 h-11 rounded-full" />
+                      <button
+                        type="button"
+                        onClick={() => onNavigateProfile?.(member.id)}
+                        title={`Xem trang cá nhân của ${member.name}`}
+                        className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#1877f2]"
+                      >
+                        <UserAvatar src={member.avatar} alt={member.name} size="md" className="w-11 h-11 rounded-full" />
+                      </button>
                       <div className="min-w-0">
                         <div className="font-semibold text-sm text-gray-900 dark:text-[#e4e6eb] truncate">
                           {member.name}
@@ -146,6 +178,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                         </div>
                       </div>
                     </div>
+                    {canModerate && member.id !== group.ownerId && <div className="flex gap-1 shrink-0">{group.isAdmin && <select disabled={actionMemberId === member.id} value={member.role} onChange={(e) => runAction(member.id, () => groupService.changeMemberRole(group.id, member.id, e.target.value as 'ADMIN' | 'MODERATOR' | 'MEMBER'))} className="text-xs rounded-lg bg-gray-100 dark:bg-[#3a3b3c] p-1.5"><option value="MEMBER">Thành viên</option><option value="MODERATOR">Kiểm duyệt</option><option value="ADMIN">Admin</option></select>}<button disabled={actionMemberId === member.id} onClick={() => runAction(member.id, () => groupService.removeMember(group.id, member.id))} title="Xóa khỏi nhóm" className="p-2 rounded-lg hover:bg-red-50 text-red-600"><UserMinus className="w-4 h-4" /></button><button disabled={actionMemberId === member.id} onClick={() => runAction(member.id, () => groupService.removeMember(group.id, member.id, true))} title="Chặn thành viên" className="p-2 rounded-lg hover:bg-red-50 text-red-600"><UserX className="w-4 h-4" /></button></div>}
                   </div>
                 ))}
               </div>

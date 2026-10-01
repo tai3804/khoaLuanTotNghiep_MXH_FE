@@ -32,7 +32,9 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group })
       <div className="hidden lg:block w-[300px]">
         <div className="bg-white dark:bg-[#242526] p-4 rounded-2xl shadow sticky top-20">
           <h3 className="font-bold text-gray-900 dark:text-[#e4e6eb] mb-2">Giới thiệu</h3>
-          <p className="text-sm text-gray-600 dark:text-[#b0b3b8]">Đây là nhóm lập trình viên React lớn nhất Việt Nam. Hãy cùng nhau học hỏi và phát triển!</p>
+          <p className="text-sm text-gray-600 dark:text-[#b0b3b8]">{group.description || 'Cùng chia sẻ, trao đổi và kết nối trong cộng đồng này.'}</p>
+          {group.rules && <><h4 className="font-bold text-gray-900 dark:text-[#e4e6eb] mt-4 mb-2">Nội quy nhóm</h4><p className="whitespace-pre-line text-sm text-gray-600 dark:text-[#b0b3b8]">{group.rules}</p></>}
+          {group.postApprovalRequired && <p className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">Bài viết trong nhóm cần được quản trị viên duyệt trước khi hiển thị.</p>}
         </div>
       </div>
     </div>

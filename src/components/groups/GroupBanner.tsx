@@ -1,5 +1,7 @@
 import React from 'react';
-import { Globe, Lock, MoreHorizontal, Image as ImageIcon, UserPlus } from 'lucide-react';
+import { Globe, Lock, Image as ImageIcon, UserPlus, Settings } from 'lucide-react';
+import { CommunityGroupMember } from '../../services/groupService';
+import { UserAvatar } from '../common/UserAvatar';
 
 export interface GroupData {
   id?: string;
@@ -9,22 +11,33 @@ export interface GroupData {
   memberCount: number;
   isMember: boolean;
   isAdmin: boolean;
+  isModerator?: boolean;
+  joinStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
+  description?: string;
+  rules?: string;
+  postApprovalRequired?: boolean;
 }
 
 interface GroupBannerProps {
   group: GroupData;
   activeTab: string;
-  setActiveTab: (tab: 'discussion' | 'members' | 'media') => void;
+  setActiveTab: (tab: 'discussion' | 'members' | 'media' | 'settings') => void;
+  members?: CommunityGroupMember[];
+  onNavigateProfile?: (userId: string) => void;
   onInviteClick?: () => void;
   onToggleJoin?: () => void;
+  onLeaveGroup?: () => void;
 }
 
 export const GroupBanner: React.FC<GroupBannerProps> = ({
   group,
   activeTab,
   setActiveTab,
+  members = [],
+  onNavigateProfile,
   onInviteClick,
   onToggleJoin,
+  onLeaveGroup,
 }) => {
   return (
     <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] shadow-sm sm:rounded-b-lg overflow-hidden">
@@ -57,10 +70,23 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
 
         <div className="flex items-center gap-2 mt-4 pb-4 border-b border-gray-200 dark:border-[#393a3b]">
           <div className="flex -space-x-2">
-             {/* Member avatar rings */}
-             <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white dark:border-[#242526]"></div>
-             <div className="w-8 h-8 rounded-full bg-indigo-500 border-2 border-white dark:border-[#242526]"></div>
-             <div className="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white dark:border-[#242526]"></div>
+            {members.slice(0, 3).map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => onNavigateProfile?.(member.id)}
+                title={`Xem trang cá nhân của ${member.name}`}
+                aria-label={`Xem trang cá nhân của ${member.name}`}
+                className="rounded-full transition-transform hover:z-10 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#1877f2]"
+              >
+                <UserAvatar
+                  src={member.avatar}
+                  alt={member.name}
+                  size="sm"
+                  className="border-2 border-white dark:border-[#242526]"
+                />
+              </button>
+            ))}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -76,23 +102,25 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
 
             {group.isMember ? (
               <button
-                onClick={onToggleJoin}
+                onClick={onLeaveGroup}
                 className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition cursor-pointer"
               >
-                Đã tham gia
+                Rời nhóm
               </button>
             ) : (
               <button
                 onClick={onToggleJoin}
                 className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition cursor-pointer"
               >
-                Tham gia nhóm
+                {group.joinStatus === 'PENDING' ? 'Đang chờ duyệt' : 'Tham gia nhóm'}
               </button>
             )}
 
-            <button className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition">
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
+            {(group.isAdmin || group.isModerator) && (
+              <button onClick={() => setActiveTab('settings')} className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition" title="Quản lý nhóm">
+                <Settings className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -107,6 +135,9 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
           <button onClick={() => setActiveTab('media')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'media' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             File phương tiện
           </button>
+          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('settings')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'settings' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            Quản lý
+          </button>}
         </div>
       </div>
     </div>

@@ -70,8 +70,15 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {groups.map((group) => (
+        {groups.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 dark:border-[#4e4f50] bg-white/60 dark:bg-[#242526]/60 px-6 py-12 text-center">
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+            <h4 className="font-bold text-gray-800 dark:text-[#e4e6eb]">Chưa có nhóm nào</h4>
+            <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">Hãy tạo nhóm mới để bắt đầu xây dựng cộng đồng.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {groups.map((group) => (
             <div
               key={group.id}
               onClick={() => navigate(`/groups/${group.id}`)}
@@ -139,8 +146,9 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

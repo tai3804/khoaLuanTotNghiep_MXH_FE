@@ -9,6 +9,7 @@ import { SearchPage } from './pages/SearchPage';
 import { WatchPage } from './pages/WatchPage';
 import { GroupsPage } from './pages/GroupsPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
+import { ModeratorPage } from './pages/ModeratorPage';
 import { ChatUser } from './components/chat/chat-box';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
@@ -51,6 +52,7 @@ export const App: React.FC = () => {
   else if (path.startsWith('/friends')) activeNavTab = 'friends';
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
   else if (path.startsWith('/groups')) activeNavTab = 'groups';
+  else if (path.startsWith('/moderation')) activeNavTab = 'moderation';
 
   const fetchFeed = async (isBackground = false) => {
     if (!isBackground) {
@@ -345,6 +347,20 @@ export const App: React.FC = () => {
           element={
             <GroupDetailPage
               activeNavTab="groups"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/moderation"
+          element={
+            <ModeratorPage
+              activeNavTab="moderation"
               setActiveNavTab={handleTabChange}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}

@@ -20,6 +20,8 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [privacy, setPrivacy] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
+  const [postApprovalRequired, setPostApprovalRequired] = useState(false);
+  const [rules, setRules] = useState('');
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
   const [friendSearch, setFriendSearch] = useState('');
@@ -33,6 +35,8 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
       setName('');
       setDescription('');
       setSelectedFriendIds(new Set());
+      setPostApprovalRequired(false);
+      setRules('');
       setFriendSearch('');
       loadFriends();
     }
@@ -96,6 +100,8 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
         description: description.trim(),
         privacy: privacy,
         initialMemberIds: Array.from(selectedFriendIds),
+        postApprovalRequired,
+        rules: rules.trim(),
       });
       toast.showSuccess(`Đã tạo nhóm "${group.name}" thành công!`);
       onClose();
@@ -199,6 +205,16 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
                 </div>
               </label>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 dark:border-[#393a3b] p-3 space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={postApprovalRequired} onChange={(e) => setPostApprovalRequired(e.target.checked)} className="mt-1" />
+              <span><b className="text-xs text-gray-900 dark:text-[#e4e6eb]">Duyệt bài viết trước khi hiển thị</b><small className="block mt-0.5 text-[11px] text-gray-500">Quản trị viên hoặc người kiểm duyệt sẽ xét duyệt bài của thành viên.</small></span>
+            </label>
+            <label className="block text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">Nội quy nhóm <span className="font-normal text-gray-400">(tùy chọn)</span>
+              <textarea value={rules} onChange={(e) => setRules(e.target.value)} rows={3} placeholder="Ví dụ: Tôn trọng mọi người, không đăng spam…" className="mt-1.5 w-full px-3 py-2 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-lg text-xs text-gray-900 dark:text-[#e4e6eb] focus:outline-none focus:border-[#1877f2] resize-none" />
+            </label>
           </div>
 
           {/* Invite friends (Optional) */}
