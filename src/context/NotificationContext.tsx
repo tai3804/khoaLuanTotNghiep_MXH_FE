@@ -180,9 +180,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             });
             setUnreadCount((prev) => prev + 1);
 
-            // Audio chime & toast notification
-            playNotificationSound();
-            showInfo(newNotif.title ? `${newNotif.title}: ${newNotif.content}` : newNotif.content);
+            // Check if current user is broadcasting or if notification is a comment on a live stream
+            const activeLivePostId = sessionStorage.getItem('kltn_active_live_postId');
+            const isLiveStreamComment =
+              Boolean(activeLivePostId) &&
+              (newNotif.type === 'COMMENT_POST' || newNotif.type === 'REPLY_COMMENT');
+
+            // Only play chime & show popup toast if not streaming live comments
+            if (!isLiveStreamComment) {
+              playNotificationSound();
+              showInfo(newNotif.title ? `${newNotif.title}: ${newNotif.content}` : newNotif.content);
+            }
           } catch (e) {
             console.error('[Notification WebSocket] Parse error:', e);
           }
@@ -216,7 +224,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       clearInterval(pollInterval);
       if (stompClientRef.current) {
-        stompClientRef.current.deactivate();
+        try {
+          stompClientRef.current.deactivate().catch(() => {});
+        } catch {}
         stompClientRef.current = null;
       }
     };

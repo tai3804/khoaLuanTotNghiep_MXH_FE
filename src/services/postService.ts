@@ -3,11 +3,52 @@ import { Post, Comment } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 
 export const normalizePost = (p: any): Post => {
-  const mediaUrls = Array.isArray(p.mediaList)
-    ? p.mediaList.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
-    : Array.isArray(p.mediaUrls)
-    ? p.mediaUrls.map((m: any) => (typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '')).filter(Boolean)
-    : [];
+  const rawMediaUrls: string[] = [];
+  const rawMediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
+
+  if (Array.isArray(p.mediaList) && p.mediaList.length > 0) {
+    p.mediaList.forEach((m: any) => {
+      const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
+      const mediaType = typeof m === 'string' ? undefined : (m.mediaType || (m.type ? String(m.type).toUpperCase() : undefined));
+      if (url) {
+        rawMediaUrls.push(url);
+        rawMediaList.push({
+          id: m.id ? String(m.id) : undefined,
+          fileUrl: url,
+          fileKey: m.fileKey,
+          mediaType: mediaType || (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) ? 'VIDEO' : 'IMAGE'),
+        });
+      }
+    });
+  } else if (Array.isArray(p.mediaUrls) && p.mediaUrls.length > 0) {
+    p.mediaUrls.forEach((m: any) => {
+      const url = typeof m === 'string' ? m : m.fileUrl || m.mediaUrl || m.url || '';
+      const mediaType = typeof m === 'string' ? undefined : m.mediaType;
+      if (url) {
+        rawMediaUrls.push(url);
+        rawMediaList.push({
+          fileUrl: url,
+          mediaType: mediaType || (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) ? 'VIDEO' : 'IMAGE'),
+        });
+      }
+    });
+  }
+
+  // Deduplicate media entries by fileUrl to prevent duplicated images/videos
+  const seenUrls = new Set<string>();
+  const mediaUrls: string[] = [];
+  const mediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
+
+  for (let i = 0; i < rawMediaUrls.length; i++) {
+    const u = rawMediaUrls[i];
+    if (u && !seenUrls.has(u)) {
+      seenUrls.add(u);
+      mediaUrls.push(u);
+      if (rawMediaList[i]) {
+        mediaList.push(rawMediaList[i]);
+      }
+    }
+  }
 
   const authorId = p.authorId ? String(p.authorId) : p.userId || 'me';
   const cached = authorProfileCache[authorId];
@@ -45,6 +86,7 @@ export const normalizePost = (p: any): Post => {
     authorAvatar,
     content: p.content || '',
     mediaUrls,
+    mediaList,
     createdAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : 'Vừa xong',
     likesCount: Number(p.likeCount ?? p.likesCount ?? 0),
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),
@@ -242,7 +284,13 @@ export const postService = {
     }
   },
 
-  createPost: async (content: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC', files: File[] = [], groupId?: string): Promise<Post> => {
+  createPost: async (
+    content: string,
+    privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC',
+    files: File[] = [],
+    mediaUrls?: string[],
+    groupId?: string
+  ): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
@@ -250,6 +298,11 @@ export const postService = {
     files.forEach((file) => {
       formData.append('files', file);
     });
+    if (mediaUrls && mediaUrls.length > 0) {
+      mediaUrls.forEach((url) => {
+        formData.append('mediaUrls', url);
+      });
+    }
 
     const res = await api.post('/posts', formData, {
       headers: {

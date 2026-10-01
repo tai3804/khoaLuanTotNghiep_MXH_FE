@@ -75,8 +75,8 @@ class CallWebSocketService {
     }
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
-      // Connect to direct call-service (port 8086) or configured URL
-      const wsUrl = import.meta.env.VITE_CALL_WS_URL || 'http://localhost:8086/ws-call';
+      // Connect through API gateway (port 8080) or configured URL
+      const wsUrl = import.meta.env.VITE_CALL_WS_URL || 'http://localhost:8080/ws-call';
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),

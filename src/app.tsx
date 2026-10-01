@@ -17,6 +17,7 @@ import { postService } from './services/api';
 import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
+import { HostLiveStudioModal } from './components/live-studio';
 
 export const App: React.FC = () => {
   const { isAuthenticated, tokens } = useAuth();
@@ -169,8 +170,25 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('navigate_to_auth', handleNavigateAuth);
   }, [navigate]);
 
+  useEffect(() => {
+    const handleFeedPostCreated = (e: any) => {
+      const newPost = e.detail;
+      if (newPost && newPost.id) {
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === newPost.id)) return prev;
+          return [newPost, ...prev];
+        });
+      }
+    };
+    window.addEventListener('feed_post_created', handleFeedPostCreated);
+    return () => window.removeEventListener('feed_post_created', handleFeedPostCreated);
+  }, []);
+
   const handlePostCreated = (newPost: Post) => {
-    if (!isPostHidden(newPost.id)) setPosts((prev) => [newPost, ...prev]);
+    setPosts((prev) => {
+      if (prev.some((p) => p.id === newPost.id)) return prev;
+      return isPostHidden(newPost.id) ? prev : [newPost, ...prev];
+    });
   };
 
   const handlePostDeleted = (postId: string) => {
@@ -198,7 +216,11 @@ export const App: React.FC = () => {
   // Filter posts based on active category
   let displayedPosts = [...posts];
   if (feedCategory === 'recent') {
-    displayedPosts = [...posts].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    displayedPosts = [...posts].sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime() || 0;
+      const timeB = new Date(b.createdAt || 0).getTime() || 0;
+      return timeB - timeA;
+    });
   } else if (feedCategory === 'popular') {
     const engagement = (post: Post) => (post.likesCount || 0) + (post.commentsCount || 0) * 2 + (post.sharesCount || 0) * 3;
     displayedPosts = [...posts].sort((a, b) => engagement(b) - engagement(a));
@@ -410,6 +432,9 @@ export const App: React.FC = () => {
 
       {/* Global Real-time Audio/Video Call Manager & Modals */}
       <CallManager />
+
+      {/* Dedicated Host Live Stream Studio & Floating Mini Widget */}
+      <HostLiveStudioModal />
     </div>
   );
 };

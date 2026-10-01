@@ -10,6 +10,21 @@ interface UseNotificationDropdownDataProps {
   onNavigateTarget?: (url: string) => void;
 }
 
+const loadSavedFriendStatus = (): Record<string, 'accepted' | 'rejected'> => {
+  try {
+    const raw = localStorage.getItem('kltn_friend_action_status');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveFriendStatus = (map: Record<string, 'accepted' | 'rejected'>) => {
+  try {
+    localStorage.setItem('kltn_friend_action_status', JSON.stringify(map));
+  } catch {}
+};
+
 export const useNotificationDropdownData = ({
   onClose,
   onNavigateSettings,
@@ -23,7 +38,7 @@ export const useNotificationDropdownData = ({
   const [actorProfiles, setActorProfiles] = useState<Record<string, { name: string; avatar: string }>>({});
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [friendActionStatus, setFriendActionStatus] = useState<Record<string, 'accepted' | 'rejected'>>({});
+  const [friendActionStatus, setFriendActionStatus] = useState<Record<string, 'accepted' | 'rejected'>>(loadSavedFriendStatus);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +98,34 @@ export const useNotificationDropdownData = ({
     });
   }, [notifications]);
 
+  // Sync with existing friends from localStorage
+  useEffect(() => {
+    try {
+      const rawFriends = localStorage.getItem('my_friend_ids');
+      const friendIds: string[] = rawFriends ? JSON.parse(rawFriends) : [];
+      if (friendIds.length > 0) {
+        setFriendActionStatus((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          notifications.forEach((n) => {
+            if (n.type === 'FRIEND_REQUEST' && n.actorId && friendIds.includes(n.actorId)) {
+              if (next[n.id] !== 'accepted') {
+                next[n.id] = 'accepted';
+                next[n.actorId] = 'accepted';
+                changed = true;
+              }
+            }
+          });
+          if (changed) {
+            saveFriendStatus(next);
+            return next;
+          }
+          return prev;
+        });
+      }
+    } catch {}
+  }, [notifications]);
+
   const filteredNotifications = notifications.filter((item) => {
     if (activeFilter === 'unread') return !item.isRead;
     return true;
@@ -104,7 +147,19 @@ export const useNotificationDropdownData = ({
     if (!item.actorId) return;
     try {
       await userService.acceptFriendRequest(item.actorId);
-      setFriendActionStatus((prev) => ({ ...prev, [item.id]: 'accepted' }));
+      setFriendActionStatus((prev) => {
+        const next = { ...prev, [item.id]: 'accepted' as const, [item.actorId!]: 'accepted' as const };
+        saveFriendStatus(next);
+        return next;
+      });
+      try {
+        const raw = localStorage.getItem('my_friend_ids');
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        if (!list.includes(item.actorId)) {
+          list.push(item.actorId);
+          localStorage.setItem('my_friend_ids', JSON.stringify(list));
+        }
+      } catch {}
       if (!item.isRead) markAsRead(item.id);
     } catch (err) {
       console.error('Failed to accept friend request:', err);
@@ -116,7 +171,11 @@ export const useNotificationDropdownData = ({
     if (!item.actorId) return;
     try {
       await userService.rejectFriendRequest(item.actorId);
-      setFriendActionStatus((prev) => ({ ...prev, [item.id]: 'rejected' }));
+      setFriendActionStatus((prev) => {
+        const next = { ...prev, [item.id]: 'rejected' as const, [item.actorId!]: 'rejected' as const };
+        saveFriendStatus(next);
+        return next;
+      });
       if (!item.isRead) markAsRead(item.id);
     } catch (err) {
       console.error('Failed to reject friend request:', err);

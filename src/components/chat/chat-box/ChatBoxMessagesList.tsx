@@ -30,7 +30,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
     if (event.currentTarget.scrollTop <= 24 && hasMoreMessages && !loadingOlder) onLoadOlder();
   };
   return (
-    <div ref={messagesContainerRef} onScroll={handleScroll} className="h-72 p-3 overflow-y-auto space-y-2 bg-gray-50/50 dark:bg-[#18191a]">
+    <div ref={messagesContainerRef} onScroll={handleScroll} className="h-[340px] sm:h-[350px] p-2.5 overflow-y-auto overflow-x-hidden space-y-2 bg-gray-50/50 dark:bg-[#18191a]">
       {loadingOlder && <div className="py-1 text-center text-[10px] text-gray-400">Đang tải tin nhắn cũ...</div>}
       {!hasMoreMessages && messages.length > 0 && <div className="py-1 text-center text-[10px] text-gray-400">Đã xem toàn bộ tin nhắn</div>}
       {loading ? (
@@ -53,11 +53,11 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
           return (
             <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} my-0.5`}>
               {friend.isGroup && !isMe && msg.senderName && (
-                <span className="text-[10px] font-semibold text-gray-500 dark:text-[#b0b3b8] mb-0.5 ml-7 truncate max-w-[200px]">
+                <span className="text-[10px] font-semibold text-gray-500 dark:text-[#b0b3b8] mb-0.5 ml-7 truncate max-w-[180px]">
                   {msg.senderName}
                 </span>
               )}
-              <div className={`flex items-end gap-1.5 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`flex items-end gap-1.5 max-w-[80%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                 {friend.isGroup && !isMe && (
                   <UserAvatar
                     src={msg.senderAvatar}
@@ -66,23 +66,35 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
                     className="w-6 h-6 rounded-full shrink-0 mb-0.5"
                   />
                 )}
-                <div
-                  className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-sm ${
-                    isMe
-                      ? 'bg-[#1877f2] text-white rounded-br-none'
-                      : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
-                  }`}
-                >
-                  {isMediaUrl ? (
-                    isVideo ? (
-                      <video src={msg.text} controls className="max-w-xs max-h-48 rounded-lg my-1" />
-                    ) : (
-                      <img src={msg.text} alt="Attachment" className="max-w-xs max-h-48 rounded-lg object-cover my-1" />
-                    )
+                {isMediaUrl ? (
+                  isVideo ? (
+                    <video
+                      src={msg.text}
+                      controls
+                      className="max-w-full max-h-52 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm my-0.5"
+                    />
                   ) : (
-                    msg.text
-                  )}
-                </div>
+                    <div className="overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-sm max-w-full my-0.5 bg-black/5 dark:bg-white/5">
+                      <img
+                        src={msg.text}
+                        alt="Đính kèm"
+                        className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
+                        onClick={() => window.open(msg.text, '_blank')}
+                        title="Bấm để xem ảnh gốc"
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div
+                    className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-sm break-words break-all ${
+                      isMe
+                        ? 'bg-[#1877f2] text-white rounded-br-none'
+                        : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                )}
               </div>
               <span
                 className={`text-[9px] text-gray-400 dark:text-[#b0b3b8] mt-0.5 px-1 ${

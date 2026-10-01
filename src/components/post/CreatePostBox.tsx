@@ -5,6 +5,7 @@ import {
   QuickCreatePostTrigger,
   CreatePostModalHeader,
   CreatePostForm,
+  LiveVideoModal,
 } from './create-post';
 
 interface CreatePostBoxProps {
@@ -20,35 +21,39 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
     userFirstName,
     isOpenModal,
     setIsOpenModal,
+    isLiveModalOpen,
+    setIsLiveModalOpen,
     content,
     setContent,
     imageUrl,
     setImageUrl,
     filePreview,
-    setFilePreview,
+    selectedFileType,
     privacy,
     setPrivacy,
     showImageInput,
     setShowImageInput,
-    selectedFeeling,
-    setSelectedFeeling,
-    setSelectedFile,
     isSubmitting,
     fileInputRef,
-    feelings,
     handleOpen,
+    handleOpenLive,
+    handleOpenFilePicker,
     handleFileChange,
+    handleClearFile,
+    handleStartLiveStream,
     handleSubmit,
   } = useCreatePost({ onPostCreated, groupId });
 
   return (
     <>
-      {/* Quick trigger box on feed */}
+      {/* Quick Trigger Box on Feed */}
       <QuickCreatePostTrigger
         user={user}
         userFirstName={userFirstName}
         isAuthenticated={isAuthenticated}
         onOpen={handleOpen}
+        onOpenLive={handleOpenLive}
+        onOpenFilePicker={handleOpenFilePicker}
       />
 
       {/* Expanded Create Post Modal */}
@@ -67,8 +72,6 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
               user={user}
               privacy={privacy}
               setPrivacy={setPrivacy}
-              selectedFeeling={selectedFeeling}
-              setSelectedFeeling={setSelectedFeeling}
               content={content}
               setContent={setContent}
               showImageInput={showImageInput}
@@ -76,11 +79,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
               imageUrl={imageUrl}
               setImageUrl={setImageUrl}
               filePreview={filePreview}
-              setFilePreview={setFilePreview}
-              setSelectedFile={setSelectedFile}
+              selectedFileType={selectedFileType}
+              onClearFile={handleClearFile}
               fileInputRef={fileInputRef}
               handleFileChange={handleFileChange}
-              feelings={feelings}
               isSubmitting={isSubmitting}
               handleSubmit={handleSubmit}
               t={t}
@@ -88,6 +90,14 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
           </div>
         </div>
       )}
+
+      {/* Live Video Broadcasting Modal */}
+      <LiveVideoModal
+        isOpen={isLiveModalOpen}
+        onClose={() => setIsLiveModalOpen(false)}
+        user={user}
+        onStartLiveStream={handleStartLiveStream}
+      />
     </>
   );
 };

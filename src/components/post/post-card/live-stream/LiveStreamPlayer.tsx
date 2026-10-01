@@ -1,0 +1,119 @@
+import React from 'react';
+import { Post } from '../../../../types';
+import { useLiveStreamPlayer } from './useLiveStreamPlayer';
+import { LiveStreamHeader } from './LiveStreamHeader';
+import { LiveStreamHostVideo } from './LiveStreamHostVideo';
+import { LiveStreamViewerVideo } from './LiveStreamViewerVideo';
+import { LiveStreamHostControls } from './LiveStreamHostControls';
+import { LiveStreamViewerOverlay } from './LiveStreamViewerOverlay';
+import { LiveStreamFloatingReactions } from './LiveStreamFloatingReactions';
+import { LiveStreamEndedView } from './LiveStreamEndedView';
+
+interface LiveStreamPlayerProps {
+  post: Post;
+  setShowCommentModal?: (val: boolean) => void;
+}
+
+export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
+  const {
+    containerRef,
+    isLive,
+    isHost,
+    activeBroadcast,
+    viewerStream,
+    effectiveViewerCount,
+    comments,
+    reactions,
+    commentInput,
+    setCommentInput,
+    replyingTo,
+    inputRef,
+    formattedTime,
+    showEndConfirm,
+    setShowEndConfirm,
+    cleanTitle,
+    handleStartReply,
+    handleCancelReply,
+    handleSendComment,
+    handleToggleFullscreen,
+    stopBroadcast,
+    toggleCamera,
+    toggleMic,
+    sendLiveReaction,
+    updateViewerCount,
+    openStudio,
+  } = useLiveStreamPlayer(post);
+
+  if (!isLive) {
+    return <LiveStreamEndedView cleanTitle={cleanTitle} authorName={post.authorName} />;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full aspect-video sm:max-h-[480px] bg-black overflow-hidden flex items-center justify-center group select-none border-y border-gray-800"
+    >
+      {/* Video Content: Host camera OR Live Viewer WebRTC Stream */}
+      {isHost && activeBroadcast.stream ? (
+        <LiveStreamHostVideo
+          postId={post.id}
+          hostUserId={post.userId}
+          stream={activeBroadcast.stream}
+          isCameraOn={activeBroadcast.isCameraOn}
+          userAvatar={post.authorAvatar}
+          userName={post.authorName}
+          onViewerCountChange={(count) => updateViewerCount(post.id, count)}
+        />
+      ) : (
+        <LiveStreamViewerVideo
+          remoteStream={viewerStream.remoteStream}
+          isMuted={viewerStream.isMuted}
+          isConnected={viewerStream.isConnected}
+          hostAvatar={post.authorAvatar}
+          hostName={post.authorName}
+          cleanTitle={cleanTitle}
+          onToggleMute={viewerStream.toggleMute}
+        />
+      )}
+
+      {/* Floating Animated Reactions (Visible on both Host and Viewer screens) */}
+      <LiveStreamFloatingReactions reactions={reactions} />
+
+      {/* Top Header Overlay with accurate real viewer count */}
+      <LiveStreamHeader
+        formattedTime={formattedTime}
+        viewerCount={effectiveViewerCount}
+        onToggleFullscreen={handleToggleFullscreen}
+      />
+
+      {/* Live Comments Speech Bubbles & Viewer Reactions Overlay (Rendered for both Host & Viewers) */}
+      <LiveStreamViewerOverlay
+        comments={comments}
+        commentInput={commentInput}
+        replyingTo={replyingTo}
+        inputRef={inputRef}
+        isHost={isHost}
+        onCommentInputChange={setCommentInput}
+        onStartReply={handleStartReply}
+        onCancelReply={handleCancelReply}
+        onSendComment={handleSendComment}
+        onSendReaction={(emoji) => sendLiveReaction(post.id, emoji)}
+      />
+
+      {/* Host Controls Overlay */}
+      {isHost && (
+        <LiveStreamHostControls
+          isMicOn={activeBroadcast.isMicOn}
+          isCameraOn={activeBroadcast.isCameraOn}
+          showEndConfirm={showEndConfirm}
+          onToggleMic={toggleMic}
+          onToggleCamera={toggleCamera}
+          onShowEndConfirm={setShowEndConfirm}
+          onStopBroadcast={() => stopBroadcast(post.id)}
+          onOpenStudio={openStudio}
+        />
+      )}
+    </div>
+  );
+};
+

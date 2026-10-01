@@ -4,8 +4,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
 import { userService, postService } from '../../../services/api';
-import { chatService } from '../../../services/chatService';
 import { fetchAuthorProfile } from '../../../services/userService';
+import { chatService } from '../../../services/chatService';
 import { ChatUser } from '../../../components/chat/chat-box';
 
 interface UseHeaderDataProps {
@@ -31,7 +31,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const [msgSearchResults, setMsgSearchResults] = useState<ChatUser[]>([]);
   const [msgSearching, setMsgSearching] = useState(false);
   const [pendingReqCount, setPendingReqCount] = useState(0);
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+  const messageUnreadCount = chatContacts.reduce((total, contact: any) => total + Number(contact.unreadCount || 0), 0);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const msgMenuRef = useRef<HTMLDivElement>(null);
@@ -157,33 +157,62 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
         .getConversations()
         .then(async (convs) => {
           if (Array.isArray(convs)) {
-            // Chat service stores only member IDs for direct chats.  Hydrate
-            // them from user-service so the menu shows the actual display name
-            // and avatar rather than the generic fallback.
-            const mapped = await Promise.all(convs.map(async (c: any) => {
-              const isGroup = c.type === 'GROUP';
-              const profile = !isGroup && c.otherParticipantId
-                ? await fetchAuthorProfile(String(c.otherParticipantId))
-                : null;
-              return {
-                id: isGroup ? c.conversationId : c.otherParticipantId,
-                userId: c.otherParticipantId,
-                conversationId: c.conversationId,
-                isGroup,
-                name: c.name || profile?.name || 'Người dùng',
-                avatar: c.avatarUrl || profile?.avatar || '/default-avatar.png',
-                online: c.isOnline || false,
-                lastMessageContent: c.lastMessageContent,
-                lastMessageAt: c.lastMessageAt,
-                unreadCount: Number(c.unreadCount || 0),
-              } as any;
-            }));
-            mapped.sort((left: any, right: any) => {
-              const leftTime = left.lastMessageAt ? new Date(left.lastMessageAt).getTime() : 0;
-              const rightTime = right.lastMessageAt ? new Date(right.lastMessageAt).getTime() : 0;
-              return rightTime - leftTime;
+            const mapped = await Promise.all(
+              convs.map(async (c: any) => {
+                let name = c.name;
+                let avatar = c.avatarUrl;
+                let otherId = c.otherParticipantId || c.other_participant_id || c.partnerId;
+
+                if (c.type === 'DIRECT') {
+                  if (!otherId && c.conversationId) {
+                    try {
+                      const detail = await chatService.getConversationDetail(c.conversationId);
+                      if (detail && Array.isArray(detail.members)) {
+                        const partner = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
+                        if (partner) otherId = partner.userId;
+                      }
+                    } catch {}
+                  }
+
+                  if (otherId) {
+                    const prof = await fetchAuthorProfile(String(otherId));
+                    if (prof) {
+                      name = prof.name || name;
+                      avatar = prof.avatar || avatar;
+                    }
+                  }
+                }
+
+                return {
+                  id: otherId || c.conversationId,
+                  userId: otherId,
+                  conversationId: c.conversationId,
+                  isGroup: c.type === 'GROUP',
+                  name: name || (c.type === 'GROUP' ? 'Nhóm trò chuyện' : 'Người dùng'),
+                  avatar: avatar || '/default-avatar.png',
+                  online: c.isOnline || false,
+                  lastMessageContent: c.lastMessageContent,
+                } as any;
+              })
+            );
+            // Sort: prioritize conversations with messages
+            mapped.sort((a, b) => {
+              if (a.lastMessageContent && !b.lastMessageContent) return -1;
+              if (!a.lastMessageContent && b.lastMessageContent) return 1;
+              return 0;
             });
-            setChatContacts(mapped);
+
+            // Deduplicate: Keep only 1 entry per partner for DIRECT chats, and 1 per conversationId for GROUP chats
+            const seen = new Set<string>();
+            const deduped: any[] = [];
+            for (const item of mapped) {
+              const key = item.isGroup ? `group_${item.conversationId}` : `direct_${item.userId || item.id}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                deduped.push(item);
+              }
+            }
+            setChatContacts(deduped);
           } else {
             setChatContacts([]);
           }
@@ -194,36 +223,6 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
         .finally(() => setLoadingChatContacts(false));
     }
   }, [showMsgMenu, isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated) { setMessageUnreadCount(0); return; }
-    const refreshUnreadMessages = async () => {
-      const conversations = await chatService.getConversations();
-      setMessageUnreadCount(Array.isArray(conversations)
-        ? conversations.reduce((total, conversation: any) => total + Number(conversation.unreadCount || 0), 0)
-        : 0);
-    };
-    const handleConversationRead = (event: Event) => {
-      const conversationId = (event as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
-      if (conversationId) {
-        setChatContacts((contacts) => contacts.map((contact: any) =>
-          String(contact.conversationId) === String(conversationId)
-            ? { ...contact, unreadCount: 0 }
-            : contact
-        ));
-      }
-      refreshUnreadMessages();
-    };
-    refreshUnreadMessages();
-    const timer = window.setInterval(refreshUnreadMessages, 8000);
-    window.addEventListener('chat_unread_changed', refreshUnreadMessages);
-    window.addEventListener('chat_conversation_read', handleConversationRead);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('chat_unread_changed', refreshUnreadMessages);
-      window.removeEventListener('chat_conversation_read', handleConversationRead);
-    };
-  }, [isAuthenticated]);
 
   const handleNavClick = (tab: string) => {
     if (onTabChange) onTabChange(tab);

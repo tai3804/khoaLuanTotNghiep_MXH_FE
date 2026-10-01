@@ -39,8 +39,18 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
 }) => {
   // If searching globally, show search results. Otherwise show local contacts.
   const isSearching = msgSearch.trim().length > 0;
-  const displayContacts = isSearching ? msgSearchResults : chatContacts;
+  const rawContacts = isSearching ? msgSearchResults : chatContacts;
   const showLoading = isSearching ? msgSearching : loadingChatContacts;
+
+  const displayContacts = React.useMemo(() => {
+    const seen = new Set<string>();
+    return rawContacts.filter((c) => {
+      const key = c.isGroup ? `group_${c.conversationId || c.id}` : `direct_${c.userId || c.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rawContacts]);
 
   const [showCreateGroup, setShowCreateGroup] = React.useState(false);
 
@@ -141,7 +151,13 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
                       {contact.name} {contact.isGroup && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-md ml-1 font-medium">Nhóm</span>}
                     </div>
                     <div className="text-[11px] text-gray-400 dark:text-[#b0b3b8] truncate">
-                      {contact.lastMessageContent || t('messenger.clickToChat')}
+                      {contact.lastMessageContent
+                        ? contact.lastMessageContent.match(/\.(mp4|webm|mov)(\?.*)?$/i)
+                          ? '🎥 [Video]'
+                          : contact.lastMessageContent.startsWith('http')
+                          ? '📷 [Hình ảnh]'
+                          : contact.lastMessageContent
+                        : t('messenger.clickToChat')}
                     </div>
                   </div>
                   {Number((contact as any).unreadCount || 0) > 0 && <span className="min-w-5 rounded-full bg-[#1877f2] px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{Number((contact as any).unreadCount) > 99 ? '99+' : (contact as any).unreadCount}</span>}

@@ -10,13 +10,17 @@ export const notificationService = {
         params: { page: pageNum, size, sortBy: 'createdAt', sortDirection: 'DESC' },
       });
       const data = response.data?.data;
-      if (Array.isArray(data)) {
-        return { content: data, totalElements: data.length, totalPages: 1 };
-      }
+      const rawList = Array.isArray(data) ? data : data?.content || [];
+      const content: NotificationItem[] = rawList.map((item: any) => ({
+        ...item,
+        id: String(item.id),
+        isRead: Boolean(item.isRead ?? item.read ?? item.is_read ?? false),
+      }));
+
       return {
-        content: data?.content || [],
-        totalElements: data?.totalElements || 0,
-        totalPages: data?.totalPages || 1,
+        content,
+        totalElements: Array.isArray(data) ? data.length : data?.totalElements || content.length,
+        totalPages: Array.isArray(data) ? 1 : data?.totalPages || 1,
       };
     } catch (error) {
       console.error('[NotificationService] Failed to fetch notifications:', error);

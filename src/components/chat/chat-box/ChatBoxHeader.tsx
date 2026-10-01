@@ -24,17 +24,17 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   onOpenGroupInfo,
 }) => {
   const { startCall, startGroupCall } = useCall();
-  const targetUserId = friend.userId || (!friend.isGroup ? friend.id : undefined);
+  const targetUserId = friend.userId || (!friend.isGroup && friend.id !== conversationId ? friend.id : undefined);
 
   const handleAudioCall = () => {
     if (targetUserId) {
-      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'AUDIO');
+      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'AUDIO', conversationId || undefined);
     }
   };
 
   const handleVideoCall = () => {
     if (targetUserId) {
-      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'VIDEO');
+      startCall({ id: targetUserId, name: friend.name, avatar: friend.avatar || '' }, 'VIDEO', conversationId || undefined);
     }
   };
 
@@ -61,7 +61,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
           )}
         </div>
         <div className="min-w-0">
-          <h4 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] leading-tight truncate max-w-[130px]">
+          <h4 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] leading-tight truncate max-w-[145px] sm:max-w-[155px]">
             {friend.name}
           </h4>
           <span className="text-[10px] text-gray-500 dark:text-[#b0b3b8] block">

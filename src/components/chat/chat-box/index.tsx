@@ -30,6 +30,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
     uploading,
     conversationId,
     groupDetail,
+    partnerProfile,
     reloadGroupDetail,
     messagesEndRef,
     messagesContainerRef,
@@ -41,10 +42,18 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
     handleSend,
   } = useChatBoxData({ friend: currentFriend });
 
+  const effectiveFriend: ChatUser = {
+    ...currentFriend,
+    id: partnerProfile?.userId || currentFriend.userId || currentFriend.id,
+    userId: partnerProfile?.userId || currentFriend.userId || (!currentFriend.isGroup ? currentFriend.id : undefined),
+    name: partnerProfile?.name || currentFriend.name,
+    avatar: partnerProfile?.avatar || currentFriend.avatar,
+  };
+
   if (isMinimized) {
     return (
       <ChatBoxMinimized
-        friend={currentFriend}
+        friend={effectiveFriend}
         onRestore={() => setIsMinimized(false)}
         onClose={onClose}
       />
@@ -53,9 +62,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
 
   return (
     <>
-      <div className="fixed bottom-0 right-4 md:right-16 z-50 w-80 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-xl flex flex-col overflow-hidden transition-all duration-200">
+      <div className="fixed bottom-0 right-4 md:right-16 z-50 w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200">
         <ChatBoxHeader
-          friend={currentFriend}
+          friend={effectiveFriend}
           memberCount={groupDetail?.members?.length}
           groupMemberIds={(groupDetail?.members || []).map((member: any) => String(member.userId))}
           conversationId={conversationId}
@@ -65,7 +74,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
         />
 
         <ChatBoxMessagesList
-          friend={currentFriend}
+          friend={effectiveFriend}
           messages={messages}
           loading={loading}
           user={user}

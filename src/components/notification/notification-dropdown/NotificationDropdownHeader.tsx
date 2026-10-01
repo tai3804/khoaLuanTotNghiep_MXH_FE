@@ -27,7 +27,7 @@ export const NotificationDropdownHeader: React.FC<NotificationDropdownHeaderProp
           {isEn ? 'Notifications' : 'Thông báo'}
         </h2>
         {unreadCount > 0 && (
-          <span className="bg-[#e41e3f] text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+          <span className="bg-[#e41e3f] text-white text-[11px] font-medium px-2 py-0.5 rounded-full shadow-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

@@ -266,8 +266,25 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     }
   };
 
+  useEffect(() => {
+    const handleGlobalPostCreated = (e: any) => {
+      const newPost = e.detail;
+      if (newPost && newPost.id && isOwnProfile) {
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === newPost.id)) return prev;
+          return [newPost, ...prev];
+        });
+      }
+    };
+    window.addEventListener('feed_post_created', handleGlobalPostCreated);
+    return () => window.removeEventListener('feed_post_created', handleGlobalPostCreated);
+  }, [isOwnProfile]);
+
   const handlePostCreated = (newPost: Post) => {
-    setPosts((prev) => [newPost, ...prev]);
+    setPosts((prev) => {
+      if (prev.some((p) => p.id === newPost.id)) return prev;
+      return [newPost, ...prev];
+    });
   };
 
   const handlePostDeleted = (postId: string) => {

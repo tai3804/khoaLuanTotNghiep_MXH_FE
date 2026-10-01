@@ -115,6 +115,45 @@ export const callService = {
     }
   },
 
+  // Get call session by ID
+  async getCallSession(callSessionId: string): Promise<CallSession | null> {
+    try {
+      const response = await api.get(`/calls/${callSessionId}`);
+      return response.data?.data || response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  // Get call session for a post (live stream room)
+  async getCallSessionByPost(postId: string): Promise<CallSession | null> {
+    try {
+      const response = await api.get(`/calls/post/${postId}`);
+      return response.data?.data || response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  // Join call session by post ID
+  async joinCallByPost(postId: string): Promise<CallSession | null> {
+    try {
+      const response = await api.post(`/calls/post/${postId}/join`);
+      return response.data?.data || response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  // End call session by post ID (host only)
+  async endCallByPost(postId: string): Promise<void> {
+    try {
+      await api.post(`/calls/post/${postId}/end`);
+    } catch (e) {
+      console.warn('endCallByPost notice:', e);
+    }
+  },
+
   // Get call history with pagination
   async getCallHistory(page: number = 1, size: number = 20): Promise<{ content: CallHistoryItem[]; totalElements: number; totalPages: number }> {
     const response = await api.get('/calls/history', { params: { page, size } });

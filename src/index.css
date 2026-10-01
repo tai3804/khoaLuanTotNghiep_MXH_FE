@@ -61,9 +61,53 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.6);
 }
+
 @layer components {
   .menu-row { @apply flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#3a3b3c]; }
   .menu-row svg { @apply h-5 w-5 shrink-0; }
   .menu-row span:last-child { @apply flex flex-col gap-0.5; }
   .menu-row small { @apply text-xs text-gray-500 dark:text-[#b0b3b8]; }
+}
+
+/* Real-time Floating Live Reaction Emojis */
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-20px) scale(1.15);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-90px) translateX(8px) scale(1);
+    opacity: 0.9;
+  }
+  80% {
+    transform: translateY(-160px) translateX(-8px) scale(0.95);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-230px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.animate-floatUp {
+  animation: floatUp 2.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
 }

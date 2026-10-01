@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
+import { useLiveStream } from '../../../context/LiveStreamContext';
 import { Post } from '../../../types';
 import { postService } from '../../../services/api';
+import { mediaService } from '../../../services/mediaService';
 
 interface UseCreatePostProps {
   onPostCreated: (newPost: Post) => void;
@@ -14,11 +16,14 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { startBroadcast } = useLiveStream();
 
   const [isOpenModal, setIsOpenModal] = useState(false);
+  const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<'image' | 'video' | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>(() => {
     const saved = localStorage.getItem('default_post_privacy');
@@ -37,19 +42,11 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     window.addEventListener('default_post_privacy_changed', handlePrivacyChange);
     return () => window.removeEventListener('default_post_privacy_changed', handlePrivacyChange);
   }, []);
+
   const [showImageInput, setShowImageInput] = useState(false);
-  const [selectedFeeling, setSelectedFeeling] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const feelings = [
-    '😊 Đang cảm thấy vui vẻ',
-    '☕ Đang uống cà phê',
-    '🚀 Đang hào hứng',
-    '💻 Đang lập trình',
-    '🎧 Đang nghe nhạc',
-  ];
 
   const userFirstName = user?.fullName
     ? user.fullName.trim().split(' ').pop() || 'bạn'
@@ -63,11 +60,62 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     setIsOpenModal(true);
   };
 
+  const handleOpenLive = () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    setIsLiveModalOpen(true);
+  };
+
+  const handleOpenFilePicker = () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    setIsOpenModal(true);
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 150);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageUrl('');
+      setShowImageInput(false);
       setSelectedFile(file);
+      const isVid = file.type.startsWith('video/') || /\.(mp4|webm|ogg|mov|m4v|mkv)$/i.test(file.name);
+      setSelectedFileType(isVid ? 'video' : 'image');
       setFilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleClearFile = () => {
+    setSelectedFile(null);
+    setSelectedFileType(null);
+    if (filePreview && filePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(filePreview);
+    }
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleStartLiveStream = async (liveTitle: string, liveDescription: string, stream?: MediaStream | null) => {
+    const postPrivacy =
+      privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
+
+    if (stream) {
+      await startBroadcast(liveTitle, liveDescription, stream, postPrivacy, onPostCreated);
+    } else {
+      const liveContent = `🔴 [ĐANG PHÁT TRỰC TIẾP] ${liveTitle}${liveDescription ? `\n\n${liveDescription}` : ''}`;
+      const createdPost = await postService.createPost(liveContent, postPrivacy, []);
+      createdPost.isLive = true;
+      createdPost.liveStatus = 'LIVE';
+      onPostCreated(createdPost);
+      window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
     }
   };
 
@@ -81,32 +129,56 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
 
     setIsSubmitting(true);
     try {
-      let fullContent = content.trim();
-      if (selectedFeeling) {
-        fullContent = `${selectedFeeling}\n\n${fullContent}`;
-      }
-
+      const fullContent = content.trim();
       const postPrivacy =
         privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
 
-      let uploadedUrl = imageUrl.trim();
+      const uploadedUrl = imageUrl.trim();
+      const isVideoFile = selectedFileType === 'video' || (uploadedUrl && /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(uploadedUrl));
 
-      const files: File[] = selectedFile ? [selectedFile] : [];
-      const createdPost = await postService.createPost(fullContent, postPrivacy, files, groupId);
+      let mediaUrls: string[] = [];
+      if (selectedFile) {
+        try {
+          const mediaItem = await mediaService.uploadMedia(selectedFile, 'posts');
+          if (mediaItem && mediaItem.fileUrl) {
+            mediaUrls = [mediaItem.fileUrl];
+          }
+        } catch (uploadErr) {
+          console.warn('Failed to upload file to media service, attempting direct multipart fallback:', uploadErr);
+        }
+      } else if (uploadedUrl) {
+        mediaUrls = [uploadedUrl];
+      }
 
-      if (uploadedUrl && (!createdPost.mediaUrls || createdPost.mediaUrls.length === 0)) {
-        createdPost.mediaUrls = [uploadedUrl];
+      const files: File[] = (selectedFile && mediaUrls.length === 0) ? [selectedFile] : [];
+      const createdPost = await postService.createPost(fullContent, postPrivacy, files, mediaUrls, groupId);
+
+      // Ensure mediaUrls are populated on the created post object
+      if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
+        createdPost.mediaUrls = mediaUrls;
+        createdPost.mediaList = [{
+          fileUrl: mediaUrls[0],
+          mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
+        }];
+      }
+
+      // Ensure author details are present immediately for crisp display
+      if (!createdPost.authorName || createdPost.authorName === 'Thành viên KLTN') {
+        createdPost.authorName = user?.fullName || user?.username || 'Bạn';
+      }
+      if (!createdPost.authorAvatar && user?.avatar) {
+        createdPost.authorAvatar = user.avatar;
       }
 
       onPostCreated(createdPost);
+      window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
+
       setContent('');
       setImageUrl('');
-      setSelectedFile(null);
-      setFilePreview(null);
-      setSelectedFeeling(null);
+      handleClearFile();
       setShowImageInput(false);
       setIsOpenModal(false);
-      toast.showSuccess('Đã đăng bài viết mới thành công!');
+      toast.showSuccess(isVideoFile ? 'Đã đăng video thành công!' : 'Đã đăng bài viết mới thành công!');
     } catch (err: any) {
       console.error('Failed to create post:', err);
       const newPost: Post = {
@@ -128,11 +200,10 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       onPostCreated(newPost);
       setContent('');
       setImageUrl('');
-      setSelectedFile(null);
-      setFilePreview(null);
-      setSelectedFeeling(null);
+      handleClearFile();
       setShowImageInput(false);
       setIsOpenModal(false);
+      toast.showWarning('Backend chưa phản hồi; bài viết đang hiển thị tạm thời trên thiết bị này.');
     } finally {
       setIsSubmitting(false);
     }
@@ -145,25 +216,29 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     userFirstName,
     isOpenModal,
     setIsOpenModal,
+    isLiveModalOpen,
+    setIsLiveModalOpen,
     content,
     setContent,
     imageUrl,
     setImageUrl,
     selectedFile,
     setSelectedFile,
+    selectedFileType,
     filePreview,
     setFilePreview,
     privacy,
     setPrivacy,
     showImageInput,
     setShowImageInput,
-    selectedFeeling,
-    setSelectedFeeling,
     isSubmitting,
     fileInputRef,
-    feelings,
     handleOpen,
+    handleOpenLive,
+    handleOpenFilePicker,
     handleFileChange,
+    handleClearFile,
+    handleStartLiveStream,
     handleSubmit,
   };
 };

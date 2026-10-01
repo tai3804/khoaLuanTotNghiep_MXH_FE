@@ -1,4 +1,5 @@
 import React from 'react';
+import { User } from 'lucide-react';
 import { useUserAvatar, DEFAULT_AVATAR_URL } from './useUserAvatar';
 
 export { DEFAULT_AVATAR_URL };
@@ -16,7 +17,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const { effectiveSrc, handleError } = useUserAvatar({ src });
+  const { hasError, effectiveSrc, handleError } = useUserAvatar({ src });
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-xs',
@@ -26,7 +27,28 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     xl: 'w-16 h-16 text-2xl',
   };
 
+  const iconSizes = {
+    xs: 'w-3.5 h-3.5',
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
+    xl: 'w-8 h-8',
+  };
+
   const baseSizeClass = sizeClasses[size] || 'w-9 h-9 text-base';
+  const iconSizeClass = iconSizes[size] || 'w-5 h-5';
+
+  if (hasError || !effectiveSrc) {
+    const initial = alt && alt !== 'Avatar' && alt.trim() ? alt.trim().charAt(0).toUpperCase() : '';
+    return (
+      <div
+        className={`${baseSizeClass} rounded-full bg-zinc-800 text-zinc-300 font-semibold border border-zinc-700/80 shadow-sm shrink-0 flex items-center justify-center select-none ${className}`}
+        title={alt}
+      >
+        {initial ? <span>{initial}</span> : <User className={`${iconSizeClass} text-zinc-400`} />}
+      </div>
+    );
+  }
 
   return (
     <img
