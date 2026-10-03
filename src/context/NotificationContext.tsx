@@ -138,17 +138,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // UC-NO06: Realtime WebSocket connection via STOMP
   useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
     const token = tokens?.accessToken;
-    if (!token) return;
-
-    const userId = user.id;
-    if (!userId) return;
+    const userId = user?.id;
+    if (!isAuthenticated || !userId || !token) return;
 
     // Connect through API gateway (port 8080) where CORS is configured
     const wsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL || 'http://localhost:8080/ws-notifications';
 
+    let isSubscribed = true;
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
       connectHeaders: {
@@ -159,7 +156,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
       onConnect: () => {
-        console.log('[Notification WebSocket] Connected to broker');
+        if (!isSubscribed) return;
 
         // Subscribe to user's realtime notification feed
         client.subscribe(`/topic/notifications.${userId}`, (msg) => {
@@ -169,7 +166,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             // Check if user was banned
             if (newNotif.type === 'SYSTEM' && newNotif.title === 'ACCOUNT_BANNED') {
               showInfo(newNotif.content || 'Tài khoản của bạn đã bị khóa.');
-              // We need to logout the user
               window.dispatchEvent(new Event('auth_session_expired'));
               return;
             }
@@ -211,6 +207,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       onStompError: (frame) => {
         console.warn('[Notification WebSocket] STOMP error:', frame);
       },
+      onWebSocketError: () => {
+        // Suppress unhandled handshake abortion logs during React development remounts
+      },
     });
 
     client.activate();
@@ -218,19 +217,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Polling fallback every 20s to ensure consistent sync
     const pollInterval = setInterval(() => {
-      notificationService.getUnreadCount().then(setUnreadCount).catch(() => { });
+      if (isSubscribed) {
+        notificationService.getUnreadCount().then(setUnreadCount).catch(() => { });
+      }
     }, 20000);
 
     return () => {
+      isSubscribed = false;
       clearInterval(pollInterval);
       if (stompClientRef.current) {
-        try {
-          stompClientRef.current.deactivate().catch(() => {});
-        } catch {}
+        const clientToDeactivate = stompClientRef.current;
         stompClientRef.current = null;
+        setTimeout(() => {
+          try {
+            clientToDeactivate.deactivate().catch(() => {});
+          } catch {}
+        }, 0);
       }
     };
-  }, [isAuthenticated, user, playNotificationSound, showInfo, tokens?.accessToken]);
+  }, [isAuthenticated, user?.id, playNotificationSound, showInfo, tokens?.accessToken]);
 
   return (
     <NotificationContext.Provider

@@ -260,6 +260,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                   key={c.id}
                   comment={c}
                   user={user}
+                  postAuthorId={post.userId || (post as any)?.authorId}
                   replies={getRepliesFor(c.id)}
                   language={language}
                   t={t}

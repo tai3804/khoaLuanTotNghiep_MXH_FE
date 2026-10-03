@@ -153,7 +153,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex justify-center w-full max-w-[1000px] mx-auto pt-4 px-4 pb-16">
-        {activeTab === 'discussion' && <GroupDiscussionTab group={group} />}
+        {activeTab === 'discussion' && <GroupDiscussionTab group={group} onToggleJoin={handleToggleJoin} />}
         {activeTab === 'members' && (
           <GroupMembersTab 
             group={group} 

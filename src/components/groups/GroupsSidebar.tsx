@@ -71,10 +71,10 @@ export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick
                 className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition group"
               >
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
-                  {g.coverUrl ? (
+                  {typeof g.coverUrl === 'string' && g.coverUrl.trim() && !g.coverUrl.includes('images.unsplash.com/photo-1522071820081') ? (
                     <img src={g.coverUrl} alt={g.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600">
+                    <div className="w-full h-full flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                       <Users className="w-5 h-5" />
                     </div>
                   )}

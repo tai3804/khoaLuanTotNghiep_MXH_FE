@@ -3,7 +3,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
-import { userService, postService } from '../../../services/api';
+import { userService, postService, groupService } from '../../../services/api';
 import { fetchAuthorProfile } from '../../../services/userService';
 import { chatService } from '../../../services/chatService';
 import { ChatUser } from '../../../components/chat/chat-box';
@@ -19,7 +19,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const { unreadCount } = useNotification();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[] }>({ users: [], posts: [] });
+  const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -65,7 +65,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   // Search API effect with debounce
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSearchResults({ users: [], posts: [] });
+      setSearchResults({ users: [], posts: [], groups: [] });
       setShowSearchResults(false);
       return;
     }
@@ -73,16 +73,18 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
       setSearching(true);
       setShowSearchResults(true);
       try {
-        const [users, posts] = await Promise.all([
+        const [users, posts, groups] = await Promise.all([
           userService.searchUsers(searchQuery.trim()).catch(() => []),
           postService.searchPosts ? postService.searchPosts(searchQuery.trim()).catch(() => []) : Promise.resolve([]),
+          groupService.searchGroups(searchQuery.trim()).catch(() => []),
         ]);
         setSearchResults({
           users: Array.isArray(users) ? users : [],
           posts: Array.isArray(posts) ? posts : [],
+          groups: Array.isArray(groups) ? groups : [],
         });
       } catch {
-        setSearchResults({ users: [], posts: [] });
+        setSearchResults({ users: [], posts: [], groups: [] });
       } finally {
         setSearching(false);
       }

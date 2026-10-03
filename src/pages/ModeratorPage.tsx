@@ -140,9 +140,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
   const toast = useToast();
 
   const canModerate = useMemo(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
-    const tokenRoles = rolesFromToken(token);
-    const allRoles = [...(user?.roles || []), ...tokenRoles].map((r) => String(r).toUpperCase());
+    const allRoles = (user?.roles || []).map((r) => String(r).toUpperCase());
     return allRoles.some(
       (role) =>
         role === 'ROLE_MODERATOR' ||

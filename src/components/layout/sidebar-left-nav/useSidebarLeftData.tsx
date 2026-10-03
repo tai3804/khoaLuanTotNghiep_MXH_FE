@@ -115,9 +115,7 @@ export const useSidebarLeftData = ({
   ];
 
   const canModerate = useMemo(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
-    const tokenRoles = rolesFromToken(token);
-    const allRoles = [...(user?.roles || []), ...tokenRoles].map((r) => String(r).toUpperCase());
+    const allRoles = (user?.roles || []).map((r) => String(r).toUpperCase());
     return allRoles.some(
       (role) =>
         role === 'ROLE_MODERATOR' ||
@@ -139,7 +137,7 @@ export const useSidebarLeftData = ({
     });
   }
 
-  const displayedItems = showMore ? menuItems : menuItems.slice(0, 5);
+  const displayedItems = showMore ? menuItems : menuItems.slice(0, canModerate ? 6 : 5);
 
   const handleItemClick = (id: string) => {
     if (id === 'settings' && onNavigateSettings) {

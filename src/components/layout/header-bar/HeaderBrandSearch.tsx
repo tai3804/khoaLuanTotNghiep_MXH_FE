@@ -1,5 +1,5 @@
 import React, { RefObject } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Logo } from '../../common/Logo';
 
@@ -10,7 +10,7 @@ interface HeaderBrandSearchProps {
   showSearchResults: boolean;
   setShowSearchResults: (show: boolean) => void;
   searching: boolean;
-  searchResults: { users: any[]; posts: any[] };
+  searchResults: { users: any[]; posts: any[]; groups?: any[] };
   language: string;
   t: (key: string) => string;
   onNavClick: (tab: string) => void;
@@ -80,7 +80,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
                 <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin" />
                 <span>{t('search.searching')}</span>
               </div>
-            ) : searchResults.users.length === 0 && searchResults.posts.length === 0 ? (
+            ) : searchResults.users.length === 0 && searchResults.posts.length === 0 && (!searchResults.groups || searchResults.groups.length === 0) ? (
               <div className="py-6 text-center text-xs text-gray-400 dark:text-[#b0b3b8]">{t('search.noResults')}</div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-[#393a3b]">
@@ -106,6 +106,48 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] truncate">{name}</p>
                             <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">@{u.username || 'user'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Groups results */}
+                {searchResults.groups && searchResults.groups.length > 0 && (
+                  <div className="p-2 space-y-1">
+                    <div className="px-2 text-[11px] font-bold text-[#1877f2] dark:text-[#2d88ff]">
+                      {language === 'en' ? 'Groups' : 'Nhóm'}
+                    </div>
+                    {searchResults.groups.map((g: any) => {
+                      const cover = typeof g.coverUrl === 'string' && g.coverUrl.trim() && !g.coverUrl.includes('images.unsplash.com/photo-1522071820081')
+                        ? g.coverUrl.trim()
+                        : (typeof g.coverPhoto === 'string' && g.coverPhoto.trim() && !g.coverPhoto.includes('images.unsplash.com/photo-1522071820081') ? g.coverPhoto.trim() : undefined);
+                      return (
+                        <div
+                          key={g.id}
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            navigate(`/groups/${g.id}`);
+                          }}
+                          className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition"
+                        >
+                          <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center shrink-0 border border-gray-200/80 dark:border-[#393a3b]">
+                            {cover ? (
+                              <img
+                                src={cover}
+                                alt={g.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] truncate">{g.name}</p>
+                            <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">
+                              {g.privacy === 'PRIVATE' ? (language === 'en' ? 'Private group' : 'Nhóm riêng tư') : (language === 'en' ? 'Public group' : 'Nhóm công khai')} • {g.memberCount || 1} {language === 'en' ? 'members' : 'thành viên'}
+                            </p>
                           </div>
                         </div>
                       );

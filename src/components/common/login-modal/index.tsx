@@ -2,6 +2,7 @@ import React from 'react';
 import { useLoginForm } from './useLoginForm';
 import { LoginModalHeader } from './LoginModalHeader';
 import { LoginForm } from './LoginForm';
+import { ForgotPasswordForm } from '../../../pages/auth-components/ForgotPasswordForm';
 import { RegisterStep1Email } from './RegisterStep1Email';
 import { RegisterStep2Otp } from './RegisterStep2Otp';
 import { RegisterStep3Profile } from './RegisterStep3Profile';
@@ -12,6 +13,16 @@ export const LoginModal: React.FC = () => {
     closeLoginModal,
     t,
     isRegisterMode,
+    isForgotPasswordMode,
+    setIsForgotPasswordMode,
+    forgotStep,
+    setForgotStep,
+    resetOtp,
+    setResetOtp,
+    newPassword,
+    setNewPassword,
+    confirmNewPassword,
+    setConfirmNewPassword,
     showPassword,
     setShowPassword,
     email,
@@ -35,11 +46,12 @@ export const LoginModal: React.FC = () => {
     loading,
     error,
     successMsg,
+    handleSendForgotPasswordOtp,
+    handleResetPassword,
     handleSendRegisterOtp,
     handleVerifyRegisterOtp,
     handleCompleteRegistration,
     handleSubmitLogin,
-    handleQuickLogin,
     toggleRegisterMode,
   } = useLoginForm();
 
@@ -73,7 +85,29 @@ export const LoginModal: React.FC = () => {
           </div>
         )}
 
-        {!isRegisterMode ? (
+        {isForgotPasswordMode ? (
+          <ForgotPasswordForm
+            forgotStep={forgotStep}
+            setForgotStep={setForgotStep}
+            email={email}
+            setEmail={setEmail}
+            resetOtp={resetOtp}
+            setResetOtp={setResetOtp}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            confirmNewPassword={confirmNewPassword}
+            setConfirmNewPassword={setConfirmNewPassword}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            loading={loading}
+            onSendOtp={handleSendForgotPasswordOtp}
+            onResetPassword={handleResetPassword}
+            onBackToLogin={() => {
+              setIsForgotPasswordMode(false);
+              setForgotStep(1);
+            }}
+          />
+        ) : !isRegisterMode ? (
           <LoginForm
             email={email}
             setEmail={setEmail}
@@ -83,7 +117,10 @@ export const LoginModal: React.FC = () => {
             setShowPassword={setShowPassword}
             loading={loading}
             onSubmit={handleSubmitLogin}
-            onQuickLogin={handleQuickLogin}
+            onForgotPassword={() => {
+              setIsForgotPasswordMode(true);
+              setForgotStep(1);
+            }}
           />
         ) : registerStep === 1 ? (
           <RegisterStep1Email
@@ -123,17 +160,19 @@ export const LoginModal: React.FC = () => {
           />
         )}
 
-        <div className="mt-5 border-t border-gray-200 dark:border-[#393a3b] pt-4 text-center">
-          <button
-            type="button"
-            onClick={toggleRegisterMode}
-            className="text-xs text-[#1877f2] dark:text-[#4599ff] font-bold hover:underline cursor-pointer"
-          >
-            {isRegisterMode
-              ? (t('alreadyHaveAccount') || 'Đã có tài khoản? Đăng nhập ngay')
-              : (t('dontHaveAccount') || 'Chưa có tài khoản? Đăng ký ngay')}
-          </button>
-        </div>
+        {!isForgotPasswordMode && (
+          <div className="mt-5 border-t border-gray-200 dark:border-[#393a3b] pt-4 text-center">
+            <button
+              type="button"
+              onClick={toggleRegisterMode}
+              className="text-xs text-[#1877f2] dark:text-[#4599ff] font-bold hover:underline cursor-pointer"
+            >
+              {isRegisterMode
+                ? (t('alreadyHaveAccount') || 'Đã có tài khoản? Đăng nhập ngay')
+                : (t('dontHaveAccount') || 'Chưa có tài khoản? Đăng ký ngay')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

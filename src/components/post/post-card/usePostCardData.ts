@@ -3,12 +3,14 @@ import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { Comment, Post } from '../../../types';
-import { postService, fetchAuthorProfile } from '../../../services/api';
+import { postService, fetchAuthorProfile, fetchGroupMeta, groupMetaCache } from '../../../services/api';
 
 interface UsePostCardDataProps {
   post: Post;
   onDeletePost?: (postId: string) => void;
 }
+
+const userReactionsMemoryCache: Record<string, Record<string, { liked: boolean; reaction: string }>> = {};
 
 export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
@@ -30,6 +32,40 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isDeleted, setIsDeleted] = useState<boolean>(false);
+  const [isHidden, setIsHidden] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+
+  const [groupInfo, setGroupInfo] = useState<{ id: string; name: string; coverUrl?: string; privacy?: string } | null>(() => {
+    if (post.groupId) {
+      return {
+        id: post.groupId,
+        name: post.groupName || groupMetaCache[post.groupId]?.name || '',
+        coverUrl: post.groupAvatar || post.groupCover || groupMetaCache[post.groupId]?.coverUrl,
+        privacy: post.groupPrivacy || groupMetaCache[post.groupId]?.privacy,
+      };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (post.groupId) {
+      if (post.groupName && (post.groupAvatar || post.groupCover)) {
+        setGroupInfo({
+          id: post.groupId,
+          name: post.groupName,
+          coverUrl: post.groupAvatar || post.groupCover,
+          privacy: post.groupPrivacy,
+        });
+      } else {
+        fetchGroupMeta(post.groupId).then((meta) => {
+          if (meta) setGroupInfo(meta);
+        });
+      }
+    } else {
+      setGroupInfo(null);
+    }
+  }, [post.groupId, post.groupName, post.groupAvatar, post.groupCover, post.groupPrivacy]);
 
   const [currentPost, setCurrentPost] = useState<Post>(post);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -75,7 +111,9 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   }, [post.sharesCount]);
 
   useEffect(() => {
-    if (user && (post.userId === user.id || post.userId === 'me')) {
+    const currentUid = String(user?.id || (user as any)?.userId || '').toLowerCase().trim();
+    const postUid = String(post.userId || (post as any)?.authorId || '').toLowerCase().trim();
+    if (user && currentUid && postUid && currentUid !== 'me' && postUid !== 'me' && currentUid === postUid) {
       setAuthorName(user.fullName || user.username);
       if (user.avatar) setAuthorAvatar(user.avatar);
       return;
@@ -98,26 +136,22 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   }, [post.userId, post.authorName, post.authorAvatar, user]);
 
   const getStoredReaction = (postId: string, userId?: string) => {
-    try {
-      const key = `user_reactions_${userId || 'guest'}`;
-      const stored = JSON.parse(localStorage.getItem(key) || '{}');
-      return stored[postId] || null;
-    } catch {
-      return null;
-    }
+    const userKey = userId || 'guest';
+    return userReactionsMemoryCache[userKey]?.[postId] || null;
   };
 
   const setStoredReaction = (postId: string, isLiked: boolean, emoji: string, userId?: string) => {
-    try {
-      const key = `user_reactions_${userId || 'guest'}`;
-      const stored = JSON.parse(localStorage.getItem(key) || '{}');
-      if (isLiked) {
-        stored[postId] = { liked: true, reaction: emoji };
-      } else {
-        delete stored[postId];
-      }
-      localStorage.setItem(key, JSON.stringify(stored));
-    } catch {}
+    const userKey = userId || 'guest';
+    if (!userReactionsMemoryCache[userKey]) {
+      userReactionsMemoryCache[userKey] = {};
+    }
+    if (isLiked) {
+      userReactionsMemoryCache[userKey][postId] = { liked: true, reaction: emoji };
+    } else {
+      delete userReactionsMemoryCache[userKey][postId];
+    }
+    // Clean up legacy localStorage item if exists
+    try { localStorage.removeItem(`user_reactions_${userKey}`); } catch {}
   };
 
   const reactionTypeToEmoji: Record<string, string> = {
@@ -148,7 +182,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       setLiked(true);
     }
 
-    if (isAuthenticated && post.id) {
+    if (isAuthenticated && post.id && !post.isOptimistic && !post.id.startsWith('temp-')) {
       postService
         .getReactions(post.id)
         .then((reactions) => {
@@ -179,11 +213,26 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   }, [post.id, user?.id, isAuthenticated, post.isLiked]);
 
   useEffect(() => {
-    if (!isAuthenticated || !post.id) return;
-    postService.isPostSaved(post.id).then(setSaved).catch(() => {});
-  }, [post.id, isAuthenticated]);
+    if (post.isSaved !== undefined) {
+      setSaved(Boolean(post.isSaved));
+    }
+  }, [post.isSaved]);
 
   useEffect(() => {
+    if (!isAuthenticated || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
+    postService.isPostSaved(post.id).then(setSaved).catch(() => {});
+
+    const handleSavedChanged = (e: any) => {
+      if (e?.detail && String(e.detail.postId) === String(post.id)) {
+        setSaved(Boolean(e.detail.isSaved));
+      }
+    };
+    window.addEventListener('saved_posts_changed', handleSavedChanged);
+    return () => window.removeEventListener('saved_posts_changed', handleSavedChanged);
+  }, [post.id, isAuthenticated, post.isOptimistic]);
+
+  useEffect(() => {
+    if (!post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
     let isMounted = true;
     setLoadingComments(true);
     postService
@@ -219,6 +268,10 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       openLoginModal();
       return;
     }
+    if (post.isOptimistic || post.id.startsWith('temp-')) {
+      toast.showInfo('Bài viết đang được tải lên, vui lòng chờ trong giây lát...');
+      return;
+    }
     const nextLiked = !liked;
     setLiked(nextLiked);
     setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
@@ -243,6 +296,10 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const handleSelectReaction = async (reactEmoji: string) => {
     if (!isAuthenticated) {
       openLoginModal();
+      return;
+    }
+    if (post.isOptimistic || post.id.startsWith('temp-')) {
+      toast.showInfo('Bài viết đang được tải lên, vui lòng chờ trong giây lát...');
       return;
     }
     const prevReaction = reaction;
@@ -271,6 +328,10 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       return;
     }
     if (!text.trim()) return;
+    if (post.isOptimistic || post.id.startsWith('temp-')) {
+      toast.showInfo('Bài viết đang được tải lên, vui lòng chờ trong giây lát...');
+      return;
+    }
 
     try {
       const added = await postService.addComment(post.id, text.trim(), undefined, parentCommentId);
@@ -312,18 +373,33 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     setCommentsCount((prev) => Math.max(0, prev - 1));
   };
 
-  const handleDeletePost = async () => {
-    if (
-      !window.confirm(
-        language === 'en'
-          ? 'Are you sure you want to delete this post?'
-          : 'Bạn có chắc chắn muốn xóa bài viết này không?'
-      )
-    )
+  const handleHidePost = () => {
+    try {
+      const hidden = JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]');
+      if (!hidden.includes(String(post.id))) {
+        localStorage.setItem('kltn_hidden_post_ids', JSON.stringify([...hidden, String(post.id)]));
+      }
+    } catch {}
+    setIsHidden(true);
+    if (onDeletePost) onDeletePost(post.id);
+    toast.showSuccess(language === 'en' ? 'Post hidden from feed' : 'Đã ẩn bài viết khỏi bảng tin');
+  };
+
+  const handleDeletePost = () => {
+    if (post.isOptimistic || post.id.startsWith('temp-')) {
+      toast.showInfo('Bài viết đang được tải lên, vui lòng chờ trong giây lát...');
       return;
+    }
+    setShowOptionsMenu(false);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePost = async () => {
     setIsDeleting(true);
     try {
       await postService.deletePost(post.id);
+      setIsDeleted(true);
+      setShowDeleteModal(false);
       if (onDeletePost) onDeletePost(post.id);
       toast.showSuccess(
         language === 'en' ? 'Post deleted successfully!' : 'Đã xóa bài viết thành công!'
@@ -456,7 +532,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       : ['👍'];
 
   const rootComments = comments.filter((c) => !c.parentCommentId);
-  const displayedComments = rootComments.slice(-3);
+  const displayedComments = rootComments.slice(0, 3);
   const totalComments = Math.max(comments.length, commentsCount);
 
   return {
@@ -500,11 +576,17 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     setShowCommentModal,
     copied,
     isDeleting,
+    isDeleted,
+    isHidden,
+    showDeleteModal,
+    setShowDeleteModal,
+    confirmDeletePost,
     authorName,
     authorAvatar,
     reactionsList,
     topReactionIcons,
     displayedComments,
+    rootComments,
     totalComments,
     getReactionLabel,
     handleLike,
@@ -513,9 +595,11 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     updateComment,
     deleteComment,
     handleInlineCommentSubmit,
+    handleHidePost,
     handleDeletePost,
     handleSharePost,
     showReactionsMenu,
     setShowReactionsMenu,
+    groupInfo,
   };
 };

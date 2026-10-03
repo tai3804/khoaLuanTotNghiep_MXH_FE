@@ -1,6 +1,7 @@
 import { api } from './axiosClient';
 import { Post, Comment } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
+import { groupMetaCache, fetchGroupMeta } from './groupService';
 
 export const normalizePost = (p: any): Post => {
   const rawMediaUrls: string[] = [];
@@ -50,16 +51,26 @@ export const normalizePost = (p: any): Post => {
     }
   }
 
-  const authorId = p.authorId ? String(p.authorId) : p.userId || 'me';
-  const cached = authorProfileCache[authorId];
+  const rawAuthorId =
+    p.authorId ||
+    p.userId ||
+    p.postDetail?.authorId ||
+    p.author?.id ||
+    p.author?.userId ||
+    p.creatorId ||
+    p.createdBy ||
+    p.user?.id ||
+    '';
+  const authorId = rawAuthorId ? String(rawAuthorId) : '';
+  const cached = authorId ? authorProfileCache[authorId] : undefined;
 
   let currentUserName = '';
   let currentUserAvatar = '';
   try {
     const uStr = localStorage.getItem('user');
-    if (uStr) {
+    if (uStr && authorId && authorId !== 'me') {
       const u = JSON.parse(uStr);
-      if (u.id === authorId) {
+      if (u.id === authorId || u.userId === authorId) {
         currentUserName = u.fullName || u.username;
         currentUserAvatar = u.avatar || '';
       }
@@ -79,6 +90,13 @@ export const normalizePost = (p: any): Post => {
     p.author?.avatarUrl ||
     '/default-avatar.png';
 
+  const groupId = p.groupId ? String(p.groupId) : undefined;
+  const cachedGroup = groupId ? groupMetaCache[groupId] : undefined;
+  const groupName = p.groupName || cachedGroup?.name || undefined;
+  const groupAvatar = p.groupAvatar || cachedGroup?.coverUrl || undefined;
+  const groupCover = p.groupCover || cachedGroup?.coverUrl || undefined;
+  const groupPrivacy = p.groupPrivacy || cachedGroup?.privacy || undefined;
+
   return {
     id: p.id ? String(p.id) : 'post-' + Date.now(),
     userId: authorId,
@@ -95,7 +113,11 @@ export const normalizePost = (p: any): Post => {
     isPinned: Boolean(p.isPinned),
     isArchived: Boolean(p.isArchived),
     privacy: p.privacy || 'PUBLIC',
-    groupId: p.groupId ? String(p.groupId) : undefined,
+    groupId,
+    groupName,
+    groupAvatar,
+    groupCover,
+    groupPrivacy,
     originalPostId: p.originalPostId ? String(p.originalPostId) : undefined,
     comments: p.comments || [],
   };
@@ -159,6 +181,13 @@ export const postService = {
         ) as string[];
         if (authorIds.length > 0) {
           Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+        }
+
+        const groupIds = Array.from(
+          new Set(rawPosts.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))
+        ) as string[];
+        if (groupIds.length > 0) {
+          Promise.all(groupIds.map((gid) => fetchGroupMeta(gid))).catch(() => {});
         }
       }
 
@@ -291,16 +320,11 @@ export const postService = {
     mediaUrls?: string[],
     groupId?: string
   ): Promise<Post> => {
-    const isUuid = (val?: string) =>
-      typeof val === 'string' &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
     
-    // Chỉ gửi groupId lên backend nếu đó là UUID hợp lệ
-    if (groupId && isUuid(groupId)) {
+    if (groupId) {
       formData.append('groupId', groupId);
     }
 
@@ -313,45 +337,13 @@ export const postService = {
       });
     }
 
-    try {
-      const res = await api.post('/posts', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      const data = res.data?.data || res.data;
-      const normalized = normalizePost(data);
-      if (groupId) {
-        normalized.groupId = groupId;
-        try {
-          const key = `kltn_group_posts_${groupId}`;
-          const current = JSON.parse(localStorage.getItem(key) || '[]');
-          localStorage.setItem(key, JSON.stringify([normalized, ...current.filter((p: any) => p.id !== normalized.id)].slice(0, 50)));
-        } catch {}
-      }
-      return normalized;
-    } catch (err: any) {
-      // Nếu gửi kèm groupId mà bị 400 hoặc 403 do nhóm client-side chưa tồn tại ở backend,
-      // tự động thử lại tạo bài viết không kèm groupId lên backend
-      if (groupId && (err?.response?.status === 400 || err?.response?.status === 403 || err?.response?.status === 500)) {
-        formData.delete('groupId');
-        const retryRes = await api.post('/posts', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        const retryData = retryRes.data?.data || retryRes.data;
-        const normalized = normalizePost(retryData);
-        normalized.groupId = groupId;
-        try {
-          const key = `kltn_group_posts_${groupId}`;
-          const current = JSON.parse(localStorage.getItem(key) || '[]');
-          localStorage.setItem(key, JSON.stringify([normalized, ...current.filter((p: any) => p.id !== normalized.id)].slice(0, 50)));
-        } catch {}
-        return normalized;
-      }
-      throw err;
-    }
+    const res = await api.post('/posts', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    const data = res.data?.data || res.data;
+    return normalizePost(data);
   },
 
   getUserPosts: async (userId: string, page = 0, size = 100): Promise<Post[]> => {
@@ -419,35 +411,24 @@ export const postService = {
   },
 
   getGroupPosts: async (groupId: string, page = 1, size = 30): Promise<Post[]> => {
-    const isUuid = (val?: string) =>
-      typeof val === 'string' &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-
-    let backendPosts: Post[] = [];
-    if (isUuid(groupId)) {
-      try {
-        const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
-        const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
-        if (Array.isArray(raw)) {
-          backendPosts = raw.map(normalizePost);
-        }
-      } catch {}
-    }
-
-    let clientPosts: Post[] = [];
+    if (!groupId) return [];
     try {
-      const key = `kltn_group_posts_${groupId}`;
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          clientPosts = parsed.map(normalizePost);
+      const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
+      const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data?.data : []) || res.data?.result || [];
+      if (Array.isArray(raw) && raw.length > 0) {
+        const authorIds = Array.from(
+          new Set(raw.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
+        ) as string[];
+        if (authorIds.length > 0) {
+          Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
         }
+        return raw.map(normalizePost);
       }
-    } catch {}
-
-    const seenIds = new Set(backendPosts.map((p) => p.id));
-    return [...clientPosts.filter((p) => !seenIds.has(p.id)), ...backendPosts];
+      return [];
+    } catch (e) {
+      console.warn('Failed to fetch group posts from backend:', e);
+      return [];
+    }
   },
 
   updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {
@@ -463,29 +444,109 @@ export const postService = {
   },
 
   savePost: async (postId: string, collectionName?: string) => {
-    const res = await api.post('/posts/saved', { postId, collectionName });
-    return res.data;
+    try {
+      const res = await api.post('/posts/saved', { postId, collectionName });
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        if (!saved.includes(String(postId))) {
+          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
+        }
+      } catch {}
+      window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: true } }));
+      return res.data;
+    } catch (err) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        if (!saved.includes(String(postId))) {
+          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
+        }
+      } catch {}
+      window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: true } }));
+      return { success: true };
+    }
   },
 
   unsavePost: async (postId: string) => {
-    const res = await api.delete(`/posts/saved/${postId}`);
-    return res.data;
+    try {
+      const res = await api.delete(`/posts/saved/${postId}`);
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: false } }));
+      return res.data;
+    } catch (err) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: false } }));
+      return { success: true };
+    }
   },
 
   isPostSaved: async (postId: string): Promise<boolean> => {
-    const res = await api.get(`/posts/saved/${postId}/status`);
-    return Boolean(res.data?.data ?? res.data?.result ?? res.data);
+    try {
+      const res = await api.get(`/posts/saved/${postId}/status`);
+      const status = Boolean(res.data?.data ?? res.data?.result ?? res.data);
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        if (status && !saved.includes(String(postId))) {
+          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
+        } else if (!status && saved.includes(String(postId))) {
+          localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
+        }
+      } catch {}
+      return status;
+    } catch {
+      try {
+        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        return saved.includes(String(postId));
+      } catch {
+        return false;
+      }
+    }
   },
 
-  getSavedPosts: async (page = 0, size = 20): Promise<Post[]> => {
+  getSavedPosts: async (page = 1, size = 20): Promise<Post[]> => {
     try {
-      const res = await api.get('/posts/saved', { params: { page, size } });
-      const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      if (Array.isArray(raw)) {
-        return raw.map(normalizePost);
+      const res = await api.get('/posts/saved', { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
+      const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data?.data : []) || res.data?.result || [];
+      if (Array.isArray(raw) && raw.length > 0) {
+        const authorIds = Array.from(
+          new Set(raw.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
+        ) as string[];
+        if (authorIds.length > 0) {
+          await Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+        }
+        return raw.map((p: any) => {
+          const norm = normalizePost(p);
+          norm.isSaved = true;
+          return norm;
+        });
       }
       return [];
-    } catch {
+    } catch (e) {
+      console.warn('Failed to fetch saved posts from server, checking local cache:', e);
+      try {
+        const savedIds: string[] = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
+        if (savedIds.length > 0) {
+          const slice = savedIds.slice((page - 1) * size, page * size);
+          const posts = (
+            await Promise.all(
+              slice.map(async (id) => {
+                try {
+                  const p = await postService.getPostById(id);
+                  return p ? ({ ...p, isSaved: true } as Post) : null;
+                } catch {
+                  return null;
+                }
+              })
+            )
+          ).filter((p): p is Post => p !== null);
+          return posts;
+        }
+      } catch {}
       return [];
     }
   },
@@ -502,7 +563,7 @@ export const postService = {
 
   getComments: async (postId: string): Promise<Comment[]> => {
     try {
-      const res = await api.get(`/posts/${postId}/comments`);
+      const res = await api.get(`/posts/${postId}/comments`, { params: { size: 100 } });
       const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
       if (Array.isArray(data)) {
         const authorIds = Array.from(new Set(data.map((c: any) => (c.authorId ? String(c.authorId) : null)).filter(Boolean))) as string[];
@@ -521,7 +582,7 @@ export const postService = {
           let authorAvatar = c.authorAvatar || c.author?.avatarUrl || '';
 
           if (!authorName || authorName === 'Người dùng' || authorName === 'Thành viên' || authorName === 'Thành viên KLTN') {
-            if (currentUser && (currentUser.id === authorId || authorId === 'me')) {
+            if (currentUser && currentUser.id && authorId && authorId !== 'me' && currentUser.id === authorId) {
               authorName = currentUser.fullName || currentUser.username;
               if (!authorAvatar) authorAvatar = currentUser.avatar;
             } else if (cached?.name) {
@@ -550,7 +611,7 @@ export const postService = {
         const replyPromises = topLevelComments.map(async (parent) => {
           try {
             const repliesRes = await api.get(`/posts/${postId}/comments`, {
-              params: { parentCommentId: parent.id },
+              params: { parentCommentId: parent.id, size: 100 },
             });
             const repliesData = repliesRes.data?.data?.content || repliesRes.data?.data || repliesRes.data?.result || [];
             if (Array.isArray(repliesData) && repliesData.length > 0) {
@@ -564,7 +625,7 @@ export const postService = {
                 let rAvatar = rc.authorAvatar || rc.author?.avatarUrl || '';
 
                 if (!rName || rName === 'Người dùng' || rName === 'Thành viên' || rName === 'Thành viên KLTN') {
-                  if (currentUser && (currentUser.id === rAuthorId || rAuthorId === 'me')) {
+                  if (currentUser && currentUser.id && rAuthorId && rAuthorId !== 'me' && currentUser.id === rAuthorId) {
                     rName = currentUser.fullName || currentUser.username;
                     if (!rAvatar) rAvatar = currentUser.avatar;
                   } else if (rCached?.name) {
@@ -628,8 +689,8 @@ export const postService = {
       },
     });
     const c = res.data?.data || res.data;
-    const authorId = String(c.authorId || c.userId || currentUser?.id || 'me');
-    const cached = authorProfileCache[authorId];
+    const authorId = String(c.authorId || c.userId || currentUser?.id || '');
+    const cached = authorId ? authorProfileCache[authorId] : undefined;
 
     return {
       id: String(c.id),

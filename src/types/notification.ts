@@ -12,7 +12,12 @@ export type NotificationType =
   | 'CALL_INCOMING'
   | 'CALL_REJECTED'
   | 'CALL_MISSED'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  | 'GROUP_INVITE'
+  | 'GROUP_JOIN_REQUEST'
+  | 'GROUP_JOIN_ACCEPT'
+  | 'GROUP_ROLE_CHANGE'
+  | 'GROUP_POST';
 
 export interface NotificationItem {
   id: string;

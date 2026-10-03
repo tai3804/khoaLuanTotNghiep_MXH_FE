@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthTokens, AuthContextType, RegisterData } from '../types';
 import { authService, userService } from '../services/api';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store/store';
+import { RootState, store } from '../store/store';
 import { setAccessToken, clearAuth } from '../store/slices/authSlice';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,18 +30,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const storedUser = localStorage.getItem('user');
-      // We don't check storedToken anymore, if user exists we assume they might still have a valid cookie
       if (storedUser && !localStorage.getItem('isGuest')) {
-        const parsed = JSON.parse(storedUser);
-        const token = localStorage.getItem('token');
-        if (token && (!parsed.roles || parsed.roles.length === 0)) {
-          parsed.roles = rolesFromToken(token);
-        }
-        return parsed;
+        return JSON.parse(storedUser);
       }
     } catch {}
     return null;
   });
+
+  const [initializing, setInitializing] = useState<boolean>(true);
 
   const tokens = accessToken ? { accessToken, refreshToken: '' } : null;
 
@@ -57,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile) {
         const fullName = `${profile.lastName || ''} ${profile.firstName || ''}`.trim() || profile.fullName;
         setUser((prev) => {
-          const currentToken = localStorage.getItem('token') || '';
+          const currentToken = store.getState().auth.accessToken || '';
           const currentRoles = (prev?.roles && prev.roles.length > 0)
             ? prev.roles
             : rolesFromToken(currentToken);
@@ -90,21 +86,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const isGuestUser = localStorage.getItem('isGuest') === 'true';
+    const initAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const isGuestUser = localStorage.getItem('isGuest') === 'true';
 
-    // If we have a user and not a guest, we try to refresh profile.
-    // This will trigger a 401 if accessToken is empty, which in turn triggers axiosClient's refresh interceptor.
-    if (storedUser && !isGuestUser) {
-      refreshUserProfile();
-    } else {
-      setIsGuest(true);
-    }
+      if (storedUser && !isGuestUser) {
+        try {
+          const token = await authService.refreshToken();
+          if (token) {
+            dispatch(setAccessToken(token));
+            await refreshUserProfile();
+          } else {
+            // No valid session cookie
+            localStorage.removeItem('user');
+            setUser(null);
+            dispatch(clearAuth());
+            setIsGuest(true);
+          }
+        } catch {
+          localStorage.removeItem('user');
+          setUser(null);
+          dispatch(clearAuth());
+          setIsGuest(true);
+        }
+      } else {
+        setIsGuest(true);
+      }
+      setInitializing(false);
+    };
+
+    initAuth();
 
     const handleExpired = () => {
       setUser(null);
       dispatch(clearAuth());
-      localStorage.removeItem('token');
       setIsGuest(true);
       setLoginModalOpen(false);
       window.dispatchEvent(new Event('navigate_to_auth'));
@@ -131,7 +146,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentDev && currentDev.status === 'REVOKED') {
             console.warn('[AuthContext] Session has been revoked remotely.');
             localStorage.removeItem('user');
-            localStorage.removeItem('token');
             dispatch(clearAuth());
             setUser(null);
             setIsGuest(true);
@@ -142,7 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem('user');
-          localStorage.removeItem('token');
           dispatch(clearAuth());
           setUser(null);
           setIsGuest(true);
@@ -216,7 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', accToken);
         localStorage.removeItem('isGuest');
         setUser(userData);
         dispatch(setAccessToken(accToken));
@@ -259,7 +271,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', accToken);
         localStorage.removeItem('isGuest');
         setUser(userData);
         dispatch(setAccessToken(accToken));
@@ -291,7 +302,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginAsGuest = () => {
     localStorage.setItem('isGuest', 'true');
-    localStorage.removeItem('token');
     setIsGuest(true);
     setUser(null);
     dispatch(clearAuth());
@@ -301,7 +311,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout().catch(() => null);
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
     localStorage.setItem('isGuest', 'true');
     setUser(null);
     dispatch(clearAuth());
@@ -316,12 +325,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const closeLoginModal = () => setLoginModalOpen(false);
 
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#18191a]">
+        <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider
       value={{
         user,
         tokens,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(user && !isGuest && accessToken),
         isGuest,
         loginModalOpen,
         login,

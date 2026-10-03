@@ -13,9 +13,10 @@ export interface ChatBoxProps {
   friend: ChatUser;
   onClose: () => void;
   onNavigateProfile?: (userId?: string) => void;
+  offsetRight?: number;
 }
 
-export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
+export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }) => {
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [currentFriend, setCurrentFriend] = useState<ChatUser>(friend);
 
@@ -56,13 +57,19 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose }) => {
         friend={effectiveFriend}
         onRestore={() => setIsMinimized(false)}
         onClose={onClose}
+        offsetRight={offsetRight}
       />
     );
   }
 
+  const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
+
   return (
     <>
-      <div className="fixed bottom-0 right-4 md:right-16 z-50 w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200">
+      <div
+        style={customStyle}
+        className={`fixed bottom-0 ${offsetRight === undefined ? 'right-4 md:right-16' : ''} z-50 w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200`}
+      >
         <ChatBoxHeader
           friend={effectiveFriend}
           memberCount={groupDetail?.members?.length}

@@ -12,6 +12,7 @@ import { PostCardStatsBar } from './PostCardStatsBar';
 import { PostCardActionsBar } from './PostCardActionsBar';
 import { PostCardCommentsPreview } from './PostCardCommentsPreview';
 import { UserAvatar } from '../../common/UserAvatar';
+import { ConfirmModal } from '../../common/ConfirmModal';
 import { Globe } from 'lucide-react';
 import { postService } from '../../../services/api';
 
@@ -75,7 +76,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     if (onPostUpdated) onPostUpdated(updated);
   };
 
-  if (data.isDeleting) return null;
+  if (data.isDeleted || data.isHidden) return null;
 
   const currentPost = data.currentPost || post;
 
@@ -85,6 +86,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         post={currentPost}
         authorName={data.authorName}
         authorAvatar={data.authorAvatar}
+        groupInfo={data.groupInfo}
         user={data.user}
         saved={data.saved}
         setSaved={data.setSaved}
@@ -93,7 +95,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         setShowOptionsMenu={data.setShowOptionsMenu}
         language={data.language}
         onViewProfile={onViewProfile}
-        onDeletePost={data.handleDeletePost}
+        onHidePost={data.handleHidePost}
         handleSharePost={handleOpenShareModal}
         handleDeletePost={data.handleDeletePost}
         onEditPost={() => data.setShowEditModal(true)}
@@ -202,6 +204,8 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       <PostCardCommentsPreview
         displayedComments={data.displayedComments}
+        allComments={data.comments}
+        rootCommentsCount={data.rootComments?.length}
         totalComments={data.totalComments}
         user={data.user}
         isAuthenticated={data.isAuthenticated}
@@ -271,6 +275,23 @@ export const PostCard: React.FC<PostCardProps> = ({
         post={currentPost}
         onClose={() => data.setShowDateModal(false)}
         onUpdated={handlePostUpdateSuccess}
+      />
+
+      {/* Delete Post Confirm Modal */}
+      <ConfirmModal
+        isOpen={data.showDeleteModal}
+        title={data.language === 'en' ? 'Delete Post' : 'Xóa bài viết'}
+        message={
+          data.language === 'en'
+            ? 'Are you sure you want to delete this post? This action cannot be undone.'
+            : 'Bạn có chắc chắn muốn xóa bài viết này không? Bài viết sẽ bị xóa và không thể khôi phục.'
+        }
+        confirmText={data.language === 'en' ? 'Delete' : 'Xóa bài viết'}
+        cancelText={data.language === 'en' ? 'Cancel' : 'Hủy bỏ'}
+        type="danger"
+        loading={data.isDeleting}
+        onConfirm={data.confirmDeletePost}
+        onClose={() => data.setShowDeleteModal(false)}
       />
     </div>
   );

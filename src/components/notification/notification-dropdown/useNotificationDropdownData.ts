@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NotificationItem } from '../../../types/notification';
 import { useNotification } from '../../../context/NotificationContext';
 import { useLanguage } from '../../../context/LanguageContext';
-import { fetchAuthorProfile, authorProfileCache, userService } from '../../../services/userService';
+import { fetchAuthorProfile, authorProfileCache, userService, myFriendIdsMemoryCache } from '../../../services/userService';
 
 interface UseNotificationDropdownDataProps {
   onClose: () => void;
@@ -152,14 +152,9 @@ export const useNotificationDropdownData = ({
         saveFriendStatus(next);
         return next;
       });
-      try {
-        const raw = localStorage.getItem('my_friend_ids');
-        const list: string[] = raw ? JSON.parse(raw) : [];
-        if (!list.includes(item.actorId)) {
-          list.push(item.actorId);
-          localStorage.setItem('my_friend_ids', JSON.stringify(list));
-        }
-      } catch {}
+      if (item.actorId) {
+        myFriendIdsMemoryCache.add(item.actorId.toLowerCase());
+      }
       if (!item.isRead) markAsRead(item.id);
     } catch (err) {
       console.error('Failed to accept friend request:', err);

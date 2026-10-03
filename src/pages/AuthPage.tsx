@@ -5,6 +5,7 @@ import { Sun, Moon, Globe } from 'lucide-react';
 import { AuthHero } from './auth-components/AuthHero';
 import { useAuthPageData } from './auth-components/useAuthPageData';
 import { MfaVerificationForm } from './auth-components/MfaVerificationForm';
+import { ForgotPasswordForm } from './auth-components/ForgotPasswordForm';
 import { LoginForm } from '../components/common/login-modal/LoginForm';
 import { RegisterStep1Email } from '../components/common/login-modal/RegisterStep1Email';
 import { RegisterStep2Otp } from '../components/common/login-modal/RegisterStep2Otp';
@@ -16,7 +17,7 @@ interface AuthPageProps {
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
   const { theme, toggleTheme } = useTheme();
-  
+
   const data = useAuthPageData(onGoHome);
 
   return (
@@ -31,7 +32,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-[1000px] bg-white/10 dark:bg-[#242526]/80 backdrop-blur-xl border border-white/20 dark:border-[#393a3b] rounded-[2rem] shadow-2xl p-4 sm:p-6 lg:p-8 flex flex-col">
-        
+
         {/* Header (Logo + Controls) */}
         <div className="flex items-center justify-between mb-6 lg:mb-10 relative z-20">
           <Logo />
@@ -88,11 +89,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                   data.setPassword('');
                 }}
               />
+            ) : data.isForgotPasswordMode ? (
+              <ForgotPasswordForm
+                forgotStep={data.forgotStep}
+                setForgotStep={data.setForgotStep}
+                email={data.email}
+                setEmail={data.setEmail}
+                resetOtp={data.resetOtp}
+                setResetOtp={data.setResetOtp}
+                newPassword={data.newPassword}
+                setNewPassword={data.setNewPassword}
+                confirmNewPassword={data.confirmNewPassword}
+                setConfirmNewPassword={data.setConfirmNewPassword}
+                showPassword={data.showPassword}
+                setShowPassword={data.setShowPassword}
+                loading={data.loading}
+                onSendOtp={data.handleSendForgotPasswordOtp}
+                onResetPassword={data.handleResetPassword}
+                onBackToLogin={() => {
+                  data.setIsForgotPasswordMode(false);
+                  data.setIsLoginMode(true);
+                  data.setErrorMessage(null);
+                  data.setSuccessMessage(null);
+                  data.setForgotStep(1);
+                }}
+              />
             ) : data.isLoginMode ? (
               <>
                 <div className="mb-6">
                   <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                    Chào mừng trở lại! 👋
+                    Chào mừng trở lại!
                   </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
                     Đăng nhập để tiếp tục kết nối với cộng đồng.
@@ -107,9 +133,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                   setShowPassword={data.setShowPassword}
                   loading={data.loading}
                   onSubmit={data.handleSubmitLogin}
-                  onQuickLogin={data.handleQuickLogin}
+                  onForgotPassword={() => {
+                    data.setIsForgotPasswordMode(true);
+                    data.setErrorMessage(null);
+                    data.setSuccessMessage(null);
+                    data.setForgotStep(1);
+                  }}
                 />
-
 
                 <div className="mt-5 pt-5 border-t border-gray-100 dark:border-[#393a3b] text-center">
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Chưa có tài khoản?</p>
@@ -117,10 +147,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                     type="button"
                     onClick={() => {
                       data.setIsLoginMode(false);
+                      data.setIsForgotPasswordMode(false);
                       data.setErrorMessage(null);
                       data.setSuccessMessage(null);
                     }}
-                    className="w-full bg-[#42b72a] hover:bg-[#36a420] text-white font-bold text-xs py-3 rounded-lg shadow-sm transition"
+                    className="w-full bg-[#42b72a] hover:bg-[#36a420] text-white font-bold text-xs py-3 rounded-xl shadow-sm transition cursor-pointer"
                   >
                     Tạo Tài Khoản Mới
                   </button>

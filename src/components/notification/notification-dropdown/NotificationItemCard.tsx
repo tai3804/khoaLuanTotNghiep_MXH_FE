@@ -82,6 +82,15 @@ const getNotificationIcon = (type: NotificationType) => {
         icon: <PhoneMissed className="w-3 h-3 text-white" />,
         bg: 'bg-[#ef4444]',
       };
+    case 'GROUP_INVITE':
+    case 'GROUP_JOIN_REQUEST':
+    case 'GROUP_JOIN_ACCEPT':
+    case 'GROUP_ROLE_CHANGE':
+    case 'GROUP_POST':
+      return {
+        icon: <Users className="w-3 h-3 text-white" />,
+        bg: 'bg-[#1877f2]',
+      };
     case 'SYSTEM':
     default:
       return {

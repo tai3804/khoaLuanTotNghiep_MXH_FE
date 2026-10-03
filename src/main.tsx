@@ -13,6 +13,10 @@ import { LiveStreamProvider } from './context/LiveStreamContext';
 
 import { Provider } from 'react-redux';
 import { store } from './store/store';
+import { sanitizeLocalStorage } from './utils/storageSanitizer';
+
+// Clean up any obsolete/redundant localStorage keys on startup
+sanitizeLocalStorage();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

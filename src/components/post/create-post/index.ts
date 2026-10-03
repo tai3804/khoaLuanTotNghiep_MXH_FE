@@ -5,3 +5,4 @@ export * from './CreatePostPrivacySelector';
 export * from './CreatePostMediaPreview';
 export * from './LiveVideoModal';
 export * from './CreatePostForm';
+export * from './CreatePostAiAssistant';

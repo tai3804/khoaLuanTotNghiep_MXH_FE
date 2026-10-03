@@ -5,10 +5,7 @@ export interface AuthState {
 }
 
 const initialState: AuthState = {
-  // Redux is recreated after a browser refresh.  Keep the access token in
-  // localStorage as well so protected requests made during application
-  // bootstrap still carry Authorization.
-  accessToken: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  accessToken: null,
 };
 
 const authSlice = createSlice({

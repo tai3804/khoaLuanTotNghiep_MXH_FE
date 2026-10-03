@@ -7,4 +7,5 @@ export { storyService } from './storyService';
 export { websocketService } from './websocket';
 export { notificationService } from './notificationService';
 export { callService } from './callService';
-export { callWebSocketService } from './callWebSocket';
+export { callWebSocketService } from './callWebSocket';
+export { groupService, groupMetaCache, fetchGroupMeta } from './groupService';

@@ -2,6 +2,7 @@ import { api } from './axiosClient';
 import { store } from '../store/store';
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
+export const myFriendIdsMemoryCache = new Set<string>();
 
 export const fetchAuthorProfile = async (userId: string) => {
   if (!userId || userId === 'me') return null;
@@ -27,9 +28,7 @@ export const fetchAuthorProfile = async (userId: string) => {
     return authorProfileCache[userId];
   }
 
-  // AuthContext persists the token in localStorage; Redux is not guaranteed
-  // to be hydrated on pages that render the contacts sidebar first.
-  const token = store.getState().auth.accessToken || localStorage.getItem('token');
+  const token = store.getState().auth.accessToken;
   if (!token) return null;
   try {
     const profile = await userService.getUserProfile(userId);
@@ -49,6 +48,24 @@ export const fetchAuthorProfile = async (userId: string) => {
     // ignore
   }
   return null;
+};
+
+export const getStoredCurrentUserId = (): string => {
+  try {
+    const token = store.getState().auth.accessToken;
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const sub = payload.sub || payload.userId || payload.id;
+      if (sub) return String(sub).toLowerCase().trim();
+    }
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      const uid = u.id || u.userId || u.profileId;
+      if (uid) return String(uid).toLowerCase().trim();
+    }
+  } catch {}
+  return '';
 };
 
 export const userService = {
@@ -105,32 +122,35 @@ export const userService = {
       const res = await api.get('/users/connections/friends', { params: { page, size } });
       const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
       if (Array.isArray(data)) {
-        let currentUserId = '';
-        try {
-          const u = JSON.parse(localStorage.getItem('user') || '{}');
-          currentUserId = String(u.id || u.userId || u.profileId || '').toLowerCase();
-        } catch {}
+        const currentUserId = getStoredCurrentUserId();
+        const friendIdSet = new Set<string>();
 
-        const friendIds = Array.from(
-          new Set(
-            data
-              .map((c: any) => {
-                const responseUserId = c.userId ? String(c.userId) : '';
-                if (responseUserId && responseUserId.toLowerCase() !== currentUserId) return responseUserId;
-                const requesterId = c.requesterId ? String(c.requesterId) : '';
-                const targetId = c.targetId ? String(c.targetId) : '';
-                const fid = requesterId.toLowerCase() === currentUserId ? targetId
-                  : targetId.toLowerCase() === currentUserId ? requesterId
-                  : (targetId || requesterId);
-                return fid ? String(fid) : null;
-              })
-              .filter((id) => id && String(id).toLowerCase() !== currentUserId && id !== 'undefined' && id !== 'null')
-          )
-        ) as string[];
+        data.forEach((c: any) => {
+          const reqId = String(c.requesterId || '').toLowerCase().trim();
+          const tgtId = String(c.targetId || '').toLowerCase().trim();
+          const uId = String(c.userId || '').toLowerCase().trim();
 
-        try {
-          localStorage.setItem('my_friend_ids', JSON.stringify(friendIds));
-        } catch {}
+          let fid = '';
+          if (reqId && reqId === currentUserId && tgtId && tgtId !== currentUserId) {
+            fid = String(c.targetId);
+          } else if (tgtId && tgtId === currentUserId && reqId && reqId !== currentUserId) {
+            fid = String(c.requesterId);
+          } else if (uId && uId !== currentUserId) {
+            fid = String(c.userId);
+          } else if (tgtId && tgtId !== currentUserId) {
+            fid = String(c.targetId);
+          } else if (reqId && reqId !== currentUserId) {
+            fid = String(c.requesterId);
+          }
+
+          if (fid && fid.toLowerCase() !== currentUserId && fid !== 'undefined' && fid !== 'null') {
+            friendIdSet.add(fid);
+          }
+        });
+
+        const friendIds = Array.from(friendIdSet);
+        friendIds.forEach((id) => myFriendIdsMemoryCache.add(id.toLowerCase()));
+        try { localStorage.removeItem('my_friend_ids'); } catch {}
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
 
@@ -309,6 +329,9 @@ export const userService = {
 
   getSuggestedFriends: async () => {
     try {
+      const currentUserId = getStoredCurrentUserId();
+      const myFriendIds = new Set<string>(myFriendIdsMemoryCache);
+
       let data: any[] = [];
       try {
         const res = await api.get('/users/connections/suggestions');
@@ -332,32 +355,34 @@ export const userService = {
       }
 
       if (Array.isArray(data) && data.length > 0) {
-        let currentUserId = '';
-        try {
-          const u = JSON.parse(localStorage.getItem('user') || '{}');
-          currentUserId = String(u.id || u.userId || u.profileId || '').toLowerCase();
-        } catch {}
+        const seenIds = new Set<string>();
+        const uniqueSuggestions: any[] = [];
 
-        return data
-          .filter((s: any) => {
-            const sid = String(s.userId || s.id || '').toLowerCase();
-            return sid && sid !== currentUserId;
-          })
-          .map((s: any) => {
-            const uid = String(s.userId || s.id);
-            const nameParts = [s.lastName, s.middleName, s.firstName].filter(Boolean);
-            const name = s.fullName || (nameParts.length > 0 ? nameParts.join(' ').trim() : s.username) || 'Thành viên KLTN';
-            const avatar = s.avatarUrl || s.avatar || '/default-avatar.png';
-            const mutual = s.mutualFriendsCount || 0;
-            return {
-              id: uid,
-              userId: uid,
-              name,
-              avatar,
-              mutualFriendsCount: mutual,
-              bio: '',
-            };
+        for (const s of data) {
+          const uid = String(s.userId || s.id || '').trim();
+          const uidLower = uid.toLowerCase();
+          if (!uid || uidLower === currentUserId || myFriendIds.has(uidLower) || seenIds.has(uidLower)) {
+            continue;
+          }
+          seenIds.add(uidLower);
+
+          const nameParts = [s.lastName, s.middleName, s.firstName].filter(Boolean);
+          const name = s.fullName || (nameParts.length > 0 ? nameParts.join(' ').trim() : s.username) || 'Thành viên KLTN';
+          const avatar = s.avatarUrl || s.avatar || '/default-avatar.png';
+          const mutual = Number(s.mutualFriendsCount || 0);
+
+          uniqueSuggestions.push({
+            id: uid,
+            userId: uid,
+            name,
+            fullName: name,
+            avatar,
+            avatarUrl: avatar,
+            mutualFriendsCount: mutual,
+            bio: s.bio || '',
           });
+        }
+        return uniqueSuggestions;
       }
       return [];
     } catch {
@@ -415,6 +440,11 @@ export const userService = {
 
   unfriend: async (friendId: string) => {
     const res = await api.delete(`/users/connections/friends/${friendId}`);
+    return res.data;
+  },
+
+  cancelFriendRequest: async (targetId: string) => {
+    const res = await api.delete(`/users/connections/friends/${targetId}`);
     return res.data;
   },
 

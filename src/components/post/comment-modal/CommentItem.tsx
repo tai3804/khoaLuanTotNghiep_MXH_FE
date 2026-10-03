@@ -6,6 +6,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 interface CommentItemProps {
   comment: Comment;
   user: any;
+  postAuthorId?: string;
   replies: Comment[];
   language: string;
   t: (key: string) => string;
@@ -19,6 +20,7 @@ interface CommentItemProps {
 export const CommentItem: React.FC<CommentItemProps> = ({
   comment: c,
   user,
+  postAuthorId,
   replies,
   language,
   t,
@@ -31,21 +33,44 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.content);
   const [saving, setSaving] = useState(false);
-  const isOwner = Boolean(user && (String(c.userId) === String(user.id) || c.userId === 'me'));
+
+  const currentUid = String(user?.id || user?.userId || '').toLowerCase().trim();
+  const commentUid = String(c.userId || (c as any)?.authorId || '').toLowerCase().trim();
+  const postOwnerId = String(postAuthorId || '').toLowerCase().trim();
+
+  const isCommentOwner = Boolean(
+    user && currentUid && commentUid && currentUid !== 'me' && commentUid !== 'me' && currentUid === commentUid
+  );
+  const isPostOwner = Boolean(
+    user && currentUid && postOwnerId && currentUid !== 'me' && postOwnerId !== 'me' && currentUid === postOwnerId
+  );
+
+  const canEdit = isCommentOwner;
+  const canDelete = isCommentOwner || isPostOwner;
+
   const saveEdit = async () => {
     if (!draft.trim() || saving) return;
     setSaving(true);
-    try { await onUpdate(c.id, draft.trim()); setEditing(false); } finally { setSaving(false); }
+    try {
+      await onUpdate(c.id, draft.trim());
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = async () => {
-    if (window.confirm(language === 'en' ? 'Delete this comment?' : 'Xóa bình luận này?')) await onDelete(c.id);
+
+  const remove = async (commentId: string) => {
+    if (window.confirm(language === 'en' ? 'Delete this comment?' : 'Bạn có chắc muốn xóa bình luận này?')) {
+      await onDelete(commentId);
+    }
   };
+
   const displayName =
-    (c.userId === user?.id || c.userId === 'me') && user?.fullName
+    isCommentOwner && user?.fullName
       ? user.fullName
-      : c.authorName || 'Thành viên KLTN';
+      : c.authorName || 'Thành viên';
   const displayAvatar =
-    (c.userId === user?.id || c.userId === 'me') && user?.avatar
+    isCommentOwner && user?.avatar
       ? user.avatar
       : c.authorAvatar;
 
@@ -78,15 +103,42 @@ export const CommentItem: React.FC<CommentItemProps> = ({
               {displayName}
             </h5>
             {editing ? (
-              <div className="mt-1 flex gap-1">
-                <input value={draft} onChange={(event) => setDraft(event.target.value)} className="min-w-48 rounded bg-white dark:bg-[#242526] px-2 py-1 text-xs text-gray-900 dark:text-white" autoFocus />
-                <button type="button" onClick={saveEdit} disabled={saving} className="text-xs text-blue-600 font-bold">{language === 'en' ? 'Save' : 'Lưu'}</button>
-                <button type="button" onClick={() => { setDraft(c.content); setEditing(false); }} className="text-xs">{language === 'en' ? 'Cancel' : 'Hủy'}</button>
+              <div className="mt-1 flex gap-1 items-center">
+                <input
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  className="min-w-48 rounded-lg bg-white dark:bg-[#242526] px-2.5 py-1 text-xs text-gray-900 dark:text-white border border-gray-300 dark:border-[#4e4f50] focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={saving}
+                  className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
+                >
+                  {language === 'en' ? 'Save' : 'Lưu'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(c.content);
+                    setEditing(false);
+                  }}
+                  className="text-xs text-gray-500 hover:underline cursor-pointer"
+                >
+                  {language === 'en' ? 'Cancel' : 'Hủy'}
+                </button>
               </div>
-            ) : <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">{c.content}</p>}
+            ) : (
+              <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
+                {c.content}
+              </p>
+            )}
           </div>
           <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-1 ml-2 font-semibold">
-            <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">{t('like') || 'Thích'}</button>
+            <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">
+              {t('like') || 'Thích'}
+            </button>
             <span>•</span>
             <button
               onClick={() => handleStartReply(c.id, displayName)}
@@ -97,7 +149,34 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             </button>
             <span>•</span>
             <span>{c.createdAt}</span>
-            {isOwner && <><span>•</span><button type="button" onClick={() => setEditing(true)} aria-label="Edit comment"><Pencil className="w-3 h-3" /></button><button type="button" onClick={remove} aria-label="Delete comment" className="text-red-500"><Trash2 className="w-3 h-3" /></button></>}
+            {canEdit && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  aria-label="Edit comment"
+                  className="hover:text-blue-500 transition cursor-pointer"
+                  title="Chỉnh sửa bình luận"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </>
+            )}
+            {canDelete && (
+              <>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => remove(c.id)}
+                  aria-label="Delete comment"
+                  className="text-red-500 hover:text-red-600 transition cursor-pointer"
+                  title="Xóa bình luận"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -106,12 +185,17 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       {replies.length > 0 && (
         <div className="ml-9 pl-3 border-l-2 border-gray-200 dark:border-[#393a3b] space-y-2.5 mt-2">
           {replies.map((reply) => {
+            const rUid = String(reply.userId || (reply as any)?.authorId || '').toLowerCase().trim();
+            const isReplyOwner = Boolean(
+              user && currentUid && rUid && currentUid !== 'me' && rUid !== 'me' && currentUid === rUid
+            );
+            const canDeleteReply = isReplyOwner || isPostOwner;
             const rName =
-              (reply.userId === user?.id || reply.userId === 'me') && user?.fullName
+              isReplyOwner && user?.fullName
                 ? user.fullName
-                : reply.authorName || 'Thành viên KLTN';
+                : reply.authorName || 'Thành viên';
             const rAvatar =
-              (reply.userId === user?.id || reply.userId === 'me') && user?.avatar
+              isReplyOwner && user?.avatar
                 ? user.avatar
                 : reply.authorAvatar;
 
@@ -128,7 +212,9 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                     </p>
                   </div>
                   <div className="flex items-center space-x-3 text-[10px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">
-                    <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">{t('like') || 'Thích'}</button>
+                    <button className="hover:underline hover:text-[#2d88ff] cursor-pointer">
+                      {t('like') || 'Thích'}
+                    </button>
                     <span>•</span>
                     <button
                       onClick={() => handleStartReply(c.id, rName)}
@@ -138,6 +224,20 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                     </button>
                     <span>•</span>
                     <span>{reply.createdAt}</span>
+                    {canDeleteReply && (
+                      <>
+                        <span>•</span>
+                        <button
+                          type="button"
+                          onClick={() => remove(reply.id)}
+                          aria-label="Delete reply"
+                          className="text-red-500 hover:text-red-600 transition cursor-pointer"
+                          title="Xóa phản hồi"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

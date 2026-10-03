@@ -28,7 +28,7 @@ class CallWebSocketService {
   public async connect(userId?: string): Promise<boolean> {
     if (userId) {
       this.currentUserId = userId;
-      try { localStorage.setItem('currentUserId', userId); } catch {}
+      try { localStorage.removeItem('currentUserId'); } catch {}
     } else if (!this.currentUserId) {
       try {
         const stored = localStorage.getItem('user');
@@ -53,7 +53,7 @@ class CallWebSocketService {
     // Redux is intentionally memory-only, so it is empty after a hard reload.
     // Refresh the HttpOnly-cookie session before opening STOMP; otherwise a
     // user who is visibly logged in cannot start or receive any call.
-    let token = store.getState().auth.accessToken || localStorage.getItem('token');
+    let token = store.getState().auth.accessToken;
     if (!token) {
       try {
         const response = await api.post('/auth/refresh', {}, {
@@ -106,7 +106,6 @@ class CallWebSocketService {
                 activeUserId = u.id || u.userId || null;
               }
             } catch {}
-            if (!activeUserId) activeUserId = localStorage.getItem('currentUserId');
           }
 
           if (activeUserId) {

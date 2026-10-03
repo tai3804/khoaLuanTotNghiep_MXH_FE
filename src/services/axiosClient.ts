@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { store } from '../store/store';
 import { setAccessToken, clearAuth } from '../store/slices/authSlice';
+import { getDeviceFingerprint } from '../utils/fingerprint';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
@@ -28,7 +29,7 @@ const processQueue = (error: any, token: string | null = null) => {
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = store.getState().auth.accessToken || localStorage.getItem('token');
+    const token = store.getState().auth.accessToken;
     if (token && config.headers) {
       config.headers.Authorization = 'Bearer ' + token;
     }
@@ -61,7 +62,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
+      const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
 
       try {
         const res = await axios.post(
@@ -81,7 +82,6 @@ api.interceptors.response.use(
 
         if (newAccessToken) {
           store.dispatch(setAccessToken(newAccessToken));
-          localStorage.setItem('token', newAccessToken);
           
           api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
           originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
@@ -94,7 +94,6 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         store.dispatch(clearAuth());
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.dispatchEvent(new Event('auth_session_expired'));
         return Promise.reject(refreshErr);

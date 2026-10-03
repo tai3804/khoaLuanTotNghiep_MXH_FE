@@ -7,11 +7,17 @@ interface ChatBoxMinimizedProps {
   friend: ChatUser;
   onRestore: () => void;
   onClose: () => void;
+  offsetRight?: number;
 }
 
-export const ChatBoxMinimized: React.FC<ChatBoxMinimizedProps> = ({ friend, onRestore, onClose }) => {
+export const ChatBoxMinimized: React.FC<ChatBoxMinimizedProps> = ({ friend, onRestore, onClose, offsetRight }) => {
+  const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
+
   return (
-    <div className="fixed bottom-0 right-16 z-50 flex items-center space-x-2 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-xl rounded-t-xl px-3 py-2 cursor-pointer transition hover:bg-gray-50 dark:hover:bg-[#3a3b3c]">
+    <div
+      style={customStyle}
+      className={`fixed bottom-0 ${offsetRight === undefined ? 'right-16' : ''} z-50 flex items-center space-x-2 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-xl rounded-t-xl px-3 py-2 cursor-pointer transition hover:bg-gray-50 dark:hover:bg-[#3a3b3c]`}
+    >
       <div className="relative" onClick={onRestore}>
         <UserAvatar src={friend.avatar} alt={friend.name} size="sm" />
         {friend.online && (

@@ -43,7 +43,7 @@ class LiveStreamWebSocketService {
     if (this.isConnected()) return true;
     if (this.connectionPromise) return this.connectionPromise;
 
-    let token = store.getState().auth.accessToken || localStorage.getItem('token');
+    let token = store.getState().auth.accessToken;
     if (!token) {
       try {
         const response = await api.post('/auth/refresh', {}, {

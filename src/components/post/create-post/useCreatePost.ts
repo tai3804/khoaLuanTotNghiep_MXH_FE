@@ -127,86 +127,124 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     }
     if (!content.trim() && !imageUrl.trim() && !selectedFile) return;
 
-    setIsSubmitting(true);
-    try {
-      const fullContent = content.trim();
-      const postPrivacy =
-        privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
+    const fullContent = content.trim();
+    const targetGroupId = groupId;
+    const postPrivacy = targetGroupId
+      ? 'PUBLIC'
+      : (privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC');
 
-      const uploadedUrl = imageUrl.trim();
-      const isVideoFile = selectedFileType === 'video' || (uploadedUrl && /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(uploadedUrl));
+    const fileToUpload = selectedFile;
+    const filePreviewUrl = filePreview;
+    const uploadedUrl = imageUrl.trim();
+    const isVideoFile = selectedFileType === 'video' || (uploadedUrl && /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(uploadedUrl));
 
-      let mediaUrls: string[] = [];
-      if (selectedFile) {
-        try {
-          const mediaItem = await mediaService.uploadMedia(selectedFile, 'posts');
-          if (mediaItem && mediaItem.fileUrl) {
-            mediaUrls = [mediaItem.fileUrl];
-          }
-        } catch (uploadErr) {
-          console.warn('Failed to upload file to media service, attempting direct multipart fallback:', uploadErr);
-        }
-      } else if (uploadedUrl) {
-        mediaUrls = [uploadedUrl];
-      }
+    // Create unique temporary ID for optimistic UI
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      const files: File[] = (selectedFile && mediaUrls.length === 0) ? [selectedFile] : [];
-      const createdPost = await postService.createPost(fullContent, postPrivacy, files, mediaUrls, groupId);
+    // Build optimistic media items for instant preview
+    const optimisticMediaList = filePreviewUrl
+      ? [{ fileUrl: filePreviewUrl, mediaType: isVideoFile ? 'VIDEO' : 'IMAGE' }]
+      : (uploadedUrl ? [{ fileUrl: uploadedUrl, mediaType: isVideoFile ? 'VIDEO' : 'IMAGE' }] : []);
+    const optimisticMediaUrls = optimisticMediaList.map((m) => m.fileUrl);
 
-      // Ensure mediaUrls are populated on the created post object
-      if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
-        createdPost.mediaUrls = mediaUrls;
-        createdPost.mediaList = [{
-          fileUrl: mediaUrls[0],
-          mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
-        }];
-      }
+    // Build temporary optimistic post object
+    const optimisticPost: Post = {
+      id: tempId,
+      userId: user?.id || (user as any)?.userId || 'me',
+      authorName: user?.fullName || user?.username || 'Bạn',
+      authorAvatar: user?.avatar || '',
+      content: fullContent,
+      mediaUrls: optimisticMediaUrls,
+      mediaList: optimisticMediaList,
+      createdAt: 'Vừa xong',
+      likesCount: 0,
+      commentsCount: 0,
+      sharesCount: 0,
+      isLiked: false,
+      isSaved: false,
+      privacy: postPrivacy,
+      groupId: targetGroupId,
+      isOptimistic: true,
+    };
 
-      // Ensure author details are present immediately for crisp display
-      if (!createdPost.authorName || createdPost.authorName === 'Thành viên KLTN') {
-        createdPost.authorName = user?.fullName || user?.username || 'Bạn';
-      }
-      if (!createdPost.authorAvatar && user?.avatar) {
-        createdPost.authorAvatar = user.avatar;
-      }
+    // 1. Instantly display in feed
+    onPostCreated(optimisticPost);
+    window.dispatchEvent(new CustomEvent('feed_post_created', { detail: optimisticPost }));
 
-      onPostCreated(createdPost);
-      window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
-
-      setContent('');
-      setImageUrl('');
-      handleClearFile();
-      setShowImageInput(false);
-      setIsOpenModal(false);
-      toast.showSuccess(isVideoFile ? 'Đã đăng video thành công!' : 'Đã đăng bài viết mới thành công!');
-    } catch (err: any) {
-      console.error('Failed to create post:', err);
-      const newPost: Post = {
-        id: 'post-' + Date.now(),
-        userId: user?.id || 'me',
-        authorName: user?.fullName || user?.username || 'Bạn',
-        authorAvatar: user?.avatar || '',
-        content: content.trim(),
-        mediaUrls: filePreview ? [filePreview] : imageUrl.trim() ? [imageUrl.trim()] : [],
-        createdAt: 'Vừa xong',
-        likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        isLiked: false,
-        privacy: privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC',
-        comments: [],
-        groupId,
-      };
-      onPostCreated(newPost);
-      setContent('');
-      setImageUrl('');
-      handleClearFile();
-      setShowImageInput(false);
-      setIsOpenModal(false);
-      toast.showWarning('Backend chưa phản hồi; bài viết đang hiển thị tạm thời trên thiết bị này.');
-    } finally {
-      setIsSubmitting(false);
+    // 2. Immediately close modal and reset form
+    setContent('');
+    setImageUrl('');
+    setSelectedFile(null);
+    setSelectedFileType(null);
+    setFilePreview(null);
+    setShowImageInput(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
+    setIsOpenModal(false);
+    setIsSubmitting(false);
+
+    // 3. Perform file upload and database persistence in the background
+    (async () => {
+      try {
+        let mediaUrls: string[] = [];
+        if (fileToUpload) {
+          try {
+            const mediaItem = await mediaService.uploadMedia(fileToUpload, 'posts');
+            if (mediaItem && mediaItem.fileUrl) {
+              mediaUrls = [mediaItem.fileUrl];
+            }
+          } catch (uploadErr) {
+            console.warn('Failed to upload file to media service, attempting direct multipart fallback:', uploadErr);
+          }
+        } else if (uploadedUrl) {
+          mediaUrls = [uploadedUrl];
+        }
+
+        const files: File[] = (fileToUpload && mediaUrls.length === 0) ? [fileToUpload] : [];
+        const createdPost = await postService.createPost(fullContent, postPrivacy, files, mediaUrls, targetGroupId);
+
+        if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
+          createdPost.mediaUrls = mediaUrls;
+          createdPost.mediaList = [{
+            fileUrl: mediaUrls[0],
+            mediaType: isVideoFile ? 'VIDEO' : 'IMAGE',
+          }];
+        }
+
+        if (!createdPost.authorName || createdPost.authorName === 'Thành viên KLTN') {
+          createdPost.authorName = user?.fullName || user?.username || 'Bạn';
+        }
+        if (!createdPost.authorAvatar && user?.avatar) {
+          createdPost.authorAvatar = user.avatar;
+        }
+
+        // Notify all views to seamlessly swap the temp post with the real persisted post
+        window.dispatchEvent(
+          new CustomEvent('optimistic_post_settled', {
+            detail: { tempId, realPost: createdPost },
+          })
+        );
+
+        if (filePreviewUrl && filePreviewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(filePreviewUrl);
+        }
+
+        toast.showSuccess(isVideoFile ? 'Đã đăng video thành công!' : 'Đã đăng bài viết mới thành công!');
+      } catch (err: any) {
+        console.error('Failed to create post in background:', err);
+        window.dispatchEvent(
+          new CustomEvent('optimistic_post_failed', {
+            detail: { tempId },
+          })
+        );
+        if (filePreviewUrl && filePreviewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(filePreviewUrl);
+        }
+        const errorMsg = err?.response?.data?.message || err?.message || 'Không thể đăng bài viết. Vui lòng thử lại sau.';
+        toast.showError(errorMsg);
+      }
+    })();
   };
 
   return {

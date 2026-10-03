@@ -1,7 +1,31 @@
+import axios from 'axios';
 import { api } from './axiosClient';
 import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+
 export const authService = {
+  refreshToken: async (): Promise<string | null> => {
+    try {
+      const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
+      const res = await axios.post(
+        BASE_URL + '/auth/refresh',
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            'X-Client-Type': 'WEB',
+            'X-Device-Fingerprint': deviceFingerprint,
+          },
+        }
+      );
+      const data = res.data?.data || res.data?.result || res.data;
+      return data?.accessToken || data?.token || null;
+    } catch {
+      return null;
+    }
+  },
+
   login: async (data: any) => {
     const deviceFingerprint = await getDeviceFingerprint();
     const deviceName = getDeviceName();
@@ -58,8 +82,6 @@ export const authService = {
     } catch (e) {
       // ignore
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
   },
@@ -94,6 +116,16 @@ export const authService = {
   verifyMfa: async (mfaToken: string, otpCode: string) => {
     let deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
     const res = await api.post('/auth/mfa/verify', { mfaToken, otpCode, deviceFingerprint });
+    return res.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const res = await api.post('/auth/password/forgot', { email });
+    return res.data;
+  },
+
+  resetPassword: async (data: { email: string; resetToken: string; newPassword: string }) => {
+    const res = await api.post('/auth/password/reset', data);
     return res.data;
   },
 };

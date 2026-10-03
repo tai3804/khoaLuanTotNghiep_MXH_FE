@@ -82,15 +82,7 @@ class LiveWebRtcService {
       ch.postMessage(msg);
     } catch { }
 
-    // 2. Storage event bus fallback
-    try {
-      localStorage.setItem(
-        `kltn_live_signal_${msg.postId}`,
-        JSON.stringify({ ...msg, _t: Date.now() + Math.random() })
-      );
-    } catch { }
-
-    // 3. Isolated LiveStream WebSocket service
+    // 2. Isolated LiveStream WebSocket service (cross-device/network)
     liveStreamWebSocketService.sendSignal(
       msg.postId,
       msg.senderId,
@@ -134,23 +126,8 @@ class LiveWebRtcService {
         viewerCount: signal.viewerCount,
       });
     });
-    this.wsUnsubMap.set(postId, unsubWs);
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === `kltn_live_signal_${postId}` && e.newValue) {
-        try {
-          const sig = JSON.parse(e.newValue);
-          if (sig.senderId !== hostUserId) {
-            this.routeSignal(sig);
-          }
-        } catch { }
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
     return () => {
       console.log(`[LiveWebRtc] Unregistering Host stream for post: ${postId}`);
-      window.removeEventListener('storage', handleStorage);
 
       const host = this.hostSessions.get(postId);
       if (host) {
@@ -255,18 +232,6 @@ class LiveWebRtcService {
     });
     this.wsUnsubMap.set(`viewer_${postId}`, unsubWs);
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === `kltn_live_signal_${postId}` && e.newValue) {
-        try {
-          const sig = JSON.parse(e.newValue);
-          if (sig.senderId !== viewerUserId) {
-            this.routeSignal(sig);
-          }
-        } catch { }
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
     // Send Join Live request to host
     this.sendSignal({
       type: 'ACCEPT',
@@ -287,7 +252,6 @@ class LiveWebRtcService {
 
     return () => {
       clearTimeout(retryTimer);
-      window.removeEventListener('storage', handleStorage);
 
       this.sendSignal({
         type: 'LEAVE',

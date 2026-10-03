@@ -1,8 +1,9 @@
-import React from 'react';
-import { Image, Paperclip, Send } from 'lucide-react';
+import React, { useState } from 'react';
+import { Image, Paperclip, Send, Sparkles } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { CreatePostPrivacySelector } from './CreatePostPrivacySelector';
 import { CreatePostMediaPreview } from './CreatePostMediaPreview';
+import { CreatePostAiAssistant } from './CreatePostAiAssistant';
 
 interface CreatePostFormProps {
   user: any;
@@ -43,6 +44,8 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
   handleSubmit,
   t,
 }) => {
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-3.5">
       {/* User Info & Privacy Selector */}
@@ -70,6 +73,15 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
         autoFocus
       />
 
+      {/* AI Assistant Drawer */}
+      {showAiAssistant && (
+        <CreatePostAiAssistant
+          currentContent={content}
+          onApplyContent={(newText) => setContent(newText)}
+          onClose={() => setShowAiAssistant(false)}
+        />
+      )}
+
       {/* Media Preview (Local Image/Video or Remote Link) */}
       <CreatePostMediaPreview
         showImageInput={showImageInput}
@@ -96,6 +108,19 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
           Thêm vào bài viết của bạn
         </span>
         <div className="flex items-center space-x-1">
+          <button
+            type="button"
+            onClick={() => setShowAiAssistant(!showAiAssistant)}
+            className={`flex items-center space-x-1.5 py-1.5 px-2.5 rounded-lg transition cursor-pointer ${
+              showAiAssistant
+                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                : 'hover:bg-purple-50 dark:hover:bg-purple-950/30 text-purple-600 dark:text-purple-400'
+            }`}
+            title="Trợ lý AI viết bài & kiểm tra chuẩn mực"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span className="text-xs font-semibold">Trợ lý AI</span>
+          </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}

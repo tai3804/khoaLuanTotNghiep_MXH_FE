@@ -45,14 +45,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           onViewProfile={onNavigateProfile}
         />
       </div>
-      {activeChatUser && (
-        <ChatBox
-          key={activeChatUser.userId || activeChatUser.id}
-          friend={activeChatUser}
-          onClose={() => setActiveChatUser?.(null)}
-          onNavigateProfile={onNavigateProfile}
-        />
-      )}
     </div>
   );
 };

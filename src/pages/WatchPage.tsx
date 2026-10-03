@@ -124,6 +124,8 @@ export const WatchPage: React.FC<WatchPageProps> = ({
               setActiveNavTab('groups');
             } else if (filter === 'watch') {
               setActiveNavTab('watch');
+            } else if (filter === 'saved') {
+              setActiveNavTab('saved');
             } else {
               setActiveNavTab('home');
             }
@@ -190,15 +192,6 @@ export const WatchPage: React.FC<WatchPageProps> = ({
 
         <SidebarRight onSelectChatUser={(u) => setActiveChatUser(u)} />
       </div>
-
-      {activeChatUser && (
-        <ChatBox
-          key={activeChatUser.userId || activeChatUser.id}
-          friend={activeChatUser}
-          onClose={() => setActiveChatUser(null)}
-          onNavigateProfile={onViewProfile}
-        />
-      )}
     </div>
   );
 };

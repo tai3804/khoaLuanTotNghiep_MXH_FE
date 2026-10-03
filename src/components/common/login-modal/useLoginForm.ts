@@ -7,6 +7,11 @@ export const useLoginForm = () => {
   const { loginModalOpen, closeLoginModal, login, register } = useAuth();
   const { t } = useLanguage();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Login states
@@ -27,6 +32,65 @@ export const useLoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const handleSendForgotPasswordOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email.trim()) {
+      setError('Vui lòng nhập địa chỉ Email.');
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+    try {
+      await authService.forgotPassword(email.trim());
+      setSuccessMsg(`Mã xác thực OTP đã được gửi tới ${email.trim()}. Vui lòng kiểm tra hộp thư!`);
+      setForgotStep(2);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại email!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!resetOtp.trim() || resetOtp.trim().length < 6) {
+      setError('Vui lòng nhập mã OTP gồm 6 chữ số.');
+      return;
+    }
+    if (!newPassword.trim() || newPassword.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.resetPassword({
+        email: email.trim(),
+        resetToken: resetOtp.trim(),
+        newPassword: newPassword.trim(),
+      });
+      setSuccessMsg('Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
+      setIsForgotPasswordMode(false);
+      setPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setResetOtp('');
+      setForgotStep(1);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSendRegisterOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -159,6 +223,7 @@ export const useLoginForm = () => {
 
   const toggleRegisterMode = () => {
     setIsRegisterMode(!isRegisterMode);
+    setIsForgotPasswordMode(false);
     setError('');
     setSuccessMsg('');
     setRegisterStep(1);
@@ -169,6 +234,16 @@ export const useLoginForm = () => {
     closeLoginModal,
     t,
     isRegisterMode,
+    isForgotPasswordMode,
+    setIsForgotPasswordMode,
+    forgotStep,
+    setForgotStep,
+    resetOtp,
+    setResetOtp,
+    newPassword,
+    setNewPassword,
+    confirmNewPassword,
+    setConfirmNewPassword,
     showPassword,
     setShowPassword,
     email,
@@ -194,6 +269,8 @@ export const useLoginForm = () => {
     loading,
     error,
     successMsg,
+    handleSendForgotPasswordOtp,
+    handleResetPassword,
     handleSendRegisterOtp,
     handleVerifyRegisterOtp,
     handleCompleteRegistration,

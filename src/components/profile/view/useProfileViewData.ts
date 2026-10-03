@@ -276,8 +276,34 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
         });
       }
     };
+
+    const handleOptimisticSettled = (e: any) => {
+      const { tempId, realPost } = e.detail || {};
+      if (!tempId || !realPost) return;
+      if (isOwnProfile) {
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === realPost.id)) {
+            return prev.filter((p) => p.id !== tempId);
+          }
+          return prev.map((p) => (p.id === tempId ? realPost : p));
+        });
+      }
+    };
+
+    const handleOptimisticFailed = (e: any) => {
+      const { tempId } = e.detail || {};
+      if (!tempId) return;
+      setPosts((prev) => prev.filter((p) => p.id !== tempId));
+    };
+
     window.addEventListener('feed_post_created', handleGlobalPostCreated);
-    return () => window.removeEventListener('feed_post_created', handleGlobalPostCreated);
+    window.addEventListener('optimistic_post_settled', handleOptimisticSettled);
+    window.addEventListener('optimistic_post_failed', handleOptimisticFailed);
+    return () => {
+      window.removeEventListener('feed_post_created', handleGlobalPostCreated);
+      window.removeEventListener('optimistic_post_settled', handleOptimisticSettled);
+      window.removeEventListener('optimistic_post_failed', handleOptimisticFailed);
+    };
   }, [isOwnProfile]);
 
   const handlePostCreated = (newPost: Post) => {

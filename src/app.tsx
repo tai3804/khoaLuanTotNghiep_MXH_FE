@@ -11,7 +11,9 @@ import { GroupsPage } from './pages/GroupsPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
 import { ModeratorPage } from './pages/ModeratorPage';
 import { SupportInboxPage } from './pages/SupportInboxPage';
+import { SavedPage } from './pages/SavedPage';
 import { ChatUser } from './components/chat/chat-box';
+import { ChatPopupContainer } from './components/chat/ChatPopupContainer';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
 import { postService } from './services/api';
@@ -19,6 +21,7 @@ import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
 import { HostLiveStudioModal } from './components/live-studio';
+import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
 
 export const App: React.FC = () => {
   const { isAuthenticated, tokens } = useAuth();
@@ -31,7 +34,36 @@ export const App: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [activeChatUser, setActiveChatUser] = useState<ChatUser | null>(null);
+  const [activeChatUsers, setActiveChatUsers] = useState<ChatUser[]>([]);
+
+  const handleOpenChatUser = (targetUser: ChatUser | null) => {
+    if (!targetUser) return;
+    setActiveChatUsers((prev) => {
+      const targetId = String(targetUser.userId || targetUser.id || targetUser.conversationId);
+      const filtered = prev.filter((u) => String(u.userId || u.id || u.conversationId) !== targetId);
+      const maxAllowed = window.innerWidth >= 1440 ? 3 : window.innerWidth >= 960 ? 2 : 1;
+      return [targetUser, ...filtered].slice(0, maxAllowed);
+    });
+  };
+
+  const handleCloseChatUser = (targetId: string) => {
+    setActiveChatUsers((prev) => prev.filter((u) => String(u.userId || u.id || u.conversationId) !== String(targetId)));
+  };
+
+  useEffect(() => {
+    const handleGlobalOpenChat = (e: any) => {
+      if (e?.detail) {
+        handleOpenChatUser(e.detail);
+      }
+    };
+    window.addEventListener('open_chat_user', handleGlobalOpenChat);
+    return () => window.removeEventListener('open_chat_user', handleGlobalOpenChat);
+  }, []);
+
+  const activeChatUser = activeChatUsers[0] || null;
+  const setActiveChatUser = (u: ChatUser | null) => {
+    if (u) handleOpenChatUser(u);
+  };
 
   // Sync activeNavTab from URL path
   const path = location.pathname;
@@ -54,6 +86,7 @@ export const App: React.FC = () => {
   else if (path.startsWith('/friends')) activeNavTab = 'friends';
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
   else if (path.startsWith('/groups')) activeNavTab = 'groups';
+  else if (path.startsWith('/saved')) activeNavTab = 'saved';
   else if (path.startsWith('/moderation') || path.startsWith('/admin')) activeNavTab = 'moderation';
   else if (path.startsWith('/support-inbox')) activeNavTab = 'support';
 
@@ -182,8 +215,32 @@ export const App: React.FC = () => {
         });
       }
     };
+
+    const handleOptimisticSettled = (e: any) => {
+      const { tempId, realPost } = e.detail || {};
+      if (!tempId || !realPost) return;
+      setPosts((prev) => {
+        if (prev.some((p) => p.id === realPost.id)) {
+          return prev.filter((p) => p.id !== tempId);
+        }
+        return prev.map((p) => (p.id === tempId ? realPost : p));
+      });
+    };
+
+    const handleOptimisticFailed = (e: any) => {
+      const { tempId } = e.detail || {};
+      if (!tempId) return;
+      setPosts((prev) => prev.filter((p) => p.id !== tempId));
+    };
+
     window.addEventListener('feed_post_created', handleFeedPostCreated);
-    return () => window.removeEventListener('feed_post_created', handleFeedPostCreated);
+    window.addEventListener('optimistic_post_settled', handleOptimisticSettled);
+    window.addEventListener('optimistic_post_failed', handleOptimisticFailed);
+    return () => {
+      window.removeEventListener('feed_post_created', handleFeedPostCreated);
+      window.removeEventListener('optimistic_post_settled', handleOptimisticSettled);
+      window.removeEventListener('optimistic_post_failed', handleOptimisticFailed);
+    };
   }, []);
 
   const handlePostCreated = (newPost: Post) => {
@@ -204,6 +261,7 @@ export const App: React.FC = () => {
     else if (tab === 'profile') navigate('/profile');
     else if (tab === 'watch') navigate('/watch');
     else if (tab === 'groups') navigate('/groups');
+    else if (tab === 'saved') navigate('/saved');
     else if (tab === 'moderation') navigate('/moderation');
     else if (tab === 'support') navigate('/support-inbox');
   };
@@ -414,6 +472,22 @@ export const App: React.FC = () => {
           path="/support-inbox"
           element={<SupportInboxPage activeNavTab="support" setActiveNavTab={handleTabChange} onNavigateSettings={() => navigate('/settings/profile')} onNavigateProfile={(uid) => handleViewProfile(uid)} onNavigateAuth={() => navigate('/auth')} activeChatUser={activeChatUser} setActiveChatUser={setActiveChatUser} />}
         />
+        <Route
+          path="/saved"
+          element={
+            <SavedPage
+              activeNavTab="saved"
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateAuth={() => navigate('/auth')}
+              onViewProfile={handleViewProfile}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
       </Routes>
 
       {/* Mobile Bottom Navigation Bar */}
@@ -457,6 +531,16 @@ export const App: React.FC = () => {
 
       {/* Dedicated Host Live Stream Studio & Floating Mini Widget */}
       <HostLiveStudioModal />
+
+      {/* Floating AI Social Assistant Widget */}
+      <AiSocialChatWidget />
+
+      {/* Multi-Window Chat Popup Container */}
+      <ChatPopupContainer
+        activeChatUsers={activeChatUsers}
+        onCloseChat={handleCloseChatUser}
+        onNavigateProfile={handleViewProfile}
+      />
     </div>
   );
 };

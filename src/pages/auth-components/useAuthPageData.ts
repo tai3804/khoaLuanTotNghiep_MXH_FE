@@ -205,12 +205,88 @@ export const useAuthPageData = (onGoHome?: () => void) => {
     }
   };
 
+  // Forgot Password States
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  const handleSendForgotPasswordOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email.trim()) {
+      setErrorMessage('Vui lòng nhập địa chỉ Email.');
+      return;
+    }
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+    try {
+      await authService.forgotPassword(email.trim());
+      setSuccessMessage('Mã OTP khôi phục mật khẩu đã được gửi tới email ' + email.trim() + '. Vui lòng kiểm tra hộp thư!');
+      setForgotStep(2);
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.message || err.message || 'Không tìm thấy tài khoản hoặc lỗi khi gửi OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetOtp.trim() || resetOtp.trim().length < 6) {
+      setErrorMessage('Vui lòng nhập mã OTP 6 chữ số.');
+      return;
+    }
+    if (!newPassword.trim() || newPassword.trim().length < 6) {
+      setErrorMessage('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage('Mật khẩu xác nhận không khớp!');
+      return;
+    }
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+    try {
+      await authService.resetPassword({
+        email: email.trim(),
+        resetToken: resetOtp.trim(),
+        newPassword: newPassword.trim(),
+      });
+      setSuccessMessage('Đặt lại mật khẩu thành công! Hãy đăng nhập bằng mật khẩu mới.');
+      setIsForgotPasswordMode(false);
+      setIsLoginMode(true);
+      setForgotStep(1);
+      setResetOtp('');
+      setPassword(newPassword.trim());
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.message || err.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     t,
     language,
     setLanguage,
     isLoginMode,
     setIsLoginMode,
+    isForgotPasswordMode,
+    setIsForgotPasswordMode,
+    forgotStep,
+    setForgotStep,
+    resetOtp,
+    setResetOtp,
+    newPassword,
+    setNewPassword,
+    confirmNewPassword,
+    setConfirmNewPassword,
     showPassword,
     setShowPassword,
     email,
@@ -249,5 +325,7 @@ export const useAuthPageData = (onGoHome?: () => void) => {
     handleSubmitLogin,
     handleQuickLogin,
     handleVerifyMfaOtp,
+    handleSendForgotPasswordOtp,
+    handleResetPassword,
   };
 };

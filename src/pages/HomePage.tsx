@@ -121,6 +121,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               setActiveNavTab('moderation');
             } else if (filter === 'support') {
               setActiveNavTab('support');
+            } else if (filter === 'saved') {
+              setActiveNavTab('saved');
             } else {
               setActiveNavTab('home');
             }
@@ -265,16 +267,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* Right Contacts & Requests Sidebar */}
         <SidebarRight onSelectChatUser={(u) => setActiveChatUser(u)} />
       </div>
-
-      {/* Floating Messenger Active Chat Window */}
-      {activeChatUser && (
-        <ChatBox
-          key={activeChatUser.userId || activeChatUser.id}
-          friend={activeChatUser}
-          onClose={() => setActiveChatUser(null)}
-          onNavigateProfile={onViewProfile}
-        />
-      )}
     </div>
   );
 };

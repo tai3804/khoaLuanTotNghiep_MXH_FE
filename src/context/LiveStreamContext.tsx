@@ -38,7 +38,10 @@ const ENDED_STREAMS_STORAGE_KEY = 'kltn_ended_streams';
 
 export const getStoredEndedStreamIds = (): Set<string> => {
   try {
-    const raw = localStorage.getItem(ENDED_STREAMS_STORAGE_KEY);
+    // Clean up legacy localStorage if exists
+    try { localStorage.removeItem(ENDED_STREAMS_STORAGE_KEY); } catch {}
+
+    const raw = sessionStorage.getItem(ENDED_STREAMS_STORAGE_KEY);
     if (raw) {
       const arr = JSON.parse(raw);
       if (Array.isArray(arr)) {
@@ -54,7 +57,7 @@ export const saveStoredEndedStreamId = (postId: string) => {
   try {
     const set = getStoredEndedStreamIds();
     set.add(postId);
-    localStorage.setItem(ENDED_STREAMS_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    sessionStorage.setItem(ENDED_STREAMS_STORAGE_KEY, JSON.stringify(Array.from(set)));
   } catch {}
 };
 

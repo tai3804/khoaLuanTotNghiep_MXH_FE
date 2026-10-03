@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Globe, Lock, ArrowRight, Check } from 'lucide-react';
+import { Users, Plus, Globe, Lock, ArrowRight, Check, Clock } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -80,40 +80,42 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {groups.map((group) => (
-            <div
-              key={group.id}
-              onClick={() => navigate(`/groups/${group.id}`)}
-              className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition overflow-hidden cursor-pointer flex flex-col group"
-            >
-              {/* Cover Image */}
-              <div className="h-36 w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                {group.coverUrl ? (
-                  <img
-                    src={group.coverUrl}
-                    alt={group.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-[#1877f2]">
-                    <Users className="w-10 h-10" />
+            {groups.map((group) => {
+              const hasCover = typeof group.coverUrl === 'string' && group.coverUrl.trim() && !group.coverUrl.includes('images.unsplash.com/photo-1522071820081');
+              return (
+              <div
+                key={group.id}
+                onClick={() => navigate(`/groups/${group.id}`)}
+                className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition overflow-hidden cursor-pointer flex flex-col group"
+              >
+                {/* Cover Image Frame */}
+                <div className="h-36 w-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#2a2b2d] dark:to-[#1e1f20] relative overflow-hidden flex items-center justify-center">
+                  {hasCover ? (
+                    <img
+                      src={group.coverUrl}
+                      alt={group.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center text-gray-400 dark:text-gray-500">
+                      <Users className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                    </div>
+                  )}
+                  <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1">
+                    {group.privacy === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                    {group.privacy === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}
                   </div>
-                )}
-                <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1">
-                  {group.privacy === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                  {group.privacy === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}
                 </div>
-              </div>
 
-              {/* Group Info */}
-              <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb] line-clamp-1 group-hover:text-[#1877f2] transition">
-                    {group.name}
-                  </h4>
-                  <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium block">
-                    {group.memberCount} thành viên
-                  </span>
+                {/* Group Info */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb] line-clamp-1 group-hover:text-[#1877f2] transition">
+                      {group.name}
+                    </h4>
+                    <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium block">
+                      {group.memberCount} thành viên
+                    </span>
                   <p className="text-xs text-gray-600 dark:text-[#b0b3b8] line-clamp-2 leading-relaxed pt-1">
                     {group.description}
                   </p>
@@ -125,13 +127,21 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
                     className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       group.isMember
                         ? 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-200'
+                        : group.joinStatus === 'PENDING'
+                        ? 'bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200'
                         : 'bg-[#1877f2] hover:bg-[#166fe5] text-white shadow-sm shadow-blue-500/20'
                     }`}
+                    title={group.joinStatus === 'PENDING' ? 'Bấm để hủy yêu cầu tham gia' : undefined}
                   >
                     {group.isMember ? (
                       <>
                         <Check className="w-3.5 h-3.5 text-green-500" />
                         Đã tham gia
+                      </>
+                    ) : group.joinStatus === 'PENDING' ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        Đã gửi yêu cầu (Hủy)
                       </>
                     ) : (
                       'Tham gia nhóm'
@@ -140,7 +150,7 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
 
                   <button
                     onClick={() => navigate(`/groups/${group.id}`)}
-                    className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-[#3a3b3c] rounded-xl transition"
+                    className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-[#3a3b3c] rounded-xl transition cursor-pointer"
                     title="Xem nhóm"
                   >
                     <ArrowRight className="w-4 h-4" />
@@ -148,7 +158,8 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
                 </div>
               </div>
             </div>
-            ))}
+          );
+        })}
           </div>
         )}
       </div>

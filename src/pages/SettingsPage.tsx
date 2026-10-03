@@ -35,14 +35,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="pt-14">
         <SettingsView />
       </div>
-      {activeChatUser && (
-        <ChatBox
-          key={activeChatUser.userId || activeChatUser.id}
-          friend={activeChatUser}
-          onClose={() => setActiveChatUser(null)}
-          onNavigateProfile={onNavigateProfile}
-        />
-      )}
     </div>
   );
 };

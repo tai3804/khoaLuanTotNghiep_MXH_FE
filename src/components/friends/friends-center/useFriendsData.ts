@@ -37,9 +37,37 @@ export const useFriendsData = () => {
         userService.getFollowers().catch(() => []),
         userService.getFollowing().catch(() => []),
       ]);
-      setFriends(Array.isArray(fData) ? fData : []);
-      setSuggestions(Array.isArray(sData) ? sData : []);
-      setRequests(Array.isArray(rData) ? rData : []);
+      const seenFriend = new Set<string>();
+      const cleanFriends = (Array.isArray(fData) ? fData : []).filter((f: any) => {
+        const fid = String(f.userId || f.id).toLowerCase();
+        if (!fid || seenFriend.has(fid)) return false;
+        seenFriend.add(fid);
+        return true;
+      });
+
+      const friendIds = new Set(cleanFriends.map((f: any) => String(f.userId || f.id).toLowerCase()));
+
+      const seenReq = new Set<string>();
+      const cleanRequests = (Array.isArray(rData) ? rData : []).filter((r: any) => {
+        const rid = String(r.requesterId || r.userId || r.id).toLowerCase();
+        if (!rid || seenReq.has(rid) || friendIds.has(rid)) return false;
+        seenReq.add(rid);
+        return true;
+      });
+
+      const requestIds = new Set(cleanRequests.map((r: any) => String(r.requesterId || r.userId || r.id).toLowerCase()));
+
+      const seenSugg = new Set<string>();
+      const cleanSuggestions = (Array.isArray(sData) ? sData : []).filter((s: any) => {
+        const sid = String(s.userId || s.id).toLowerCase();
+        if (!sid || seenSugg.has(sid) || friendIds.has(sid) || requestIds.has(sid)) return false;
+        seenSugg.add(sid);
+        return true;
+      });
+
+      setFriends(cleanFriends);
+      setSuggestions(cleanSuggestions);
+      setRequests(cleanRequests);
       setFollowers(Array.isArray(foData) ? foData : []);
       setFollowing(Array.isArray(fgData) ? fgData : []);
     } catch (e) {
@@ -52,12 +80,19 @@ export const useFriendsData = () => {
   useEffect(() => {
     loadAllData(false);
 
-    // Real-time background sync every 4 seconds
+    const handleFriendStatusUpdated = () => {
+      loadAllData(true);
+    };
+    window.addEventListener('friend_status_updated', handleFriendStatusUpdated);
+
     const interval = setInterval(() => {
       loadAllData(true);
-    }, 4000);
+    }, 25000);
 
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('friend_status_updated', handleFriendStatusUpdated);
+      clearInterval(interval);
+    };
   }, [isAuthenticated, activeTab]);
 
   // Handle Accept friend request

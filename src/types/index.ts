@@ -101,11 +101,16 @@ export interface Post {
   isArchived?: boolean;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
   groupId?: string;
+  groupName?: string;
+  groupAvatar?: string;
+  groupCover?: string;
+  groupPrivacy?: 'PUBLIC' | 'PRIVATE' | string;
   originalPostId?: string;
   sharedPost?: Post;
   comments?: Comment[];
   isLive?: boolean;
   liveStatus?: 'LIVE' | 'ENDED' | string;
+  isOptimistic?: boolean;
 }
 
 export interface ApiResponse<T = any> {

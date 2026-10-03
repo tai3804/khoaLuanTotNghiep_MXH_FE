@@ -8,7 +8,6 @@ import {
   Check,
   Copy,
   Trash2,
-  X,
   Edit3,
   Pin,
   PinOff,
@@ -17,7 +16,10 @@ import {
   Archive,
   Calendar,
   Languages,
+  EyeOff,
+  Loader2,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { AlertTriangle } from 'lucide-react';
@@ -26,6 +28,7 @@ interface PostCardHeaderProps {
   post: Post;
   authorName: string;
   authorAvatar: string;
+  groupInfo?: { id: string; name: string; coverUrl?: string; privacy?: string } | null;
   user: any;
   saved: boolean;
   setSaved: (val: boolean) => void;
@@ -34,7 +37,7 @@ interface PostCardHeaderProps {
   setShowOptionsMenu: (val: boolean) => void;
   language: string;
   onViewProfile?: (userId: string) => void;
-  onDeletePost?: (postId: string) => void;
+  onHidePost?: () => void;
   handleSharePost: () => void;
   handleDeletePost: () => void;
   onEditPost?: () => void;
@@ -54,6 +57,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   post,
   authorName,
   authorAvatar,
+  groupInfo,
   user,
   saved,
   setSaved,
@@ -62,7 +66,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   setShowOptionsMenu,
   language,
   onViewProfile,
-  onDeletePost,
+  onHidePost,
   handleSharePost,
   handleDeletePost,
   onEditPost,
@@ -77,16 +81,33 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   onToggleTranslation,
   onEditDate,
 }) => {
+  const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
   const [showReportModal, setShowReportModal] = React.useState(false);
 
-  const currentUserId = String(user?.id || user?.userId || user?.profileId || '').toLowerCase();
-  const postAuthorId = String(post.userId || (post as any)?.authorId || '').toLowerCase();
+  const currentUserId = String(
+    user?.id ||
+    user?.userId ||
+    (user as any)?.profileId ||
+    ''
+  ).toLowerCase().trim();
+
+  const postAuthorId = String(
+    post.userId ||
+    (post as any)?.authorId ||
+    (post as any)?.author?.id ||
+    (post as any)?.author?.userId ||
+    (post as any)?.postDetail?.authorId ||
+    ''
+  ).toLowerCase().trim();
+
   const isOwner = Boolean(
-    user && (
-      (currentUserId && postAuthorId && currentUserId === postAuthorId) ||
-      postAuthorId === 'me'
-    )
+    user &&
+    currentUserId &&
+    postAuthorId &&
+    currentUserId !== 'me' &&
+    postAuthorId !== 'me' &&
+    currentUserId === postAuthorId
   );
 
   // Close dropdown on outside click
@@ -123,6 +144,11 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
     );
   };
 
+  const isGroupPost = Boolean(post.groupId);
+  const groupName = groupInfo?.name || post.groupName || 'Nhóm';
+  const groupCover = groupInfo?.coverUrl || post.groupAvatar || post.groupCover;
+  const groupPrivacy = groupInfo?.privacy || post.groupPrivacy || (post.privacy === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC');
+
   return (
     <div>
       {/* Pinned post badge if pinned */}
@@ -134,36 +160,119 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
       )}
 
       <div className="p-3.5 pb-2 flex items-center justify-between">
-        <div className="flex items-center space-x-2.5">
-          <div
-            onClick={() => {
-              if (onViewProfile && post.userId) onViewProfile(post.userId);
-            }}
-            className="cursor-pointer transition-transform hover:scale-105"
-          >
-            <UserAvatar
-              src={authorAvatar || post.authorAvatar}
-              alt={authorName || post.authorName}
-              size="md"
-              className="w-10 h-10 rounded-full"
-            />
+        {isGroupPost ? (
+          <div className="flex items-center space-x-2.5 min-w-0">
+            {/* Group thumbnail with Author badge */}
+            <div className="relative w-11 h-11 shrink-0">
+              <div
+                onClick={() => navigate(`/groups/${post.groupId}`)}
+                className="w-10 h-10 rounded-xl overflow-hidden bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center cursor-pointer border border-gray-200 dark:border-[#393a3b] hover:opacity-90 transition shadow-xs"
+                title={groupName}
+              >
+                {groupCover ? (
+                  <img src={groupCover} alt={groupName} className="w-full h-full object-cover" />
+                ) : (
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                )}
+              </div>
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onViewProfile && post.userId) onViewProfile(post.userId);
+                }}
+                className="absolute -bottom-1 -right-1 w-5.5 h-5.5 rounded-full ring-2 ring-white dark:ring-[#242526] overflow-hidden cursor-pointer hover:scale-110 transition bg-white dark:bg-[#242526]"
+                title={authorName || post.authorName}
+              >
+                <UserAvatar
+                  src={authorAvatar || post.authorAvatar}
+                  alt={authorName || post.authorName}
+                  size="sm"
+                  className="w-full h-full rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* Names & Subtitles */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span
+                  onClick={() => navigate(`/groups/${post.groupId}`)}
+                  className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer truncate max-w-[240px] sm:max-w-xs block leading-tight"
+                  title={groupName}
+                >
+                  {groupName}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5 flex-wrap leading-tight">
+                <span
+                  onClick={() => {
+                    if (onViewProfile && post.userId) onViewProfile(post.userId);
+                  }}
+                  className="font-semibold text-gray-700 dark:text-[#d0d2d6] hover:underline cursor-pointer truncate max-w-[140px] inline-block"
+                >
+                  {authorName || post.authorName || 'Thành viên'}
+                </span>
+                <span>•</span>
+                {post.isOptimistic ? (
+                  <span className="inline-flex items-center gap-1 text-blue-500 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Đang đăng...</span>
+                  </span>
+                ) : (
+                  <span>{post.createdAt || 'Vừa xong'}</span>
+                )}
+                <span>•</span>
+                {groupPrivacy === 'PRIVATE' ? (
+                  <span title="Nhóm riêng tư" className="inline-flex items-center">
+                    <Lock className="w-3 h-3 text-amber-500" />
+                  </span>
+                ) : (
+                  <span title="Nhóm công khai" className="inline-flex items-center">
+                    <Globe className="w-3 h-3 text-gray-500 dark:text-[#b0b3b8]" />
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div>
-            <h4
+        ) : (
+          <div className="flex items-center space-x-2.5">
+            <div
               onClick={() => {
                 if (onViewProfile && post.userId) onViewProfile(post.userId);
               }}
-              className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer leading-tight"
+              className="cursor-pointer transition-transform hover:scale-105"
             >
-              {authorName || post.authorName || 'Thành viên'}
-            </h4>
-            <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-              <span>{post.createdAt || 'Vừa xong'}</span>
-              <span>•</span>
-              {renderPrivacyIcon()}
+              <UserAvatar
+                src={authorAvatar || post.authorAvatar}
+                alt={authorName || post.authorName}
+                size="md"
+                className="w-10 h-10 rounded-full"
+              />
+            </div>
+            <div>
+              <h4
+                onClick={() => {
+                  if (onViewProfile && post.userId) onViewProfile(post.userId);
+                }}
+                className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer leading-tight"
+              >
+                {authorName || post.authorName || 'Thành viên'}
+              </h4>
+              <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                {post.isOptimistic ? (
+                  <span className="inline-flex items-center gap-1 text-blue-500 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Đang đăng...</span>
+                  </span>
+                ) : (
+                  <span>{post.createdAt || 'Vừa xong'}</span>
+                )}
+                <span>•</span>
+                {renderPrivacyIcon()}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Top Right Actions: Options & Close */}
         <div className="flex items-center space-x-1">
@@ -342,7 +451,27 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                   </button>
                 )}
 
-                {/* Report post */}
+                {/* 9. Hide post */}
+                {!isOwner && onHidePost && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onHidePost();
+                      setShowOptionsMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] transition cursor-pointer text-left"
+                  >
+                    <EyeOff className="w-4 h-4 text-gray-500 shrink-0" />
+                    <div>
+                      <div>Ẩn bài viết</div>
+                      <div className="text-[11px] text-gray-400 font-normal">
+                        Ẩn bài viết này khỏi bảng tin của bạn
+                      </div>
+                    </div>
+                  </button>
+                )}
+
+                {/* 10. Report post */}
                 {!isOwner && (
                   <button
                     type="button"
@@ -359,23 +488,6 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
               </div>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                const hidden = JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]') as string[];
-                if (!hidden.includes(String(post.id))) {
-                  localStorage.setItem('kltn_hidden_post_ids', JSON.stringify([...hidden, String(post.id)]));
-                }
-              } catch {}
-              if (onDeletePost) onDeletePost(post.id);
-            }}
-            className="text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer"
-            title={language === 'en' ? 'Hide post' : 'Ẩn bài viết'}
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
