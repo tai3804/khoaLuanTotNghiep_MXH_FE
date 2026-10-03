@@ -38,8 +38,8 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
     m.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const admins = filteredMembers.filter((m) => m.role === 'ADMIN');
-  const regularMembers = filteredMembers.filter((m) => m.role !== 'ADMIN');
+  const admins = filteredMembers.filter((m) => m.role === 'ADMIN' || m.role === 'MODERATOR');
+  const regularMembers = filteredMembers.filter((m) => m.role === 'MEMBER');
   const pendingMembers = members.filter((m) => m.status === 'PENDING');
 
   const runAction = async (memberId: string, action: () => Promise<unknown>) => {
@@ -132,7 +132,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                           {admin.name}
                         </div>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-[#1877f2]">
-                          <ShieldCheck className="w-3 h-3" /> Quản trị viên
+                          <ShieldCheck className="w-3 h-3" /> {admin.role === 'ADMIN' ? 'Quản trị viên' : 'Người kiểm duyệt'}
                         </span>
                       </div>
                     </div>

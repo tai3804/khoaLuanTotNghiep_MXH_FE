@@ -11,11 +11,12 @@ interface GroupsSidebarProps {
 export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick }) => {
   const { user } = useAuth();
   const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const navigate = useNavigate();
 
   const loadGroups = async () => {
-    const list = await groupService.getGroups();
-    setGroups(list);
+    try { setLoadError(false); setGroups(await groupService.getGroups()); }
+    catch { setGroups([]); setLoadError(true); }
   };
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+        {loadError && <p className="px-2 text-xs text-red-500">Không thể kết nối dịch vụ Nhóm.</p>}
         <div className="px-2">
           <h3 className="text-xs font-bold text-gray-500 dark:text-[#b0b3b8] uppercase tracking-wider">
             Nhóm bạn đã tham gia ({myGroups.length})

@@ -99,6 +99,7 @@ export interface Post {
   isSaved?: boolean;
   isPinned?: boolean;
   isArchived?: boolean;
+  status?: 'PUBLISHED' | 'PENDING_APPROVAL' | 'REJECTED' | 'PROCESSING' | 'FAILED' | string;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
   groupId?: string;
   originalPostId?: string;
