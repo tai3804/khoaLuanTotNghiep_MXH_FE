@@ -172,15 +172,19 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
     if (canModerate) load();
   }, [canModerate]);
 
-  // Fetch actual post content & author info for all reported posts
+  // Fetch actual post content & author info for all reported posts and logged items
   useEffect(() => {
     const postIds = Array.from(
-      new Set(
-        reports
+      new Set([
+        ...reports
           .filter((r) => r.targetType === 'POST' || !r.targetType)
           .map((r) => r.targetId)
-          .filter(Boolean)
-      )
+          .filter(Boolean),
+        ...logs
+          .filter((l) => l.targetType === 'POST' || !l.targetType)
+          .map((l) => l.targetId)
+          .filter(Boolean),
+      ])
     );
 
     const missing = postIds.filter((id) => postsMap[id] === undefined && !loadingPostsMap[id]);
@@ -233,7 +237,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         return next;
       });
     });
-  }, [reports, postsMap, loadingPostsMap]);
+  }, [reports, logs, postsMap, loadingPostsMap]);
 
   // Only focus on POST reports as requested
   const postReports = useMemo(() => {
@@ -277,7 +281,8 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
       await moderationService.processReport(reportId, action, noteToSave);
 
       if (action === 'RESTORE_POST') {
-        toast.showSuccess('Đã hoàn tác thành công! Bài viết đã được khôi phục.');
+        toast.showSuccess('Đã hoàn tác thành công! Bài viết đã được đưa trở lại Hàng chờ xử lý.');
+        setTab('queue');
       } else {
         toast.showSuccess(`Đã xử lý: ${actionDetails[action]?.label || action}.`);
       }
@@ -514,6 +519,9 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         ) : tab === 'history' ? (
           <AuditLogList
             logs={logs}
+            reports={reports}
+            postsMap={postsMap}
+            loadingPostsMap={loadingPostsMap}
             processingId={processingId}
             onUndo={(reportId, targetId) => handleProcessAction(reportId, 'RESTORE_POST', 'Hoàn tác quyết định', targetId)}
           />
@@ -1000,9 +1008,12 @@ const PostReportList: React.FC<{
 
 const AuditLogList: React.FC<{
   logs: ModerationLog[];
+  reports: ModerationReport[];
+  postsMap: Record<string, Post | null>;
+  loadingPostsMap: Record<string, boolean>;
   processingId: string | null;
   onUndo: (reportId: string, targetId: string) => void;
-}> = ({ logs, processingId, onUndo }) => {
+}> = ({ logs, reports, postsMap, loadingPostsMap, processingId, onUndo }) => {
   if (logs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-200/80 bg-white/70 py-20 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
@@ -1016,66 +1027,166 @@ const AuditLogList: React.FC<{
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {logs.map((log) => {
+        const post = postsMap[log.targetId];
+        const isLoadingPost = loadingPostsMap[log.targetId];
         const actInfo = actionDetails[log.action] || {
           label: log.action,
           tone: 'neutral',
           icon: CheckCircle2,
         };
         const IconComponent = actInfo.icon;
-        const canUndo = log.action === 'DELETE_POST' || log.action === 'HIDE_POST' || log.action === 'DISMISS';
         const isProcessing = processingId === log.reportId;
+
+        // Check if report has already been restored to PENDING queue
+        const matchedReport = reports.find((r) => r.reportId === log.reportId);
+        const isAlreadyInQueue = matchedReport?.status === 'PENDING';
+        const isRestored = log.action === 'RESTORE_POST';
+        const canUndo = (log.action === 'DELETE_POST' || log.action === 'HIDE_POST' || log.action === 'DISMISS') && !isAlreadyInQueue;
 
         return (
           <div
             key={log.logId}
-            className="flex flex-col gap-3 rounded-2xl border border-gray-200/80 bg-white/80 p-4 shadow-2xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d] sm:flex-row sm:items-center sm:justify-between"
+            className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white p-5 shadow-xs transition hover:shadow-md dark:border-[#2f3032] dark:bg-[#1a1b1d]"
           >
-            <div className="flex items-start gap-3">
-              <div
-                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                  actInfo.tone === 'danger'
-                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50'
-                    : actInfo.tone === 'warning'
-                      ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/50'
-                      : actInfo.tone === 'success'
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50'
-                        : 'bg-blue-50 text-blue-600 dark:bg-blue-950/50'
-                }`}
-              >
-                <IconComponent className="h-4 w-4" />
+            {/* Action Header Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3.5 dark:border-[#282a2d]">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                    actInfo.tone === 'danger'
+                      ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60'
+                      : actInfo.tone === 'warning'
+                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/60'
+                        : actInfo.tone === 'success'
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60'
+                          : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60'
+                  }`}
+                >
+                  <IconComponent className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wide text-gray-900 uppercase dark:text-white">
+                      {actInfo.label}
+                    </span>
+                    <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-[#282a2d] dark:text-gray-400">
+                      {log.targetType}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Thời gian xử lý: {new Date(log.createdAt).toLocaleString('vi-VN')}
+                  </p>
+                </div>
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black tracking-wide text-gray-900 uppercase dark:text-white">
-                    {actInfo.label}
+
+              {/* Status Badge or Undo Button */}
+              <div className="flex items-center gap-2">
+                {isAlreadyInQueue ? (
+                  <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Đã ở hàng chờ</span>
                   </span>
-                  <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600 dark:bg-[#2b2d30] dark:text-gray-300">
-                    {log.targetType}
+                ) : isRestored ? (
+                  <span className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Đã khôi phục</span>
                   </span>
-                </div>
-                <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
-                  {log.note || log.reason || 'Không có ghi chú thêm.'}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[11px] text-gray-400">
-                  <span>Mã bài: <code className="font-mono text-gray-500 dark:text-gray-400">{log.targetId}</code></span>
-                  <span>Thời gian: {new Date(log.createdAt).toLocaleString('vi-VN')}</span>
-                </div>
+                ) : canUndo && log.reportId ? (
+                  <button
+                    onClick={() => onUndo(log.reportId!, log.targetId)}
+                    disabled={isProcessing}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-2xs transition hover:bg-emerald-100 hover:border-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 active:scale-95 disabled:opacity-50"
+                    title="Hoàn tác quyết định và đưa bài viết quay trở lại Hàng chờ xử lý"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Undo2 className="h-3.5 w-3.5" />
+                    )}
+                    <span>Hoàn tác (Về hàng chờ)</span>
+                  </button>
+                ) : null}
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-              {canUndo && log.reportId && (
-                <button
-                  onClick={() => onUndo(log.reportId!, log.targetId)}
-                  disabled={isProcessing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 active:scale-95 disabled:opacity-50"
-                  title="Hoàn tác quyết định và khôi phục lại bài viết này"
-                >
-                  <Undo2 className="h-3.5 w-3.5" />
-                  <span>Hoàn tác</span>
-                </button>
+            {/* Note & Reason from Moderator */}
+            <div className="mt-3 rounded-xl bg-gray-50/80 px-3.5 py-2.5 dark:bg-[#202124]">
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                Lý do / Ghi chú kiểm duyệt:
+              </span>
+              <p className="mt-0.5 text-xs font-semibold text-gray-800 dark:text-gray-200">
+                "{log.note || log.reason || 'Không có ghi chú thêm.'}"
+              </p>
+            </div>
+
+            {/* Embedded Post Preview Content */}
+            <div className="mt-3 rounded-xl border border-gray-100 bg-white p-3.5 dark:border-[#2b2d30] dark:bg-[#151617]">
+              {isLoadingPost ? (
+                <div className="flex items-center justify-center py-4 text-xs text-gray-400">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-500" />
+                  Đang tải nội dung bài viết...
+                </div>
+              ) : post ? (
+                <div className="space-y-3">
+                  {/* Author Header */}
+                  <div className="flex items-center gap-2.5">
+                    {post.authorAvatar ? (
+                      <img
+                        src={post.authorAvatar}
+                        alt=""
+                        className="h-8 w-8 rounded-full object-cover ring-2 ring-blue-500/20"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-sm">
+                        {post.authorName?.[0] || 'U'}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white">
+                          {post.authorName || 'Người dùng'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">• Tác giả</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400">
+                        Đăng lúc: {new Date(post.createdAt).toLocaleString('vi-VN')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Post Text */}
+                  <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                    {post.content || <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>}
+                  </p>
+
+                  {/* Post Media Attachment */}
+                  {post.mediaUrls && post.mediaUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {post.mediaUrls.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt="Đính kèm"
+                          className="h-20 w-28 rounded-lg object-cover ring-1 ring-black/5 dark:ring-white/10"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Metadata line */}
+                  <div className="flex items-center gap-3 text-[11px] text-gray-400 pt-1">
+                    <span>❤️ {post.likesCount || 0} lượt thích</span>
+                    <span>💬 {post.commentsCount || 0} bình luận</span>
+                    <span className="ml-auto font-mono text-[10px] text-gray-400">Mã bài: {post.id}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-1 text-xs text-gray-400">
+                  <span>Mã bài viết: </span>
+                  <code className="font-mono text-gray-500 dark:text-gray-400">{log.targetId}</code>
+                </div>
               )}
             </div>
           </div>
