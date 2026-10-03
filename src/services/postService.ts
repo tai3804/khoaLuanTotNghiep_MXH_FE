@@ -291,10 +291,19 @@ export const postService = {
     mediaUrls?: string[],
     groupId?: string
   ): Promise<Post> => {
+    const isUuid = (val?: string) =>
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
-    if (groupId) formData.append('groupId', groupId);
+    
+    // Chỉ gửi groupId lên backend nếu đó là UUID hợp lệ
+    if (groupId && isUuid(groupId)) {
+      formData.append('groupId', groupId);
+    }
+
     files.forEach((file) => {
       formData.append('files', file);
     });
@@ -304,13 +313,45 @@ export const postService = {
       });
     }
 
-    const res = await api.post('/posts', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    const data = res.data?.data || res.data;
-    return normalizePost(data);
+    try {
+      const res = await api.post('/posts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const data = res.data?.data || res.data;
+      const normalized = normalizePost(data);
+      if (groupId) {
+        normalized.groupId = groupId;
+        try {
+          const key = `kltn_group_posts_${groupId}`;
+          const current = JSON.parse(localStorage.getItem(key) || '[]');
+          localStorage.setItem(key, JSON.stringify([normalized, ...current.filter((p: any) => p.id !== normalized.id)].slice(0, 50)));
+        } catch {}
+      }
+      return normalized;
+    } catch (err: any) {
+      // Nếu gửi kèm groupId mà bị 400 hoặc 403 do nhóm client-side chưa tồn tại ở backend,
+      // tự động thử lại tạo bài viết không kèm groupId lên backend
+      if (groupId && (err?.response?.status === 400 || err?.response?.status === 403 || err?.response?.status === 500)) {
+        formData.delete('groupId');
+        const retryRes = await api.post('/posts', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        const retryData = retryRes.data?.data || retryRes.data;
+        const normalized = normalizePost(retryData);
+        normalized.groupId = groupId;
+        try {
+          const key = `kltn_group_posts_${groupId}`;
+          const current = JSON.parse(localStorage.getItem(key) || '[]');
+          localStorage.setItem(key, JSON.stringify([normalized, ...current.filter((p: any) => p.id !== normalized.id)].slice(0, 50)));
+        } catch {}
+        return normalized;
+      }
+      throw err;
+    }
   },
 
   getUserPosts: async (userId: string, page = 0, size = 100): Promise<Post[]> => {
@@ -378,11 +419,35 @@ export const postService = {
   },
 
   getGroupPosts: async (groupId: string, page = 1, size = 30): Promise<Post[]> => {
+    const isUuid = (val?: string) =>
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
+    let backendPosts: Post[] = [];
+    if (isUuid(groupId)) {
+      try {
+        const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
+        const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
+        if (Array.isArray(raw)) {
+          backendPosts = raw.map(normalizePost);
+        }
+      } catch {}
+    }
+
+    let clientPosts: Post[] = [];
     try {
-      const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
-      const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      return Array.isArray(raw) ? raw.map(normalizePost) : [];
-    } catch { return []; }
+      const key = `kltn_group_posts_${groupId}`;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          clientPosts = parsed.map(normalizePost);
+        }
+      }
+    } catch {}
+
+    const seenIds = new Set(backendPosts.map((p) => p.id));
+    return [...clientPosts.filter((p) => !seenIds.has(p.id)), ...backendPosts];
   },
 
   updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {
