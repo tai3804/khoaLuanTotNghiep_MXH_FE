@@ -100,13 +100,28 @@ const saveStoredGroups = (groups: GroupResponse[]) => {
 
 export const groupService = {
   createGroup: async (request: CreateGroupRequest): Promise<GroupResponse> => {
+    const isUuid = (val?: string) =>
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
     try {
-      // Try backend if route exists in future
-      const response = await api.post('/groups', request);
+      const validInitialMemberIds = (request.initialMemberIds || []).filter(isUuid);
+      const payload = {
+        name: request.name.trim(),
+        description: request.description,
+        privacy: request.privacy,
+        coverUrl: request.coverUrl,
+        initialMemberIds: validInitialMemberIds.length > 0 ? validInitialMemberIds : undefined,
+      };
+      const response = await api.post('/groups', payload);
       const data = response.data?.data || response.data;
-      if (data && data.id) return mapGroupForCurrentUser(data as GroupResponse);
-    } catch {
-      // Fallback to client storage
+      if (data && data.id) {
+        const mapped = mapGroupForCurrentUser(data as GroupResponse);
+        window.dispatchEvent(new CustomEvent('community_group_created', { detail: mapped }));
+        return mapped;
+      }
+    } catch (e) {
+      console.warn('Backend group creation error, falling back to client storage:', e);
     }
 
     const currentUserId = getCurrentUserId() || 'me';
@@ -115,7 +130,7 @@ export const groupService = {
     const memberIds = Array.from(new Set([currentUserId, ...initialMemberIds]));
 
     const newGroup: GroupResponse = {
-      id: 'grp-' + Date.now(),
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'grp-' + Date.now(),
       name: request.name.trim(),
       description: request.description || `Chào mừng bạn đến với ${request.name}!`,
       privacy: request.privacy,
@@ -142,8 +157,15 @@ export const groupService = {
     try {
       const response = await api.get('/groups');
       const data = response.data?.data || response.data;
-      if (Array.isArray(data)) return data.map(mapGroupForCurrentUser);
-    } catch {}
+      if (Array.isArray(data)) {
+        const stored = getStoredGroups();
+        const backendIds = new Set(data.map((g: any) => String(g.id)));
+        const combined = [...data, ...stored.filter((g) => !backendIds.has(String(g.id)))];
+        return combined.map(mapGroupForCurrentUser);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch groups from backend:', err);
+    }
     return getStoredGroups().map(mapGroupForCurrentUser);
   },
 
