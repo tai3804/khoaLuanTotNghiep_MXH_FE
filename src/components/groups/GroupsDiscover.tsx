@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Globe, Lock, ArrowRight, Check } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 interface GroupsDiscoverProps {
   onCreateGroupClick: () => void;
 }
 
 export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupClick }) => {
+  const { user } = useAuth();
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const navigate = useNavigate();
 
@@ -25,7 +27,7 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
       window.removeEventListener('community_group_created', handleUpdate);
       window.removeEventListener('community_group_updated', handleUpdate);
     };
-  }, []);
+  }, [user?.id]);
 
   const handleToggleJoin = async (e: React.MouseEvent, groupId: string) => {
     e.stopPropagation();

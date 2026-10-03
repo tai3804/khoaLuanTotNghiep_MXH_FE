@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Globe, Lock } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 interface GroupsSidebarProps {
   onCreateGroupClick: () => void;
 }
 
 export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick }) => {
+  const { user } = useAuth();
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const navigate = useNavigate();
 
@@ -25,7 +27,7 @@ export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick
       window.removeEventListener('community_group_created', handleUpdate);
       window.removeEventListener('community_group_updated', handleUpdate);
     };
-  }, []);
+  }, [user?.id]);
 
   const myGroups = groups.filter((g) => g.isMember || g.isAdmin);
 

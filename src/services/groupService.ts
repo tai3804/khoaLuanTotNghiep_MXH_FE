@@ -42,6 +42,38 @@ const STORAGE_KEY = 'kltn_community_groups';
 
 const LEGACY_SAMPLE_GROUP_IDS = new Set(['group-1', 'group-2', 'group-3']);
 
+const getCurrentUserId = (): string => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u.id) return String(u.id);
+    }
+  } catch {}
+  return '';
+};
+
+export const mapGroupForCurrentUser = (group: GroupResponse): GroupResponse => {
+  const currentUserId = getCurrentUserId();
+  const rawMemberIds = Array.isArray(group.memberIds) && group.memberIds.length > 0
+    ? group.memberIds.map(String)
+    : [String(group.ownerId)];
+  
+  // Chủ nhóm
+  const isOwner = Boolean(currentUserId && String(group.ownerId) === currentUserId);
+  // Đã tham gia nhóm nếu là chủ nhóm hoặc có ID trong danh sách thành viên
+  const isMember = Boolean(currentUserId && (isOwner || rawMemberIds.includes(currentUserId)));
+  const isAdmin = isOwner;
+
+  return {
+    ...group,
+    isMember,
+    isAdmin,
+    memberIds: rawMemberIds,
+    memberCount: Math.max(1, rawMemberIds.length),
+  };
+};
+
 const getStoredGroups = (): GroupResponse[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -72,16 +104,12 @@ export const groupService = {
       // Try backend if route exists in future
       const response = await api.post('/groups', request);
       const data = response.data?.data || response.data;
-      if (data && data.id) return data as GroupResponse;
+      if (data && data.id) return mapGroupForCurrentUser(data as GroupResponse);
     } catch {
       // Fallback to client storage
     }
 
-    let currentUserId = 'me';
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (user.id) currentUserId = user.id;
-    } catch {}
+    const currentUserId = getCurrentUserId() || 'me';
 
     const initialMemberIds = request.initialMemberIds || [];
     const memberIds = Array.from(new Set([currentUserId, ...initialMemberIds]));
@@ -105,67 +133,72 @@ export const groupService = {
     const updated = [newGroup, ...existing];
     saveStoredGroups(updated);
 
-    window.dispatchEvent(new CustomEvent('community_group_created', { detail: newGroup }));
-    return newGroup;
+    const mapped = mapGroupForCurrentUser(newGroup);
+    window.dispatchEvent(new CustomEvent('community_group_created', { detail: mapped }));
+    return mapped;
   },
 
   getGroups: async (): Promise<GroupResponse[]> => {
     try {
       const response = await api.get('/groups');
       const data = response.data?.data || response.data;
-      if (Array.isArray(data)) return data as GroupResponse[];
+      if (Array.isArray(data)) return data.map(mapGroupForCurrentUser);
     } catch {}
-    return getStoredGroups();
+    return getStoredGroups().map(mapGroupForCurrentUser);
   },
 
   getGroupById: async (id: string): Promise<GroupResponse | null> => {
     try {
       const response = await api.get(`/groups/${id}`);
       const data = response.data?.data || response.data;
-      if (data && data.id) return data as GroupResponse;
+      if (data && data.id) return mapGroupForCurrentUser(data as GroupResponse);
     } catch {}
 
     const groups = getStoredGroups();
     const found = groups.find((g) => g.id === id);
-    if (found) return found;
+    if (found) return mapGroupForCurrentUser(found);
 
-    // Fallback for default group
-    return {
-      id,
-      name: 'Cộng đồng nhóm thảo luận',
-      description: 'Cộng đồng kết nối các thành viên trên hệ thống mạng xã hội.',
-      privacy: 'PUBLIC',
-      ownerId: 'system',
-      coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-      memberCount: 120,
-      isMember: true,
-      isAdmin: false,
-      memberIds: ['system'],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    return null;
   },
 
   toggleJoinGroup: async (id: string): Promise<GroupResponse | null> => {
     try {
       const response = await api.post(`/groups/${id}/join`);
       const data = response.data?.data || response.data;
-      if (data?.id) return data as GroupResponse;
+      if (data?.id) return mapGroupForCurrentUser(data as GroupResponse);
     } catch {}
     const groups = getStoredGroups();
     const idx = groups.findIndex((g) => g.id === id);
     if (idx >= 0) {
       const group = groups[idx];
-      const nextMemberState = !group.isMember;
+      const currentUserId = getCurrentUserId();
+      if (!currentUserId) return mapGroupForCurrentUser(group);
+
+      const currentMemberIds = new Set((group.memberIds || [group.ownerId]).map(String));
+      const isOwner = Boolean(String(group.ownerId) === currentUserId);
+
+      // Nếu là chủ nhóm thì luôn là thành viên và admin
+      if (isOwner) {
+        return mapGroupForCurrentUser(group);
+      }
+
+      if (currentMemberIds.has(currentUserId)) {
+        currentMemberIds.delete(currentUserId);
+      } else {
+        currentMemberIds.add(currentUserId);
+      }
+
+      const updatedMemberIds = Array.from(currentMemberIds);
       const updated: GroupResponse = {
         ...group,
-        isMember: nextMemberState,
-        memberCount: nextMemberState ? group.memberCount + 1 : Math.max(1, group.memberCount - 1),
+        memberIds: updatedMemberIds,
+        memberCount: Math.max(1, updatedMemberIds.length),
       };
       groups[idx] = updated;
       saveStoredGroups(groups);
-      window.dispatchEvent(new CustomEvent('community_group_updated', { detail: updated }));
-      return updated;
+      const mapped = mapGroupForCurrentUser(updated);
+      window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
+      return mapped;
     }
     return null;
   },
@@ -179,13 +212,14 @@ export const groupService = {
     const idx = groups.findIndex((group) => group.id === id);
     if (idx < 0) return;
     const group = groups[idx];
-    if (group.isAdmin) throw new Error('Quản trị viên tạo nhóm không thể rời nhóm. Hãy chuyển quyền quản trị hoặc xóa nhóm.');
-    let currentUserId = 'me';
-    try { currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id || currentUserId; } catch {}
-    const memberIds = (group.memberIds || []).filter((memberId) => String(memberId) !== String(currentUserId));
-    groups[idx] = { ...group, isMember: false, memberIds, memberCount: Math.max(0, group.memberCount - 1) };
+    const currentUserId = getCurrentUserId();
+    const isOwner = Boolean(currentUserId && String(group.ownerId) === currentUserId);
+    if (isOwner) throw new Error('Quản trị viên tạo nhóm không thể rời nhóm. Hãy chuyển quyền quản trị hoặc xóa nhóm.');
+
+    const memberIds = (group.memberIds || [group.ownerId]).filter((memberId) => String(memberId) !== currentUserId);
+    groups[idx] = { ...group, memberIds, memberCount: Math.max(1, memberIds.length) };
     saveStoredGroups(groups);
-    window.dispatchEvent(new CustomEvent('community_group_updated', { detail: groups[idx] }));
+    window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapGroupForCurrentUser(groups[idx]) }));
   },
 
   addGroupMembers: async (groupId: string, memberIdsToAdd: string[]): Promise<GroupResponse | null> => {
