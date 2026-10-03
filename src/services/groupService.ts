@@ -53,24 +53,39 @@ const getCurrentUserId = (): string => {
   return '';
 };
 
-export const mapGroupForCurrentUser = (group: GroupResponse): GroupResponse => {
+export const mapGroupForCurrentUser = (group: any): GroupResponse => {
   const currentUserId = getCurrentUserId();
+  const ownerId = String(group.ownerId || group.creatorId || '');
   const rawMemberIds = Array.isArray(group.memberIds) && group.memberIds.length > 0
     ? group.memberIds.map(String)
-    : [String(group.ownerId)];
+    : (ownerId ? [ownerId] : []);
   
   // Chủ nhóm
-  const isOwner = Boolean(currentUserId && String(group.ownerId) === currentUserId);
-  // Đã tham gia nhóm nếu là chủ nhóm hoặc có ID trong danh sách thành viên
-  const isMember = Boolean(currentUserId && (isOwner || rawMemberIds.includes(currentUserId)));
-  const isAdmin = isOwner;
+  const isOwner = Boolean(currentUserId && ownerId && ownerId === currentUserId);
+  
+  // Đã tham gia nhóm nếu backend trả về member === true HOẶC là chủ nhóm HOẶC có trong memberIds
+  const isMember = Boolean(
+    group.member === true ||
+    group.isMember === true ||
+    (currentUserId && (isOwner || rawMemberIds.includes(currentUserId)))
+  );
+  
+  const isAdmin = Boolean(group.admin === true || group.isAdmin === true || isOwner);
 
   return {
     ...group,
+    id: String(group.id),
+    name: group.name || 'Nhóm cộng đồng',
+    description: group.description || '',
+    privacy: group.privacy || 'PUBLIC',
+    ownerId,
+    coverUrl: group.coverUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
     isMember,
     isAdmin,
     memberIds: rawMemberIds,
-    memberCount: Math.max(1, rawMemberIds.length),
+    memberCount: Number(group.memberCount || rawMemberIds.length || 1),
+    createdAt: group.createdAt || new Date().toISOString(),
+    updatedAt: group.updatedAt || new Date().toISOString(),
   };
 };
 
@@ -187,7 +202,11 @@ export const groupService = {
     try {
       const response = await api.post(`/groups/${id}/join`);
       const data = response.data?.data || response.data;
-      if (data?.id) return mapGroupForCurrentUser(data as GroupResponse);
+      if (data?.id) {
+        const mapped = mapGroupForCurrentUser(data as GroupResponse);
+        window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
+        return mapped;
+      }
     } catch {}
     const groups = getStoredGroups();
     const idx = groups.findIndex((g) => g.id === id);
