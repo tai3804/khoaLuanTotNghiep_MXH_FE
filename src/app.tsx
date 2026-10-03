@@ -10,6 +10,7 @@ import { WatchPage } from './pages/WatchPage';
 import { GroupsPage } from './pages/GroupsPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
 import { ModeratorPage } from './pages/ModeratorPage';
+import { SupportInboxPage } from './pages/SupportInboxPage';
 import { ChatUser } from './components/chat/chat-box';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
@@ -54,6 +55,7 @@ export const App: React.FC = () => {
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
   else if (path.startsWith('/groups')) activeNavTab = 'groups';
   else if (path.startsWith('/moderation')) activeNavTab = 'moderation';
+  else if (path.startsWith('/support-inbox')) activeNavTab = 'support';
 
   const fetchFeed = async (isBackground = false) => {
     if (!isBackground) {
@@ -202,6 +204,8 @@ export const App: React.FC = () => {
     else if (tab === 'profile') navigate('/profile');
     else if (tab === 'watch') navigate('/watch');
     else if (tab === 'groups') navigate('/groups');
+    else if (tab === 'moderation') navigate('/moderation');
+    else if (tab === 'support') navigate('/support-inbox');
   };
 
   const handleViewProfile = (userId?: string) => {
@@ -391,6 +395,10 @@ export const App: React.FC = () => {
               setActiveChatUser={setActiveChatUser}
             />
           }
+        />
+        <Route
+          path="/support-inbox"
+          element={<SupportInboxPage activeNavTab="support" setActiveNavTab={handleTabChange} onNavigateSettings={() => navigate('/settings/profile')} onNavigateProfile={(uid) => handleViewProfile(uid)} onNavigateAuth={() => navigate('/auth')} activeChatUser={activeChatUser} setActiveChatUser={setActiveChatUser} />}
         />
       </Routes>
 

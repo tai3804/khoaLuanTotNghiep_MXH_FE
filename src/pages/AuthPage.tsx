@@ -107,6 +107,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                   setShowPassword={data.setShowPassword}
                   loading={data.loading}
                   onSubmit={data.handleSubmitLogin}
+                  onQuickLogin={data.handleQuickLogin}
                 />
 
 

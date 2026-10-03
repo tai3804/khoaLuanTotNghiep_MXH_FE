@@ -161,6 +161,31 @@ export const useAuthPageData = (onGoHome?: () => void) => {
     }
   };
 
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPass);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setLoading(true);
+    try {
+      const res = await login(quickEmail.trim(), quickPass.trim());
+      if (res.success) {
+        if (res.mfaRequired && res.mfaToken) {
+          setMfaRequired(true);
+          setMfaToken(res.mfaToken);
+        } else if (onGoHome) {
+          onGoHome();
+        }
+      } else {
+        setErrorMessage('Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyMfaOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode.trim()) return;
@@ -222,6 +247,7 @@ export const useAuthPageData = (onGoHome?: () => void) => {
     handleVerifyRegisterOtp,
     handleCompleteRegistration,
     handleSubmitLogin,
+    handleQuickLogin,
     handleVerifyMfaOtp,
   };
 };

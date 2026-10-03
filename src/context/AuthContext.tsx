@@ -7,6 +7,22 @@ import { setAccessToken, clearAuth } from '../store/slices/authSlice';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export const rolesFromToken = (token: string): string[] => {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return [];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (Array.isArray(decoded.roles)) return decoded.roles;
+    if (Array.isArray(decoded.authorities)) return decoded.authorities;
+    if (typeof decoded.scope === 'string') return decoded.scope.split(' ');
+    if (typeof decoded.role === 'string') return [decoded.role];
+    if (Array.isArray(decoded.role)) return decoded.role;
+    return [];
+  } catch {
+    return [];
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const dispatch = useDispatch();
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
@@ -16,7 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedUser = localStorage.getItem('user');
       // We don't check storedToken anymore, if user exists we assume they might still have a valid cookie
       if (storedUser && !localStorage.getItem('isGuest')) {
-        return JSON.parse(storedUser);
+        const parsed = JSON.parse(storedUser);
+        const token = localStorage.getItem('token');
+        if (token && (!parsed.roles || parsed.roles.length === 0)) {
+          parsed.roles = rolesFromToken(token);
+        }
+        return parsed;
       }
     } catch {}
     return null;
@@ -36,6 +57,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile) {
         const fullName = `${profile.lastName || ''} ${profile.firstName || ''}`.trim() || profile.fullName;
         setUser((prev) => {
+          const currentToken = localStorage.getItem('token') || '';
+          const currentRoles = (prev?.roles && prev.roles.length > 0)
+            ? prev.roles
+            : rolesFromToken(currentToken);
+
           const updated: User = {
             id: profile.userId || profile.id || prev?.id || 'me',
             username: profile.email || prev?.username || 'user',
@@ -43,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fullName: fullName || prev?.fullName || 'Người dùng',
             avatar: profile.avatarUrl || prev?.avatar || '',
             bio: profile.bio || prev?.bio || '',
+            roles: currentRoles,
           };
           localStorage.setItem('user', JSON.stringify(updated));
           return updated;
@@ -179,12 +206,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: rawUser.email || '',
               fullName: fullName.trim() || 'Người dùng',
               avatar: rawUser.avatarUrl || '',
+              roles: rolesFromToken(accToken),
             }
           : {
               id: 'u-' + Date.now(),
               username: username || 'user',
               email: (username || 'user') + '@example.com',
               fullName: username || 'Người dùng',
+              roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('token', accToken);
@@ -220,12 +249,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: rawUser.email || '',
               fullName: fullName.trim() || 'Người dùng',
               avatar: rawUser.avatarUrl || '',
+              roles: rolesFromToken(accToken),
             }
           : {
               id: 'u-' + Date.now(),
               username: 'user',
               email: 'user@example.com',
               fullName: 'Người dùng',
+              roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('token', accToken);

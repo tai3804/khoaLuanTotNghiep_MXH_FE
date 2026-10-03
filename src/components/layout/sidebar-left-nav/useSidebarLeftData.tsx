@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import React, { useState, useMemo } from 'react';
+import { useAuth, rolesFromToken } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import {
   Users,
@@ -10,6 +10,8 @@ import {
   Tv,
   Users2,
   Settings,
+  ShieldCheck,
+  HelpCircle,
 } from 'lucide-react';
 
 interface UseSidebarLeftDataProps {
@@ -44,6 +46,15 @@ export const useSidebarLeftData = ({
       iconNode: (
         <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
           <Users2 className="w-5 h-5" />
+        </div>
+      ),
+    },
+    {
+      id: 'support',
+      label: 'Hộp thư hỗ trợ',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white shadow-sm">
+          <HelpCircle className="w-5 h-5" />
         </div>
       ),
     },
@@ -102,6 +113,31 @@ export const useSidebarLeftData = ({
       ),
     },
   ];
+
+  const canModerate = useMemo(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
+    const tokenRoles = rolesFromToken(token);
+    const allRoles = [...(user?.roles || []), ...tokenRoles].map((r) => String(r).toUpperCase());
+    return allRoles.some(
+      (role) =>
+        role === 'ROLE_MODERATOR' ||
+        role === 'MODERATOR' ||
+        role === 'ROLE_ADMIN' ||
+        role === 'ADMIN'
+    );
+  }, [user]);
+
+  if (canModerate) {
+    menuItems.splice(2, 0, {
+      id: 'moderation',
+      label: 'Trung tâm kiểm duyệt',
+      iconNode: (
+        <div className="w-9 h-9 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-sm">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
+      ),
+    });
+  }
 
   const displayedItems = showMore ? menuItems : menuItems.slice(0, 5);
 

@@ -9,6 +9,7 @@ export interface User {
   avatar?: string;
   bio?: string;
   createdAt?: string;
+  roles?: string[];
 }
 
 export interface UserProfile {

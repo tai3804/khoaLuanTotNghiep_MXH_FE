@@ -117,6 +117,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               setActiveNavTab('groups');
             } else if (filter === 'watch') {
               setActiveNavTab('watch');
+            } else if (filter === 'moderation') {
+              setActiveNavTab('moderation');
+            } else if (filter === 'support') {
+              setActiveNavTab('support');
             } else {
               setActiveNavTab('home');
             }

@@ -141,6 +141,22 @@ export const useLoginForm = () => {
     }
   };
 
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPass);
+    setError('');
+    setLoading(true);
+    try {
+      const res = await login(quickEmail.trim(), quickPass.trim());
+      if (!res.success) setError((res as any).message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
+      else closeLoginModal();
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleRegisterMode = () => {
     setIsRegisterMode(!isRegisterMode);
     setError('');
@@ -182,6 +198,7 @@ export const useLoginForm = () => {
     handleVerifyRegisterOtp,
     handleCompleteRegistration,
     handleSubmitLogin,
+    handleQuickLogin,
     toggleRegisterMode,
   };
 };

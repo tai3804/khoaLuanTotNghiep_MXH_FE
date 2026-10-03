@@ -1,6 +1,6 @@
 import { api } from './axiosClient';
 
-export type ModerationAction = 'DELETE_POST' | 'DELETE_COMMENT' | 'WARN_USER' | 'LOCK_USER' | 'DISMISS';
+export type ModerationAction = 'HIDE_POST' | 'DELETE_POST' | 'DELETE_COMMENT' | 'WARN_USER' | 'BAN_USER' | 'DISMISS' | 'RESTORE_POST';
 
 export interface ModerationReport {
   reportId: string;
