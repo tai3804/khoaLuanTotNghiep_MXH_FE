@@ -54,7 +54,7 @@ export const App: React.FC = () => {
   else if (path.startsWith('/friends')) activeNavTab = 'friends';
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
   else if (path.startsWith('/groups')) activeNavTab = 'groups';
-  else if (path.startsWith('/moderation')) activeNavTab = 'moderation';
+  else if (path.startsWith('/moderation') || path.startsWith('/admin')) activeNavTab = 'moderation';
   else if (path.startsWith('/support-inbox')) activeNavTab = 'support';
 
   const fetchFeed = async (isBackground = false) => {
@@ -384,6 +384,20 @@ export const App: React.FC = () => {
         />
         <Route
           path="/moderation"
+          element={
+            <ModeratorPage
+              activeNavTab="moderation"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/admin"
           element={
             <ModeratorPage
               activeNavTab="moderation"
