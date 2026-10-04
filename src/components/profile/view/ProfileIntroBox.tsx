@@ -1,5 +1,6 @@
 import React from 'react';
 import { GraduationCap, MapPin, Mail, Clock } from 'lucide-react';
+import { ProfileBioAiModal } from '../ai/ProfileBioAiModal';
 import { UserProfile } from '../../../types';
 
 interface ProfileIntroBoxProps {
@@ -25,11 +26,24 @@ export const ProfileIntroBox: React.FC<ProfileIntroBoxProps> = ({
   selectedHobbies,
   onShowEditModal,
 }) => {
+  const [showAiModal, setShowAiModal] = React.useState(false);
+
   return (
     <div className="bg-white dark:bg-[#242526] rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-[#393a3b] transition">
-      <h3 className="font-extrabold text-base text-gray-900 dark:text-[#e4e6eb] mb-3">
-        Giới thiệu
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-extrabold text-base text-gray-900 dark:text-[#e4e6eb]">
+          Giới thiệu
+        </h3>
+        {isOwnProfile && isEditingBio && (
+          <button
+            type="button"
+            onClick={() => setShowAiModal(true)}
+            className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-[#1877f2] bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 transition cursor-pointer"
+          >
+            <span>✨ Gợi ý AI</span>
+          </button>
+        )}
+      </div>
 
       {/* Bio section */}
       {isEditingBio ? (
@@ -39,21 +53,27 @@ export const ProfileIntroBox: React.FC<ProfileIntroBoxProps> = ({
             onChange={(e) => setBioInput(e.target.value)}
             placeholder="Mô tả bản thân của bạn..."
             rows={3}
+            maxLength={101}
             className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-gray-300 dark:border-[#393a3b] bg-gray-50 dark:bg-[#3a3b3c] dark:text-[#e4e6eb] focus:outline-none focus:ring-2 focus:ring-[#1877f2]"
           />
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={() => setIsEditingBio(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-200 dark:hover:bg-[#4e4f50]"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={onSaveBio}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1877f2] text-white hover:bg-[#166fe5]"
-            >
-              Lưu
-            </button>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-gray-400">
+              Còn {101 - (bioInput?.length || 0)} ký tự
+            </span>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setIsEditingBio(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-200 dark:hover:bg-[#4e4f50] cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={onSaveBio}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1877f2] text-white hover:bg-[#166fe5] cursor-pointer shadow-xs"
+              >
+                Lưu
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -129,6 +149,15 @@ export const ProfileIntroBox: React.FC<ProfileIntroBoxProps> = ({
         >
           Chỉnh sửa chi tiết
         </button>
+      )}
+
+      {showAiModal && (
+        <ProfileBioAiModal
+          isOpen={showAiModal}
+          onClose={() => setShowAiModal(false)}
+          onSelectBio={(newBio) => setBioInput(newBio.slice(0, 101))}
+          userName={profile?.fullName}
+        />
       )}
     </div>
   );

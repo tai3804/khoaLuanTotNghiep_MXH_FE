@@ -43,6 +43,24 @@ export interface ChatResult {
   reply: string;
 }
 
+export interface BioSuggestionRequest {
+  name?: string;
+  major?: string;
+  interests?: string;
+  tone?: string;
+}
+
+export interface BioSuggestionResult {
+  suggestions: string[];
+}
+
+export interface PostAnalysisResult {
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | string;
+  engagementScore: number;
+  vibe: string;
+  suggestions: string[];
+}
+
 export const aiService = {
   /**
    * Đánh giá mức độ độc hại / chuẩn mực cộng đồng của nội dung bằng AI
@@ -152,6 +170,37 @@ export const aiService = {
     } catch (error) {
       console.warn('AI chat failed:', error);
       return 'Không thể kết nối với Trợ lý AI. Vui lòng thử lại sau.';
+    }
+  },
+
+  /**
+   * Gợi ý tiểu sử trang cá nhân (Profile Bio) bằng AI
+   */
+  suggestBio: async (request: BioSuggestionRequest): Promise<string[]> => {
+    try {
+      const response = await api.post('/ai/assistant/suggest-bio', request);
+      const data: BioSuggestionResult = response.data?.data || response.data || {};
+      return Array.isArray(data?.suggestions) ? data.suggestions : [];
+    } catch (error) {
+      console.warn('AI suggest bio failed:', error);
+      return [
+        '🚀 Đam mê công nghệ & sáng tạo | Luôn học hỏi và sẻ chia | Kết nối nhé! ✨',
+        '🌿 Sống trọn từng khoảnh khắc | Học hết mình, chơi hết sức ☕',
+        '💡 Keep moving forward | Tìm kiếm những cơ hội mới mỗi ngày 🌟',
+      ];
+    }
+  },
+
+  /**
+   * Phân tích cảm xúc, độ lan tỏa và gợi ý tối ưu bài viết
+   */
+  analyzePost: async (content: string): Promise<PostAnalysisResult | null> => {
+    try {
+      const response = await api.post('/ai/assistant/analyze-post', { content });
+      return response.data?.data || response.data || null;
+    } catch (error) {
+      console.warn('AI analyze post failed:', error);
+      return null;
     }
   },
 };

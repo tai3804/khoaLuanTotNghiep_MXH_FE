@@ -1,6 +1,7 @@
 import React from 'react';
 import { Send, Smile } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
+import { CommentAiSuggestions } from './CommentAiSuggestions';
 
 interface CommentFormFooterProps {
   user: any;
@@ -14,6 +15,7 @@ interface CommentFormFooterProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
   t: (key: string) => string;
   language: string;
+  postContent?: string;
 }
 
 export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
@@ -28,9 +30,22 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
   inputRef,
   t,
   language,
+  postContent,
 }) => {
   return (
-    <div className="p-3 border-t border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] shrink-0 space-y-1.5">
+    <div className="p-3 border-t border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] shrink-0 space-y-2">
+      {/* AI Smart Replies Bar */}
+      {isAuthenticated && (
+        <CommentAiSuggestions
+          postContent={postContent}
+          replyingToName={replyingTo?.authorName}
+          onSelectReply={(reply) => {
+            setCommentText(reply);
+            inputRef.current?.focus();
+          }}
+        />
+      )}
+
       {/* Replying banner indicator */}
       {replyingTo && (
         <div className="flex items-center justify-between px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold rounded-lg">

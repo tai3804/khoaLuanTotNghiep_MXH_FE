@@ -288,6 +288,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           inputRef={inputRef}
           t={t}
           language={language}
+          postContent={post.content}
         />
       </div>
     </div>
@@ -301,4 +302,5 @@ export * from './CommentStatsBar';
 export * from './CommentActionsBar';
 export * from './CommentItem';
 export * from './CommentFormFooter';
+export * from './CommentAiSuggestions';
 
