@@ -138,13 +138,14 @@ export const groupService = {
       description: request.description?.trim() || undefined,
       privacy: request.privacy,
       coverUrl: request.coverUrl?.trim() || undefined,
-      postApprovalRequired: request.postApprovalRequired,
+      postApprovalRequired: Boolean(request.postApprovalRequired),
       rules: request.rules?.trim() || undefined,
       initialMemberIds: validInitialMemberIds.length > 0 ? validInitialMemberIds : undefined,
     };
 
     const response = await api.post('/groups', payload);
     const data = response.data?.data || response.data;
+    if (!data?.id) throw new Error('Không thể tạo nhóm.');
     const mapped = mapGroupForCurrentUser(data as GroupResponse);
     window.dispatchEvent(new CustomEvent('community_group_created', { detail: mapped }));
     return mapped;
@@ -181,12 +182,10 @@ export const groupService = {
   toggleJoinGroup: async (id: string): Promise<GroupResponse | null> => {
     const response = await api.post(`/groups/${id}/join`);
     const data = response.data?.data || response.data;
-    if (data?.id) {
-      const mapped = mapGroupForCurrentUser(data as GroupResponse);
-      window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
-      return mapped;
-    }
-    return null;
+    if (!data?.id) return null;
+    const mapped = mapGroupForCurrentUser(data as GroupResponse);
+    window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
+    return mapped;
   },
 
   leaveGroup: async (id: string): Promise<void> => {
@@ -200,7 +199,7 @@ export const groupService = {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 
     const validMemberIds = memberIdsToAdd.filter(isUuid);
-    const response = await api.post(`/groups/${groupId}/members`, validMemberIds);
+    const response = await api.post(`/groups/${groupId}/members`, validMemberIds.length > 0 ? validMemberIds : memberIdsToAdd);
     const data = response.data?.data || response.data;
     if (data?.id) {
       const mapped = mapGroupForCurrentUser(data as GroupResponse);
@@ -234,6 +233,7 @@ export const groupService = {
   updateGroup: async (groupId: string, data: Partial<CreateGroupRequest>): Promise<GroupResponse> => {
     const response = await api.put(`/groups/${groupId}`, data);
     const updated = (response.data?.data || response.data) as GroupResponse;
+    if (!updated?.id) throw new Error('Không thể lưu thay đổi nhóm.');
     const mapped = mapGroupForCurrentUser(updated);
     window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
     return mapped;

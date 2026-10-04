@@ -112,6 +112,7 @@ export const normalizePost = (p: any): Post => {
     isLiked: Boolean(p.isLiked),
     isPinned: Boolean(p.isPinned),
     isArchived: Boolean(p.isArchived),
+    status: p.status || 'PUBLISHED',
     privacy: p.privacy || 'PUBLIC',
     groupId,
     groupName,
@@ -323,7 +324,6 @@ export const postService = {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
-    
     if (groupId) {
       formData.append('groupId', groupId);
     }
@@ -429,6 +429,23 @@ export const postService = {
       console.warn('Failed to fetch group posts from backend:', e);
       return [];
     }
+  },
+
+  getPendingGroupPosts: async (groupId: string): Promise<Post[]> => {
+    if (!groupId) return [];
+    try {
+      const res = await api.get(`/posts/group/${groupId}/pending`);
+      const raw = res.data?.data || res.data?.result || res.data || [];
+      return Array.isArray(raw) ? raw.map(normalizePost) : [];
+    } catch (e) {
+      console.warn('Failed to fetch pending group posts:', e);
+      return [];
+    }
+  },
+
+  reviewGroupPost: async (postId: string, approved: boolean): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/group-review`, null, { params: { approved } });
+    return normalizePost(res.data?.data || res.data);
   },
 
   updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {

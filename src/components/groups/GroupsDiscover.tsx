@@ -11,11 +11,12 @@ interface GroupsDiscoverProps {
 export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupClick }) => {
   const { user } = useAuth();
   const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
 
   const loadGroups = async () => {
-    const list = await groupService.getGroups();
-    setGroups(list);
+    try { setLoadError(''); setGroups(await groupService.getGroups()); }
+    catch { setGroups([]); setLoadError('Không thể tải danh sách nhóm. Hãy kiểm tra backend và thử lại.'); }
   };
 
   useEffect(() => {
@@ -72,7 +73,9 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
           </div>
         </div>
 
-        {groups.length === 0 ? (
+        {loadError ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">{loadError}</div>
+        ) : groups.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 dark:border-[#4e4f50] bg-white/60 dark:bg-[#242526]/60 px-6 py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
             <h4 className="font-bold text-gray-800 dark:text-[#e4e6eb]">Chưa có nhóm nào</h4>

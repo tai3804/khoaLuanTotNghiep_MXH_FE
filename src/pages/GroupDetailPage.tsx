@@ -29,11 +29,13 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
   const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media' | 'settings'>('discussion');
   const [isLoading, setIsLoading] = useState(true);
   const [group, setGroup] = useState<GroupResponse | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [members, setMembers] = useState<CommunityGroupMember[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const loadGroup = async (groupId: string) => {
     try {
+      setLoadError('');
       const g = await groupService.getGroupById(groupId);
       setGroup(g);
       if (g) {
@@ -41,6 +43,8 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
       }
     } catch (err) {
       console.error('Failed to load group:', err);
+      setGroup(null);
+      setLoadError('Không thể tải nhóm. Hãy kiểm tra kết nối backend rồi thử lại.');
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +83,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     }
   };
 
-  if (isLoading || !group) {
+  if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
         <Header 
@@ -125,6 +129,10 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
         </div>
       </div>
     );
+  }
+
+  if (!group) {
+    return <div className="flex min-h-screen flex-col bg-[#f0f2f5] dark:bg-[#18191a]"><Header activeTab={props.activeNavTab} onTabChange={props.setActiveNavTab} onNavigateSettings={props.onNavigateSettings} onNavigateProfile={props.onNavigateProfile} onNavigateAuth={props.onNavigateAuth} onSelectChatUser={props.setActiveChatUser} /><main className="flex flex-1 items-center justify-center px-4 pt-14"><div className="max-w-md rounded-2xl bg-white p-7 text-center shadow dark:bg-[#242526]"><h1 className="text-xl font-bold">Không mở được nhóm</h1><p className="mt-2 text-sm text-gray-500 dark:text-gray-300">{loadError || 'Nhóm này không tồn tại hoặc bạn không có quyền truy cập.'}</p><button onClick={() => navigate('/groups')} className="mt-5 rounded-xl bg-[#1877f2] px-4 py-2 text-sm font-bold text-white">Quay lại Nhóm</button></div></main></div>;
   }
 
   return (
