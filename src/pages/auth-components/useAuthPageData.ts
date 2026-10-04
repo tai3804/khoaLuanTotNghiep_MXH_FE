@@ -135,7 +135,26 @@ export const useAuthPageData = (onGoHome?: () => void) => {
 
   const handleSubmitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
+
+    let loginEmail = email.trim();
+    let loginPassword = password.trim();
+
+    // Fallback if browser autofill hasn't updated React state yet
+    if ((!loginEmail || !loginPassword) && e.currentTarget) {
+      const form = e.currentTarget as HTMLFormElement;
+      const emailInput = form.querySelector<HTMLInputElement>('input[name="username"], input[type="text"], input[type="email"]');
+      const passInput = form.querySelector<HTMLInputElement>('input[name="password"], input[type="password"]');
+      if (emailInput?.value) {
+        loginEmail = emailInput.value.trim();
+        setEmail(loginEmail);
+      }
+      if (passInput?.value) {
+        loginPassword = passInput.value;
+        setPassword(loginPassword);
+      }
+    }
+
+    if (!loginEmail || !loginPassword) {
       setErrorMessage('Vui lòng nhập email và mật khẩu.');
       return;
     }
@@ -143,7 +162,7 @@ export const useAuthPageData = (onGoHome?: () => void) => {
     setSuccessMessage(null);
     setLoading(true);
     try {
-      const res = await login(email.trim(), password.trim());
+      const res = await login(loginEmail, loginPassword);
       if (res.success) {
         if (res.mfaRequired && res.mfaToken) {
           setMfaRequired(true);
