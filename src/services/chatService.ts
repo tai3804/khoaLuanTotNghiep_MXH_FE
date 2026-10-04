@@ -116,4 +116,46 @@ export const chatService = {
     const res = await api.post(`/chat/conversations/${conversationId}/members/${targetUserId}/demote-admin`);
     return res.data?.data || res.data;
   },
+
+  /**
+   * Chỉnh sửa tin nhắn (Edit Message Request)
+   */
+  editMessage: async (conversationId: string, messageId: string, content: string) => {
+    const res = await api.put(`/chat/conversations/${conversationId}/messages/${messageId}`, { content });
+    return res.data?.data || res.data;
+  },
+
+  /**
+   * Thu hồi tin nhắn với mọi người (Recall Message Request)
+   */
+  recallMessage: async (conversationId: string, messageId: string) => {
+    const res = await api.delete(`/chat/conversations/${conversationId}/messages/${messageId}/recall`);
+    return res.data?.data || res.data;
+  },
+
+  /**
+   * Xóa tin nhắn ở phía tôi (Delete for me)
+   */
+  deleteMessageForMe: async (conversationId: string, messageId: string) => {
+    const res = await api.delete(`/chat/conversations/${conversationId}/messages/${messageId}/for-me`);
+    return res.data?.data || res.data;
+  },
+
+  /**
+   * Gửi tập tin đính kèm (Send File / Image / Video / Document)
+   */
+  sendFileMessage: async (
+    conversationId: string,
+    fileUrl: string,
+    fileName?: string,
+    type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO' = 'FILE'
+  ) => {
+    const res = await api.post(`/chat/conversations/${conversationId}/messages`, {
+      content: fileName || fileUrl,
+      mediaUrl: fileUrl,
+      type,
+    });
+    return res.data?.data || res.data;
+  },
 };
+

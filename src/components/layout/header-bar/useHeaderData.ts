@@ -130,7 +130,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     return () => clearTimeout(timer);
   }, [msgSearch]);
 
-  // Fetch pending friend requests
+  // Fetch pending friend requests on mount & on friend update event
   useEffect(() => {
     if (!isAuthenticated) return;
     const fetchPending = async () => {
@@ -141,12 +141,10 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     };
 
     fetchPending();
-    const timer = setInterval(fetchPending, 4000);
     const handleFriendUpdate = () => fetchPending();
     window.addEventListener('friend_status_updated', handleFriendUpdate);
 
     return () => {
-      clearInterval(timer);
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
     };
   }, [isAuthenticated]);

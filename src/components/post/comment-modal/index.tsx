@@ -8,6 +8,7 @@ import { CommentActionsBar } from './CommentActionsBar';
 import { CommentItem } from './CommentItem';
 import { CommentFormFooter } from './CommentFormFooter';
 import { UserAvatar } from '../../common/UserAvatar';
+import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { Globe } from 'lucide-react';
 import { isVideo, VideoPlayer } from '../post-card/PostCardContent';
 
@@ -123,8 +124,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           />
 
           {post.content && (
-            <p className="text-sm text-gray-900 dark:text-[#e4e6eb] whitespace-pre-line leading-relaxed">
-              {post.content}
+            <p className="text-sm text-gray-900 dark:text-[#e4e6eb] leading-relaxed">
+              <RichContentRenderer content={post.content} />
             </p>
           )}
 

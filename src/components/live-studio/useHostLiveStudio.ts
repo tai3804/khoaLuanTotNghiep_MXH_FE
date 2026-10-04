@@ -30,14 +30,10 @@ export const useHostLiveStudio = () => {
   const postId = activeBroadcast.postId;
   const isBroadcasting = activeBroadcast.isBroadcasting && Boolean(postId);
 
-  // Load existing comments and sync periodically as a safety net fallback
+  // Load existing comments on mount (real-time comments arrive via WebSocket)
   useEffect(() => {
     if (!postId) return;
     loadPostComments(postId);
-    const interval = setInterval(() => {
-      loadPostComments(postId);
-    }, 2500);
-    return () => clearInterval(interval);
   }, [postId, loadPostComments]);
 
   const comments = useMemo(() => {

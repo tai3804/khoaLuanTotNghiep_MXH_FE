@@ -2,6 +2,7 @@ import { Client, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { WebRtcSignal } from './callService';
 import { api } from './axiosClient';
+import { authService } from './authService';
 import { store } from '../store/store';
 import { setAccessToken } from '../store/slices/authSlice';
 
@@ -56,15 +57,11 @@ class CallWebSocketService {
     let token = store.getState().auth.accessToken;
     if (!token) {
       try {
-        const response = await api.post('/auth/refresh', {}, {
-          headers: {
-            'X-Client-Type': 'WEB',
-            'X-Device-Fingerprint': localStorage.getItem('deviceFingerprint') || '',
-          },
-        });
-        const data = response.data?.data || response.data?.result || response.data;
-        token = data?.accessToken || data?.token || null;
-        if (token) store.dispatch(setAccessToken(token));
+        const refreshedToken = await authService.refreshToken();
+        if (refreshedToken) {
+          token = refreshedToken;
+          store.dispatch(setAccessToken(refreshedToken));
+        }
       } catch (error) {
         console.warn('[CallWS] Session refresh failed before WebSocket connection', error);
       }

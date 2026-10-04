@@ -10,6 +10,7 @@ import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { CallProvider } from './context/CallContext';
 import { LiveStreamProvider } from './context/LiveStreamContext';
+import { SystemConfigProvider } from './context/SystemConfigContext';
 
 import { Provider } from 'react-redux';
 import { store } from './store/store';
@@ -22,21 +23,23 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <LanguageProvider>
-              <ToastProvider>
-                <NotificationProvider>
-                  <CallProvider>
-                    <LiveStreamProvider>
-                      <App />
-                    </LiveStreamProvider>
-                  </CallProvider>
-                </NotificationProvider>
-              </ToastProvider>
-            </LanguageProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <SystemConfigProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <LanguageProvider>
+                <ToastProvider>
+                  <NotificationProvider>
+                    <CallProvider>
+                      <LiveStreamProvider>
+                        <App />
+                      </LiveStreamProvider>
+                    </CallProvider>
+                  </NotificationProvider>
+                </ToastProvider>
+              </LanguageProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </SystemConfigProvider>
       </BrowserRouter>
     </Provider>
   </StrictMode>

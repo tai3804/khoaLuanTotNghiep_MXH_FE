@@ -169,6 +169,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               window.dispatchEvent(new Event('auth_session_expired'));
               return;
             }
+
+            // Auto-hide/remove post from realtime feed if post was moderated (hidden or deleted)
+            if (
+              newNotif.targetId &&
+              (newNotif.title?.includes('tạm ẩn') ||
+                newNotif.title?.includes('gỡ bỏ') ||
+                newNotif.title?.includes('bị ẩn') ||
+                newNotif.content?.includes('bị ẩn') ||
+                newNotif.content?.includes('gỡ bỏ'))
+            ) {
+              window.dispatchEvent(
+                new CustomEvent('post_moderated_hidden', { detail: { postId: newNotif.targetId } })
+              );
+            }
             
             setNotifications((prev) => {
               if (prev.some((n) => n.id === newNotif.id)) return prev;
@@ -215,16 +229,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     client.activate();
     stompClientRef.current = client;
 
-    // Polling fallback every 20s to ensure consistent sync
-    const pollInterval = setInterval(() => {
-      if (isSubscribed) {
-        notificationService.getUnreadCount().then(setUnreadCount).catch(() => { });
-      }
-    }, 20000);
-
     return () => {
       isSubscribed = false;
-      clearInterval(pollInterval);
       if (stompClientRef.current) {
         const clientToDeactivate = stompClientRef.current;
         stompClientRef.current = null;

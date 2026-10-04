@@ -11,6 +11,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
 
+import { SystemAnnouncementBanner } from '../components/common/SystemAnnouncementBanner';
+
 interface HomePageProps {
   activeNavTab: string;
   setActiveNavTab: (tab: string) => void;
@@ -133,6 +135,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         {/* Center Main Feed Stream */}
         <main className="flex-1 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+          {/* Global System Announcement Banner */}
+          <SystemAnnouncementBanner />
+
           {/* Stories 24h Bar */}
           <StoriesBar />
 

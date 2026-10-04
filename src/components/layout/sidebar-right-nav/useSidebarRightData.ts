@@ -36,15 +36,10 @@ export const useSidebarRightData = () => {
 
     fetchData(false);
 
-    const interval = setInterval(() => {
-      fetchData(true);
-    }, 4000);
-
     const handleFriendUpdate = () => fetchData(true);
     window.addEventListener('friend_status_updated', handleFriendUpdate);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
     };
   }, []);

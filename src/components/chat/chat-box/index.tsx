@@ -4,8 +4,11 @@ import { ChatBoxHeader } from './ChatBoxHeader';
 import { ChatBoxMessagesList } from './ChatBoxMessagesList';
 import { ChatBoxInputFooter } from './ChatBoxInputFooter';
 import { ChatBoxMinimized } from './ChatBoxMinimized';
+import { ChatAiSummaryBanner } from './ChatAiSummaryBanner';
 import { GroupInfoModal } from '../GroupInfoModal';
 import { ChatUser } from './types';
+import { aiService, SummarizeMessagesResponse, ChatMessageItemDto } from '../../../services/aiService';
+import { useToast } from '../../../context/ToastContext';
 
 export type { ChatUser };
 
@@ -17,8 +20,12 @@ export interface ChatBoxProps {
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }) => {
+  const toast = useToast();
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [currentFriend, setCurrentFriend] = useState<ChatUser>(friend);
+  const [summaryData, setSummaryData] = useState<SummarizeMessagesResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   const {
     user,
@@ -39,7 +46,11 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     hasMoreMessages,
     loadOlderMessages,
     chatFileInputRef,
+    chatDocInputRef,
     handleChatFileSelect,
+    handleEditMessage,
+    handleRecallMessage,
+    handleDeleteForMe,
     handleSend,
   } = useChatBoxData({ friend: currentFriend });
 
@@ -62,6 +73,44 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     );
   }
 
+  const handleTriggerSummary = async () => {
+    if (messages.length === 0) {
+      toast.showInfo('Chưa có tin nhắn nào để tóm tắt');
+      return;
+    }
+    setShowSummary(true);
+    setSummaryLoading(true);
+    try {
+      const messageItems: ChatMessageItemDto[] = messages.slice(-30).map((m) => {
+        const isMedia = m.text.startsWith('http://') || m.text.startsWith('https://');
+        return {
+          senderName: m.senderId === user?.id || m.senderId === 'me' ? (user?.fullName || 'Bạn') : (m.senderName || effectiveFriend.name),
+          text: m.text,
+          time: m.time,
+          mediaUrl: isMedia ? m.text : undefined,
+        };
+      });
+
+      const res = await aiService.summarizeMessages({
+        conversationName: effectiveFriend.name,
+        isGroup: effectiveFriend.isGroup,
+        messages: messageItems,
+      });
+
+      if (res) {
+        setSummaryData(res);
+      } else {
+        toast.showError('Không thể tạo tóm tắt vào lúc này');
+        setShowSummary(false);
+      }
+    } catch {
+      toast.showError('Lỗi khi phân tích tóm tắt tin nhắn');
+      setShowSummary(false);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
 
   return (
@@ -78,7 +127,18 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           onMinimize={() => setIsMinimized(true)}
           onClose={onClose}
           onOpenGroupInfo={currentFriend.isGroup ? () => setShowGroupInfo(true) : undefined}
+          onTriggerSummary={handleTriggerSummary}
+          isSummarizing={summaryLoading}
         />
+
+        {showSummary && (
+          <ChatAiSummaryBanner
+            summaryData={summaryData}
+            loading={summaryLoading}
+            onClose={() => setShowSummary(false)}
+            onRefresh={handleTriggerSummary}
+          />
+        )}
 
         <ChatBoxMessagesList
           friend={effectiveFriend}
@@ -90,6 +150,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           loadingOlder={loadingOlder}
           hasMoreMessages={hasMoreMessages}
           onLoadOlder={loadOlderMessages}
+          onEditMessage={handleEditMessage}
+          onRecallMessage={handleRecallMessage}
+          onDeleteForMe={handleDeleteForMe}
         />
 
         <ChatBoxInputFooter
@@ -97,7 +160,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           setInputText={setInputText}
           uploading={uploading}
           chatFileInputRef={chatFileInputRef}
+          chatDocInputRef={chatDocInputRef}
           onChatFileSelect={handleChatFileSelect}
+          onChatDocSelect={handleChatFileSelect}
           onSend={handleSend}
         />
       </div>

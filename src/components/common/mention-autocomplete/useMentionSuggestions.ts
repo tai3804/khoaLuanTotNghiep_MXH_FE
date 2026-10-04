@@ -136,8 +136,10 @@ export const useMentionSuggestions = ({
   const selectCandidate = useCallback(
     (candidate: MentionCandidate) => {
       if (mentionStartIndex === null) return;
-      const mentionMarkdown = `@[${candidate.name || candidate.fullName}](${candidate.id || candidate.userId}) `;
-      onMentionSelected(candidate, mentionMarkdown);
+      const name = candidate.name || candidate.fullName || 'Người dùng';
+      // Format clean mention without UUID. If multi-word, wrap in brackets @[Name], otherwise @Name
+      const mentionText = name.includes(' ') ? `@[${name}] ` : `@${name} `;
+      onMentionSelected(candidate, mentionText);
       setIsOpen(false);
       setQuery('');
       setMentionStartIndex(null);

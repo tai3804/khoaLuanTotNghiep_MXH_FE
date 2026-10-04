@@ -36,10 +36,11 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
   };
 
   // Regex pattern matches:
-  // 1. @[Display Name](uuid-or-id)
-  // 2. #hashtag (Unicode letters, numbers, underscores)
-  // 3. @[a-zA-Z0-9_.-]+ (simple mention)
-  const tokenRegex = /(@\[[^\]]+\]\([a-zA-Z0-9_-]+\)|#[\p{L}\p{N}_]+|@[a-zA-Z0-9_.-]+)/gu;
+  // 1. @[Display Name](uuid-or-id) -> legacy markdown mention
+  // 2. @[Display Name] -> bracketed clean mention (for multi-word names)
+  // 3. #hashtag (Unicode letters, numbers, underscores)
+  // 4. @UnicodeName (e.g. @Điềm, @john_doe, @User.Name)
+  const tokenRegex = /(@\[[^\]]+\](?:\([a-zA-Z0-9_-]+\))?|#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.-]+)/gu;
 
   const parts = content.split(tokenRegex);
 
@@ -48,11 +49,11 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
       {parts.map((part, index) => {
         if (!part) return null;
 
-        // Match @[Name](id)
-        const markdownMentionMatch = part.match(/^@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)$/);
-        if (markdownMentionMatch) {
-          const name = markdownMentionMatch[1];
-          const userId = markdownMentionMatch[2];
+        // Match legacy @[Name](id)
+        const legacyMatch = part.match(/^@\[([^\]]+)\]\(([a-zA-Z0-9_-]+)\)$/);
+        if (legacyMatch) {
+          const name = legacyMatch[1];
+          const userId = legacyMatch[2];
           return (
             <span
               key={index}
@@ -62,6 +63,20 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
               }}
               title={`Trang cá nhân của ${name}`}
               className="font-semibold text-[#1877f2] dark:text-[#4599ff] hover:underline cursor-pointer bg-blue-50/70 dark:bg-blue-950/40 px-1 py-0.5 rounded transition inline-block mx-0.5"
+            >
+              @{name}
+            </span>
+          );
+        }
+
+        // Match clean @[Name] without UUID
+        const bracketMatch = part.match(/^@\[([^\]]+)\]$/);
+        if (bracketMatch) {
+          const name = bracketMatch[1];
+          return (
+            <span
+              key={index}
+              className="font-semibold text-[#1877f2] dark:text-[#4599ff] bg-blue-50/70 dark:bg-blue-950/40 px-1 py-0.5 rounded transition inline-block mx-0.5"
             >
               @{name}
             </span>
@@ -86,12 +101,12 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
           );
         }
 
-        // Match simple @mention
+        // Match simple @mention (e.g., @Điềm)
         if (part.startsWith('@') && part.length > 1) {
           return (
             <span
               key={index}
-              className="font-semibold text-[#1877f2] dark:text-[#4599ff] inline-block mx-0.5"
+              className="font-semibold text-[#1877f2] dark:text-[#4599ff] bg-blue-50/70 dark:bg-blue-950/40 px-1 py-0.5 rounded transition inline-block mx-0.5"
             >
               {part}
             </span>

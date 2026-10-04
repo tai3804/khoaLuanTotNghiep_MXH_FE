@@ -171,7 +171,7 @@ export const useAuthPageData = (onGoHome?: () => void) => {
           onGoHome();
         }
       } else {
-        setErrorMessage('Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
+        setErrorMessage(res.message || 'Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
       }
     } catch (err: any) {
       setErrorMessage(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản!');
@@ -196,7 +196,7 @@ export const useAuthPageData = (onGoHome?: () => void) => {
           onGoHome();
         }
       } else {
-        setErrorMessage('Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
+        setErrorMessage(res.message || 'Đăng nhập thất bại. Email hoặc mật khẩu không chính xác!');
       }
     } catch (err: any) {
       setErrorMessage(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản!');

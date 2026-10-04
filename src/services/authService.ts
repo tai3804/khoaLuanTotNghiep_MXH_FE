@@ -8,9 +8,10 @@ export const authService = {
   refreshToken: async (): Promise<string | null> => {
     try {
       const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
+
       const res = await axios.post(
         BASE_URL + '/auth/refresh',
-        {},
+        {}, // Carried strictly via HttpOnly cookie
         {
           withCredentials: true,
           headers: {
@@ -20,7 +21,13 @@ export const authService = {
         }
       );
       const data = res.data?.data || res.data?.result || res.data;
-      return data?.accessToken || data?.token || null;
+      const newAccessToken = data?.accessToken || data?.token || null;
+
+      if (newAccessToken) {
+        api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
+      }
+
+      return newAccessToken;
     } catch {
       return null;
     }
@@ -83,6 +90,7 @@ export const authService = {
       // ignore
     } finally {
       localStorage.removeItem('user');
+      localStorage.removeItem('refreshToken');
     }
   },
 

@@ -3,6 +3,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { useLiveStream } from '../../../context/LiveStreamContext';
+import { useSystemConfig } from '../../../context/SystemConfigContext';
 import { Post } from '../../../types';
 import { postService } from '../../../services/api';
 import { mediaService } from '../../../services/mediaService';
@@ -15,6 +16,7 @@ interface UseCreatePostProps {
 
 export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
+  const { maxUploadSizeMb } = useSystemConfig();
   const { t } = useLanguage();
   const toast = useToast();
   const { startBroadcast } = useLiveStream();
@@ -85,6 +87,13 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const maxSizeBytes = (maxUploadSizeMb || 25) * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        toast.showError(`Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn cho phép của hệ thống (${maxUploadSizeMb}MB). Vui lòng chọn tệp nhỏ hơn!`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
       setImageUrl('');
       setShowImageInput(false);
       setSelectedFile(file);

@@ -3,6 +3,7 @@ import SockJS from 'sockjs-client';
 import { store } from '../store/store';
 import { setAccessToken } from '../store/slices/authSlice';
 import { api } from './axiosClient';
+import { authService } from './authService';
 
 export interface LiveWebRtcSignal {
   callSessionId?: string;
@@ -46,15 +47,11 @@ class LiveStreamWebSocketService {
     let token = store.getState().auth.accessToken;
     if (!token) {
       try {
-        const response = await api.post('/auth/refresh', {}, {
-          headers: {
-            'X-Client-Type': 'WEB',
-            'X-Device-Fingerprint': localStorage.getItem('deviceFingerprint') || '',
-          },
-        });
-        const data = response.data?.data || response.data?.result || response.data;
-        token = data?.accessToken || data?.token || null;
-        if (token) store.dispatch(setAccessToken(token));
+        const refreshedToken = await authService.refreshToken();
+        if (refreshedToken) {
+          token = refreshedToken;
+          store.dispatch(setAccessToken(refreshedToken));
+        }
       } catch {}
     }
 

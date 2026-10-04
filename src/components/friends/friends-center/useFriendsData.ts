@@ -85,13 +85,8 @@ export const useFriendsData = () => {
     };
     window.addEventListener('friend_status_updated', handleFriendStatusUpdated);
 
-    const interval = setInterval(() => {
-      loadAllData(true);
-    }, 25000);
-
     return () => {
       window.removeEventListener('friend_status_updated', handleFriendStatusUpdated);
-      clearInterval(interval);
     };
   }, [isAuthenticated, activeTab]);
 

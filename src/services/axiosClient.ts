@@ -27,11 +27,22 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const setAuthHeader = (config: any, token: string) => {
+  if (!config.headers) {
+    config.headers = {};
+  }
+  if (typeof config.headers.set === 'function') {
+    config.headers.set('Authorization', 'Bearer ' + token);
+  } else {
+    config.headers['Authorization'] = 'Bearer ' + token;
+  }
+};
+
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = store.getState().auth.accessToken;
-    if (token && config.headers) {
-      config.headers.Authorization = 'Bearer ' + token;
+    if (token) {
+      setAuthHeader(config, token);
     }
     return config;
   },
@@ -49,11 +60,12 @@ api.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        originalRequest._retry = true;
+        return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = 'Bearer ' + token;
+            setAuthHeader(originalRequest, token);
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -67,7 +79,7 @@ api.interceptors.response.use(
       try {
         const res = await axios.post(
           BASE_URL + '/auth/refresh',
-          {}, // rely on HttpOnly cookie
+          {}, // Carried strictly via HttpOnly cookie
           {
             withCredentials: true,
             headers: {
@@ -84,18 +96,22 @@ api.interceptors.response.use(
           store.dispatch(setAccessToken(newAccessToken));
           
           api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-          originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
+          setAuthHeader(originalRequest, newAccessToken);
 
           processQueue(null, newAccessToken);
           return api(originalRequest);
         } else {
           throw new Error('No access token returned');
         }
-      } catch (refreshErr) {
+      } catch (refreshErr: any) {
         processQueue(refreshErr, null);
-        store.dispatch(clearAuth());
-        localStorage.removeItem('user');
-        window.dispatchEvent(new Event('auth_session_expired'));
+        // Only trigger session expiration when refresh token is explicitly rejected (401 or 403)
+        if (refreshErr?.response && (refreshErr.response.status === 401 || refreshErr.response.status === 403)) {
+          store.dispatch(clearAuth());
+          localStorage.removeItem('user');
+          try { localStorage.removeItem('refreshToken'); } catch {}
+          window.dispatchEvent(new Event('auth_session_expired'));
+        }
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

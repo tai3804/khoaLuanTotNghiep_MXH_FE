@@ -52,14 +52,10 @@ export const useLiveStreamPlayer = (post: Post) => {
     };
   }, [post.id, isLive]);
 
-  // Load existing comments and sync periodically while live
+  // Load initial comments on mount (real-time comments arrive via WebSocket)
   useEffect(() => {
     if (!post.id || !isLive) return;
     loadPostComments(post.id);
-    const interval = setInterval(() => {
-      loadPostComments(post.id);
-    }, 2500);
-    return () => clearInterval(interval);
   }, [post.id, isLive, loadPostComments]);
 
   const comments = liveCommentsMap[post.id] || [];

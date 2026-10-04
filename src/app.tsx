@@ -16,6 +16,8 @@ import { ChatUser } from './components/chat/chat-box';
 import { ChatPopupContainer } from './components/chat/ChatPopupContainer';
 import { useAuth } from './context/AuthContext';
 import { useLanguage } from './context/LanguageContext';
+import { useSystemConfig } from './context/SystemConfigContext';
+import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { postService } from './services/api';
 import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
@@ -25,7 +27,8 @@ import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
 import { HashtagFeedModal } from './components/post/hashtag';
 
 export const App: React.FC = () => {
-  const { isAuthenticated, tokens } = useAuth();
+  const { isAuthenticated, tokens, user } = useAuth();
+  const { isMaintenance } = useSystemConfig();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -179,13 +182,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchFeed();
-
-      // Real-time Feed Sync every 4 seconds in the background
-      const realtimeTimer = setInterval(() => {
-        fetchFeed(true);
-      }, 30000);
-
-      return () => clearInterval(realtimeTimer);
     }
   }, [isAuthenticated]);
 
@@ -234,13 +230,22 @@ export const App: React.FC = () => {
       setPosts((prev) => prev.filter((p) => p.id !== tempId));
     };
 
+    const handlePostModeratedHidden = (e: any) => {
+      const postId = e.detail?.postId;
+      if (postId) {
+        setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
+      }
+    };
+
     window.addEventListener('feed_post_created', handleFeedPostCreated);
     window.addEventListener('optimistic_post_settled', handleOptimisticSettled);
     window.addEventListener('optimistic_post_failed', handleOptimisticFailed);
+    window.addEventListener('post_moderated_hidden', handlePostModeratedHidden);
     return () => {
       window.removeEventListener('feed_post_created', handleFeedPostCreated);
       window.removeEventListener('optimistic_post_settled', handleOptimisticSettled);
       window.removeEventListener('optimistic_post_failed', handleOptimisticFailed);
+      window.removeEventListener('post_moderated_hidden', handlePostModeratedHidden);
     };
   }, []);
 
@@ -287,6 +292,11 @@ export const App: React.FC = () => {
   } else if (feedCategory === 'popular') {
     const engagement = (post: Post) => (post.likesCount || 0) + (post.commentsCount || 0) * 2 + (post.sharesCount || 0) * 3;
     displayedPosts = [...posts].sort((a, b) => engagement(b) - engagement(a));
+  }
+
+  const isAdmin = Array.isArray(user?.roles) && (user.roles.includes('ADMIN') || user.roles.includes('ROLE_ADMIN') || user.roles.includes('MODERATOR'));
+  if (isMaintenance && !isAdmin) {
+    return <MaintenanceScreen />;
   }
 
   return (

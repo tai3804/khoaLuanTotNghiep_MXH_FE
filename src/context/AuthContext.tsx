@@ -7,11 +7,20 @@ import { setAccessToken, clearAuth } from '../store/slices/authSlice';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const rolesFromToken = (token: string): string[] => {
+export const parseTokenPayload = (token: string): any => {
   try {
     const payload = token.split('.')[1];
-    if (!payload) return [];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload) return null;
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return null;
+  }
+};
+
+export const rolesFromToken = (token: string): string[] => {
+  try {
+    const decoded = parseTokenPayload(token);
+    if (!decoded) return [];
     if (Array.isArray(decoded.roles)) return decoded.roles;
     if (Array.isArray(decoded.authorities)) return decoded.authorities;
     if (typeof decoded.scope === 'string') return decoded.scope.split(' ');
@@ -87,24 +96,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedUser = localStorage.getItem('user');
       const isGuestUser = localStorage.getItem('isGuest') === 'true';
 
-      if (storedUser && !isGuestUser) {
+      if (!isGuestUser) {
         try {
           const token = await authService.refreshToken();
           if (token) {
             dispatch(setAccessToken(token));
+            setIsGuest(false);
+            if (!user) {
+              const payload = parseTokenPayload(token);
+              if (payload) {
+                const initialUser: User = {
+                  id: payload.sub || 'me',
+                  username: payload.email || 'user',
+                  email: payload.email || '',
+                  fullName: payload.fullName || 'Người dùng',
+                  avatar: '',
+                  roles: rolesFromToken(token),
+                };
+                setUser(initialUser);
+                localStorage.setItem('user', JSON.stringify(initialUser));
+              }
+            }
             await refreshUserProfile();
           } else {
             // No valid session cookie
             localStorage.removeItem('user');
+            try { localStorage.removeItem('refreshToken'); } catch {}
             setUser(null);
             dispatch(clearAuth());
             setIsGuest(true);
           }
         } catch {
           localStorage.removeItem('user');
+          try { localStorage.removeItem('refreshToken'); } catch {}
           setUser(null);
           dispatch(clearAuth());
           setIsGuest(true);
@@ -131,9 +157,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Proactive background silent refresh timer: renew access token before it expires without reload
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const payload = parseTokenPayload(accessToken);
+    if (!payload || !payload.exp) return;
+
+    const expiresAtMs = payload.exp * 1000;
+    const now = Date.now();
+    const timeRemaining = expiresAtMs - now;
+
+    // Refresh 2 minutes before expiry, or at 75% of remaining lifetime
+    const bufferMs = Math.min(120000, Math.max(10000, timeRemaining * 0.25));
+    const delayMs = Math.max(timeRemaining - bufferMs, 5000);
+
+    const timer = setTimeout(async () => {
+      try {
+        const newToken = await authService.refreshToken();
+        if (newToken) {
+          dispatch(setAccessToken(newToken));
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Background proactive token refresh notice:', err);
+      }
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [accessToken, dispatch]);
+
+  // Refresh on window focus / tab visibility if token is near expiration or expired (e.g. computer sleep)
+  useEffect(() => {
+    const handleVisibilityOrFocus = async () => {
+      const currentToken = store.getState().auth.accessToken;
+      if (!currentToken) return;
+
+      const payload = parseTokenPayload(currentToken);
+      if (!payload || !payload.exp) return;
+
+      const timeRemaining = payload.exp * 1000 - Date.now();
+      // If token expires in less than 60 seconds (or is already expired)
+      if (timeRemaining < 60000) {
+        try {
+          const newToken = await authService.refreshToken();
+          if (newToken) {
+            dispatch(setAccessToken(newToken));
+          }
+        } catch (err) {
+          console.warn('[AuthContext] Focus token renewal notice:', err);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleVisibilityOrFocus();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [dispatch]);
+
   // Check if current device has been revoked remotely (heartbeat & focus listener)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !accessToken) return;
 
     const checkDeviceSession = async () => {
       const currentFingerprint = localStorage.getItem('deviceFingerprint');
@@ -146,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentDev && currentDev.status === 'REVOKED') {
             console.warn('[AuthContext] Session has been revoked remotely.');
             localStorage.removeItem('user');
+            localStorage.removeItem('refreshToken');
             dispatch(clearAuth());
             setUser(null);
             setIsGuest(true);
@@ -154,19 +247,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (err: any) {
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          localStorage.removeItem('user');
-          dispatch(clearAuth());
-          setUser(null);
-          setIsGuest(true);
-          setLoginModalOpen(false);
-          window.dispatchEvent(new Event('navigate_to_auth'));
-        }
+        // Do not purge session on 401/403 here - Axios interceptor handles token refresh/expiry cleanly
+        console.warn('[AuthContext] Device heartbeat check notice:', err?.message || err);
       }
     };
 
-    // Check session status every 10s
-    const interval = setInterval(checkDeviceSession, 10000);
+    // Check session status every 30s (reduced overhead)
+    const interval = setInterval(checkDeviceSession, 30000);
 
     // Check on window focus / tab switch / storage change
     const handleFocus = () => checkDeviceSession();
@@ -186,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.removeEventListener('visibilitychange', handleFocus);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [user]);
+  }, [user, accessToken]);
 
   const login = async (
     username?: string,
@@ -208,24 +295,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (result && (result.token || result.accessToken)) {
         const accToken = result.token || result.accessToken;
+
+        const tokenPayload = parseTokenPayload(accToken);
         const rawUser = result.user;
         const fullName = rawUser
           ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
-          : username || 'Người dùng';
+          : tokenPayload?.fullName || username || 'Người dùng';
         const userData: User = rawUser
           ? {
               id: rawUser.id,
-              username: rawUser.email || username,
-              email: rawUser.email || '',
+              username: rawUser.email || username || tokenPayload?.sub,
+              email: rawUser.email || tokenPayload?.email || '',
               fullName: fullName.trim() || 'Người dùng',
               avatar: rawUser.avatarUrl || '',
               roles: rolesFromToken(accToken),
             }
           : {
-              id: 'u-' + Date.now(),
-              username: username || 'user',
-              email: (username || 'user') + '@example.com',
-              fullName: username || 'Người dùng',
+              id: tokenPayload?.sub || '',
+              username: tokenPayload?.email || username || '',
+              email: tokenPayload?.email || '',
+              fullName: fullName.trim() || 'Người dùng',
+              avatar: '',
               roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
@@ -250,24 +340,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = res?.data || res?.result || res;
       if (result && (result.accessToken || result.token)) {
         const accToken = result.token || result.accessToken;
+
+        const tokenPayload = parseTokenPayload(accToken);
         const rawUser = result.user;
         const fullName = rawUser
           ? `${rawUser.lastName ? rawUser.lastName + ' ' : ''}${rawUser.firstName || ''}`
-          : 'Người dùng';
+          : tokenPayload?.fullName || 'Người dùng';
         const userData: User = rawUser
           ? {
               id: rawUser.id,
-              username: rawUser.email || 'user',
-              email: rawUser.email || '',
+              username: rawUser.email || tokenPayload?.sub,
+              email: rawUser.email || tokenPayload?.email || '',
               fullName: fullName.trim() || 'Người dùng',
               avatar: rawUser.avatarUrl || '',
               roles: rolesFromToken(accToken),
             }
           : {
-              id: 'u-' + Date.now(),
-              username: 'user',
-              email: 'user@example.com',
-              fullName: 'Người dùng',
+              id: tokenPayload?.sub || '',
+              username: tokenPayload?.email || '',
+              email: tokenPayload?.email || '',
+              fullName: fullName.trim() || 'Người dùng',
+              avatar: '',
               roles: rolesFromToken(accToken),
             };
         localStorage.setItem('user', JSON.stringify(userData));
@@ -311,6 +404,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout().catch(() => null);
     localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
     localStorage.setItem('isGuest', 'true');
     setUser(null);
     dispatch(clearAuth());

@@ -3,6 +3,7 @@ import { store } from '../store/store';
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
 export const myFriendIdsMemoryCache = new Set<string>();
+const authorProfilePendingMap = new Map<string, Promise<{ name: string; avatar: string } | null>>();
 
 export const fetchAuthorProfile = async (userId: string) => {
   if (!userId || userId === 'me') return null;
@@ -28,26 +29,39 @@ export const fetchAuthorProfile = async (userId: string) => {
     return authorProfileCache[userId];
   }
 
+  // Deduplicate in-flight concurrent requests for the same author
+  if (authorProfilePendingMap.has(userId)) {
+    return authorProfilePendingMap.get(userId)!;
+  }
+
   const token = store.getState().auth.accessToken;
   if (!token) return null;
-  try {
-    const profile = await userService.getUserProfile(userId);
-    if (profile) {
-      const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
-      let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
-      if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
-        if (profile.username) name = profile.username;
-        else if (profile.email) name = profile.email.split('@')[0];
+
+  const fetchPromise = (async () => {
+    try {
+      const profile = await userService.getUserProfile(userId);
+      if (profile) {
+        const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
+        let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
+        if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
+          if (profile.username) name = profile.username;
+          else if (profile.email) name = profile.email.split('@')[0];
+        }
+        if (!name) name = 'Thành viên KLTN';
+        const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
+        authorProfileCache[userId] = { name, avatar };
+        return authorProfileCache[userId];
       }
-      if (!name) name = 'Thành viên KLTN';
-      const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
-      authorProfileCache[userId] = { name, avatar };
-      return authorProfileCache[userId];
+    } catch {
+      // ignore
+    } finally {
+      authorProfilePendingMap.delete(userId);
     }
-  } catch {
-    // ignore
-  }
-  return null;
+    return null;
+  })();
+
+  authorProfilePendingMap.set(userId, fetchPromise);
+  return fetchPromise;
 };
 
 export const getStoredCurrentUserId = (): string => {

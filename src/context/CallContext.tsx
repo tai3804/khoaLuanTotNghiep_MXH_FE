@@ -269,15 +269,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(() => {});
     };
 
-    // A browser can receive the REST invitation before its STOMP subscription
-    // is ready (especially right after F5/token refresh). Keep a lightweight
-    // fallback poll while idle so an incoming call always gets an answer UI.
+    // Check incoming call on mount once and on focus
     const recoveryTimer = setTimeout(recoverIncomingCall, 700);
-    const recoveryInterval = setInterval(recoverIncomingCall, 2500);
+    const handleFocus = () => recoverIncomingCall();
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       cancelled = true;
       clearTimeout(recoveryTimer);
-      clearInterval(recoveryInterval);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [isAuthenticated, toast, user?.id]);
 
@@ -782,7 +782,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    const interval = setInterval(checkCallLiveness, 2000);
+    const interval = setInterval(checkCallLiveness, 8000);
     return () => {
       disposed = true;
       clearInterval(interval);

@@ -1,14 +1,19 @@
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { store } from '../store/store';
+import { setAccessToken } from '../store/slices/authSlice';
+import { authService } from './authService';
 
 export interface ChatMessagePayload {
   messageId?: string;
+  id?: string;
   conversationId: string;
   senderId: string;
   content: string;
   type?: string;
   mediaUrl?: string | null;
+  edited?: boolean;
+  deleted?: boolean;
   createdAt?: string;
 }
 
@@ -40,7 +45,17 @@ class WebSocketService {
     if (this.isConnected()) return true;
     if (this.connectionPromise) return this.connectionPromise;
 
-    const token = store.getState().auth.accessToken;
+    let token = store.getState().auth.accessToken;
+    if (!token) {
+      try {
+        const refreshed = await authService.refreshToken();
+        if (refreshed) {
+          token = refreshed;
+          store.dispatch(setAccessToken(refreshed));
+        }
+      } catch {}
+    }
+
     if (!token) {
       console.warn('[WebSocket] Cannot connect: No auth token found.');
       return false;

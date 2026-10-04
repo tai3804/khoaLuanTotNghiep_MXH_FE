@@ -1,5 +1,6 @@
 import React from 'react';
-import { Mail, ArrowRight } from 'lucide-react';
+import { Mail, ArrowRight, ShieldAlert } from 'lucide-react';
+import { useSystemConfig } from '../../../context/SystemConfigContext';
 
 interface RegisterStep1EmailProps {
   email: string;
@@ -14,6 +15,22 @@ export const RegisterStep1Email: React.FC<RegisterStep1EmailProps> = ({
   loading,
   onSendOtp,
 }) => {
+  const { allowRegistration } = useSystemConfig();
+
+  if (!allowRegistration) {
+    return (
+      <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center space-y-2">
+        <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto" />
+        <h4 className="font-bold text-xs text-amber-900 dark:text-amber-200">
+          Tạm Đóng Đăng Ký
+        </h4>
+        <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+          Tính năng đăng ký tài khoản mới hiện đang tạm đóng theo thiết lập của Quản trị viên. Vui lòng thử lại sau!
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={onSendOtp} className="space-y-3.5">
       <div>

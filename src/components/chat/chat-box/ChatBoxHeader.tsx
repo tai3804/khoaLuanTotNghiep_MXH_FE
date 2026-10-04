@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Video, Minus, X, Users, Info } from 'lucide-react';
+import { Phone, Video, Minus, X, Users, Info, Sparkles } from 'lucide-react';
 import { ChatUser } from './types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { useCall } from '../../../context/CallContext';
@@ -12,6 +12,8 @@ interface ChatBoxHeaderProps {
   onMinimize: () => void;
   onClose: () => void;
   onOpenGroupInfo?: () => void;
+  onTriggerSummary?: () => void;
+  isSummarizing?: boolean;
 }
 
 export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
@@ -22,6 +24,8 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   onMinimize,
   onClose,
   onOpenGroupInfo,
+  onTriggerSummary,
+  isSummarizing,
 }) => {
   const { startCall, startGroupCall } = useCall();
   const targetUserId = friend.userId || (!friend.isGroup && friend.id !== conversationId ? friend.id : undefined);
@@ -75,6 +79,16 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
       </div>
 
       <div className="flex items-center space-x-0.5 text-[#1877f2] dark:text-[#4599ff] shrink-0">
+        {onTriggerSummary && (
+          <button
+            onClick={onTriggerSummary}
+            disabled={isSummarizing}
+            className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full transition cursor-pointer disabled:opacity-50"
+            title="✨ AI Tóm tắt tin nhắn (kèm ảnh)"
+          >
+            <Sparkles className={`w-4 h-4 ${isSummarizing ? 'animate-spin' : ''}`} />
+          </button>
+        )}
         {friend.isGroup ? (
           <>
             <button

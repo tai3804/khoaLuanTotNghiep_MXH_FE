@@ -14,6 +14,12 @@ export interface Message {
   text: string;
   time: string;
   status?: 'SENDING' | 'SENT' | 'DELIVERED' | 'SEEN';
+  type?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'FILE' | 'STICKER' | string;
+  mediaUrl?: string | null;
+  edited?: boolean;
+  deleted?: boolean;
+  fileName?: string;
+  fileSize?: number;
 }
 
 // Messenger-style timestamp: keep a compact clock for the last 24 hours;
@@ -57,6 +63,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const messagePageRef = useRef(0);
   const prependingMessagesRef = useRef(false);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
+  const chatDocInputRef = useRef<HTMLInputElement>(null);
   const memberProfilesRef = useRef<Record<string, { name: string; avatar: string }>>({});
 
   const markConversationAsRead = async (convId: string, messageId?: string) => {
@@ -65,7 +72,6 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
       window.dispatchEvent(new CustomEvent('chat_conversation_read', { detail: { conversationId: convId } }));
       window.dispatchEvent(new Event('chat_unread_changed'));
     } catch (error) {
-      // Keep the badge intact when the server did not accept the read marker.
       console.warn('[ChatBox] Unable to mark conversation as read:', error);
     }
   };
@@ -73,8 +79,14 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const handleChatFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !conversationId) return;
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    const msgType: 'IMAGE' | 'VIDEO' | 'FILE' = isImage ? 'IMAGE' : isVideo ? 'VIDEO' : 'FILE';
+
     setUploading(true);
-    toast.showInfo('Đang tải file đính kèm lên AWS S3...');
+    toast.showInfo(`Đang tải ${isImage ? 'hình ảnh' : isVideo ? 'video' : 'tập tin'} lên AWS S3...`);
+
     try {
       const uploaded = await mediaService.uploadMedia(file, 'chats');
       if (uploaded && uploaded.fileUrl) {
@@ -85,37 +97,75 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
           senderId: user?.id || 'me',
           senderName: 'Bạn',
           senderAvatar: user?.avatar,
-          text: fileUrl,
+          text: file.name || fileUrl,
+          mediaUrl: fileUrl,
+          type: msgType,
+          fileName: file.name,
+          fileSize: file.size,
           time: formatMessageTime(new Date()),
+          status: 'SENDING',
         };
 
-        // 1. Add optimistic message immediately so UI displays it without waiting
+        // 1. Add optimistic message immediately
         setMessages((prev) => [...prev, optimisticMsg]);
 
-        // 2. Send via WS if possible, or fallback to REST API
-        let actualId: string | null = null;
-        const sentViaWs = websocketService.sendMessage(conversationId, fileUrl);
-        if (sentViaWs) {
-          setIsWsLive(true);
-        } else {
-          const res = await chatService.sendMessage(conversationId, fileUrl);
-          actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
-        }
+        // 2. Send via chatService REST API with correct message type and mediaUrl
+        const res = await chatService.sendFileMessage(conversationId, fileUrl, file.name, msgType);
+        const actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
 
         // 3. Reconcile temporary message with server message ID
         setMessages((prev) => {
           if (actualId && prev.some((m) => m.id === actualId)) {
             return prev.filter((m) => m.id !== tempId);
           }
-          return prev.map((m) => (m.id === tempId ? { ...m, id: actualId || m.id } : m));
+          return prev.map((m) => (m.id === tempId ? { ...m, id: actualId || m.id, status: 'SENT' } : m));
         });
 
-        toast.showSuccess('Đã gửi file qua S3!');
+        toast.showSuccess(isImage ? 'Đã gửi hình ảnh!' : isVideo ? 'Đã gửi video!' : 'Đã gửi tập tin thành công!');
       }
     } catch (err: any) {
-      toast.showError('Gửi file thất bại: ' + (err.response?.data?.message || err.message));
+      toast.showError('Gửi tập tin thất bại: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploading(false);
+      // Reset input value so user can re-select the same file if needed
+      e.target.value = '';
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    if (!conversationId) return;
+    try {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, text: newContent, edited: true } : m))
+      );
+      await chatService.editMessage(conversationId, messageId, newContent);
+      toast.showSuccess('Đã chỉnh sửa tin nhắn');
+    } catch (err: any) {
+      toast.showError('Không thể chỉnh sửa tin nhắn: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleRecallMessage = async (messageId: string) => {
+    if (!conversationId) return;
+    try {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, deleted: true } : m))
+      );
+      await chatService.recallMessage(conversationId, messageId);
+      toast.showSuccess('Đã thu hồi tin nhắn');
+    } catch (err: any) {
+      toast.showError('Không thể thu hồi tin nhắn: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDeleteForMe = async (messageId: string) => {
+    if (!conversationId) return;
+    try {
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      await chatService.deleteMessageForMe(conversationId, messageId);
+      toast.showSuccess('Đã xóa tin nhắn ở phía bạn');
+    } catch (err: any) {
+      toast.showError('Không thể xóa tin nhắn: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -235,6 +285,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 text: m.content || '',
                 time: formatMessageTime(m.createdAt),
                 status: isCurrentUser ? 'SENT' : 'DELIVERED',
+                type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
+                mediaUrl: m.mediaUrl || null,
+                edited: Boolean(m.edited),
+                deleted: Boolean(m.deleted),
               };
             })
           );
@@ -285,6 +339,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
           senderAvatar: profile?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
           text: m.content || '',
           time: formatMessageTime(m.createdAt),
+          type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
+          mediaUrl: m.mediaUrl || null,
+          edited: Boolean(m.edited),
+          deleted: Boolean(m.deleted),
         };
       });
       messagePageRef.current = nextPage;
@@ -326,15 +384,29 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
             setIsWsLive(true);
 
             setMessages((prev) => {
-              const incomingId = String(incoming.messageId || (incoming as any).id || '');
+              const incomingId = String(incoming.messageId || incoming.id || '');
               const incomingSender = String(incoming.senderId);
               const incomingContent = incoming.content || '';
               const isCurrentUser = incomingSender === String(user?.id);
               const prof = memberProfilesRef.current[incomingSender];
 
-              // If message already exists by ID, clean up any lingering temporary message and return
+              // If message already exists by ID, update its content, edited and deleted status
               if (incomingId && prev.some((m) => m.id === incomingId)) {
-                return prev.filter((m) => !(m.id.startsWith('msg-') && m.text === incomingContent));
+                return prev
+                  .filter((m) => !(m.id.startsWith('msg-') && m.text === incomingContent))
+                  .map((m) => {
+                    if (m.id === incomingId) {
+                      return {
+                        ...m,
+                        text: incomingContent,
+                        edited: incoming.edited !== undefined ? incoming.edited : m.edited,
+                        deleted: incoming.deleted !== undefined ? incoming.deleted : m.deleted,
+                        type: incoming.type || m.type,
+                        mediaUrl: incoming.mediaUrl !== undefined ? incoming.mediaUrl : m.mediaUrl,
+                      };
+                    }
+                    return m;
+                  });
               }
 
               const matchIdx = prev.findIndex(
@@ -351,6 +423,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 text: incomingContent,
                 time: formatMessageTime(incoming.createdAt),
                 status: isCurrentUser ? 'SENT' : 'DELIVERED',
+                type: incoming.type || (incoming.mediaUrl ? 'IMAGE' : 'TEXT'),
+                mediaUrl: incoming.mediaUrl || null,
+                edited: Boolean(incoming.edited),
+                deleted: Boolean(incoming.deleted),
               };
 
               if (!isCurrentUser && incomingId) {
@@ -368,6 +444,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
             });
           }
         );
+
         unsubscribeReceipts = await websocketService.subscribeToReceipts(conversationId, (receipt) => {
           if (String(receipt.userId) === String(user?.id)) return;
           setMessages((previous) => previous.map((message) => message.senderId === String(user?.id)
@@ -400,6 +477,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
                 text: m.content || '',
                 time: formatMessageTime(m.createdAt),
+                type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
+                mediaUrl: m.mediaUrl || null,
+                edited: Boolean(m.edited),
+                deleted: Boolean(m.deleted),
               };
             })
           );
@@ -440,6 +521,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
       text: textToSend,
       time: formatMessageTime(new Date()),
       status: 'SENDING',
+      type: 'TEXT',
     };
 
     setMessages((prev) => [...prev, optimisticMsg]);
@@ -484,7 +566,11 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     hasMoreMessages,
     loadOlderMessages,
     chatFileInputRef,
+    chatDocInputRef,
     handleChatFileSelect,
+    handleEditMessage,
+    handleRecallMessage,
+    handleDeleteForMe,
     handleSend,
   };
 };

@@ -9,7 +9,8 @@ export const sanitizeLocalStorage = (): void => {
     const keysToRemove: string[] = [];
     const obsoleteExactKeys = [
       'token',               // Pure in-memory (Redux) security model
-      'refreshToken',        // Stored in HttpOnly cookie
+      'refreshToken',        // Handled strictly via HttpOnly cookie
+      'admin_refresh_token', // Obsolete admin token key
       'currentUserId',       // Redundant: user.id is already stored in 'user'
       'my_friend_ids',       // In-memory cache in userService
       'kltn_ended_streams',  // Moved to sessionStorage

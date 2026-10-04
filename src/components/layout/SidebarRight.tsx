@@ -101,11 +101,6 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     fetchData(false);
     fetchGroupChats();
 
-    const interval = setInterval(() => {
-      fetchData(true);
-      fetchGroupChats();
-    }, 15000);
-
     const handleFriendUpdate = () => fetchData(true);
     const handleGroupUpdate = () => fetchGroupChats();
     window.addEventListener('friend_status_updated', handleFriendUpdate);
@@ -132,7 +127,6 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     window.addEventListener('user_presence_updated', handlePresence);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
       window.removeEventListener('group_chat_created', handleGroupUpdate);
       window.removeEventListener('group_chat_updated', handleGroupUpdate);

@@ -66,7 +66,15 @@ export const AiSocialChatWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      const reply = await aiService.chatWithAi(text);
+      const history = messages
+        .filter((m) => m.id !== 'welcome' && !m.id.startsWith('ai-err'))
+        .slice(-8)
+        .map((m) => ({
+          sender: m.sender as 'user' | 'ai',
+          text: m.text,
+        }));
+
+      const reply = await aiService.chatWithAi(text, history);
       const aiMsg: Message = {
         id: 'ai-' + Date.now(),
         sender: 'ai',

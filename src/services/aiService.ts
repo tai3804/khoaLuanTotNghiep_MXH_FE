@@ -39,6 +39,32 @@ export interface SmartRepliesResult {
   replies: string[];
 }
 
+export interface ChatHistoryItem {
+  sender: 'user' | 'ai' | 'assistant' | 'model';
+  text: string;
+}
+
+export interface ChatMessageItemDto {
+  senderName: string;
+  text: string;
+  time?: string;
+  mediaUrl?: string;
+}
+
+export interface SummarizeMessagesRequest {
+  conversationName?: string;
+  isGroup?: boolean;
+  messages: ChatMessageItemDto[];
+}
+
+export interface SummarizeMessagesResponse {
+  summary: string;
+  mediaDescription: string;
+  actionItems: string[];
+  messageCount: number;
+  imageCount: number;
+}
+
 export interface ChatResult {
   reply: string;
 }
@@ -160,16 +186,29 @@ export const aiService = {
   },
 
   /**
-   * Trò chuyện, giải đáp thắc mắc và tư vấn ý tưởng với Trợ lý AI
+   * Trò chuyện đa lượt có nhớ ngữ cảnh với Trợ lý AI KLTN
    */
-  chatWithAi: async (message: string): Promise<string> => {
+  chatWithAi: async (message: string, history?: ChatHistoryItem[]): Promise<string> => {
     try {
-      const response = await api.post('/ai/assistant/chat', { message });
+      const response = await api.post('/ai/assistant/chat', { message, history });
       const data: ChatResult = response.data?.data || response.data || {};
       return data?.reply || 'Xin lỗi, hiện tại tôi chưa thể phản hồi. Vui lòng thử lại sau ít phút.';
     } catch (error) {
       console.warn('AI chat failed:', error);
       return 'Không thể kết nối với Trợ lý AI. Vui lòng thử lại sau.';
+    }
+  },
+
+  /**
+   * Tóm tắt tin nhắn cuộc trò chuyện kèm phân tích hình ảnh đa phương thức (Multimodal AI)
+   */
+  summarizeMessages: async (request: SummarizeMessagesRequest): Promise<SummarizeMessagesResponse | null> => {
+    try {
+      const response = await api.post('/ai/assistant/summarize-messages', request);
+      return response.data?.data || response.data || null;
+    } catch (error) {
+      console.warn('AI summarize messages failed:', error);
+      return null;
     }
   },
 

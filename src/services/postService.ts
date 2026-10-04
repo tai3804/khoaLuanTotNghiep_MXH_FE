@@ -788,12 +788,6 @@ export const postService = {
     }
   },
 
-  sharePost: async (postId: string, caption?: string, privacy = 'PUBLIC') => {
-    const res = await api.post(`/posts/${postId}/share`, { caption, privacy });
-    const raw = res.data?.data || res.data?.result || res.data;
-    return normalizePost(raw);
-  },
-
   getPostsByHashtag: async (hashtag: string, page = 0, size = 20): Promise<PagedPostsResponse> => {
     try {
       const cleanTag = hashtag.replace(/^#/, '').trim().toLowerCase();
@@ -830,5 +824,22 @@ export const postService = {
         last: true,
       };
     }
+  },
+
+  /**
+   * Chia sẻ bài viết lên Bảng tin / Trang cá nhân (Share Post Request)
+   */
+  sharePost: async (
+    postId: string,
+    caption?: string,
+    privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC'
+  ): Promise<Post> => {
+    const res = await api.post(`/posts/${postId}/share`, {
+      originalPostId: postId,
+      caption: caption || '',
+      privacy: privacy || 'PUBLIC',
+    });
+    const data = res.data?.data || res.data?.result || res.data;
+    return normalizePost(data);
   },
 };
