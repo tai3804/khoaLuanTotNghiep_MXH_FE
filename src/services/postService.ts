@@ -393,6 +393,26 @@ export const postService = {
     return normalizePost(res.data?.data || res.data);
   },
 
+  getMyModerationAppeals: async (): Promise<any[]> => {
+    const res = await api.get('/posts/moderation-appeals/mine');
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  appealModeratedPost: async (postId: string, message: string) => {
+    const res = await api.post(`/posts/${postId}/appeal`, { message });
+    return res.data?.data || res.data;
+  },
+
+  getModerationAppeals: async (): Promise<any[]> => {
+    const res = await api.get('/posts/moderation-appeals');
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  reviewModerationAppeal: async (postId: string, approved: boolean, note?: string) => {
+    const res = await api.patch(`/posts/${postId}/appeal/review`, { note }, { params: { approved } });
+    return res.data?.data || res.data;
+  },
+
   updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {
     const res = await api.patch(`/posts/${postId}/date`, { createdAt });
     const normalized = normalizePost(res.data?.data || res.data);

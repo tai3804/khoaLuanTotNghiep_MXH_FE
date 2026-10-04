@@ -119,7 +119,13 @@ const actionDetails: Record<
 
 export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
-  const [tab, setTab] = useState<'queue' | 'ai' | 'history'>('queue');
+  const [tab, setTab] = useState<'queue' | 'ai' | 'history' | 'appeals'>('queue');
+
+  // Appeals state
+  const [appeals, setAppeals] = useState<any[]>([]);
+  const [appealAuthors, setAppealAuthors] = useState<Record<string, { name: string; avatarUrl?: string }>>({});
+  const [appealsLoading, setAppealsLoading] = useState(false);
+  const [appealBusy, setAppealBusy] = useState<string | null>(null);
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [logs, setLogs] = useState<ModerationLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,9 +174,53 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
     }
   };
 
+  const loadAppeals = async () => {
+    try {
+      setAppealsLoading(true);
+      const list = await postService.getModerationAppeals();
+      const safeList = Array.isArray(list) ? list : [];
+      setAppeals(safeList);
+      const ids = [...new Set(safeList.map((a: any) => a.authorId).filter(Boolean))] as string[];
+      const profiles = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const p = await userService.getUserProfile(id);
+            const parts = [p?.lastName, p?.middleName, p?.firstName].filter(Boolean);
+            const name = p?.fullName || parts.join(' ').trim() || p?.username || `Người dùng ${id.slice(0, 8)}`;
+            return [id, { name, avatarUrl: p?.avatarUrl }] as const;
+          } catch {
+            return [id, { name: `Người dùng ${id.slice(0, 8)}` }] as const;
+          }
+        })
+      );
+      setAppealAuthors(Object.fromEntries(profiles));
+    } catch {
+      toast.showError('Không tải được hàng chờ kháng nghị.');
+    } finally {
+      setAppealsLoading(false);
+    }
+  };
+
+  const reviewAppeal = async (postId: string, approved: boolean) => {
+    try {
+      setAppealBusy(postId);
+      await postService.reviewModerationAppeal(postId, approved);
+      toast.showSuccess(approved ? 'Đã chấp nhận và khôi phục bài viết.' : 'Đã bác bỏ kháng nghị.');
+      await loadAppeals();
+    } catch {
+      toast.showError('Không thể xử lý kháng nghị.');
+    } finally {
+      setAppealBusy(null);
+    }
+  };
+
   useEffect(() => {
     if (canModerate) load();
   }, [canModerate]);
+
+  useEffect(() => {
+    if (canModerate && tab === 'appeals') void loadAppeals();
+  }, [canModerate, tab]);
 
   // Fetch actual post content & author info for all reported posts and logged items
   useEffect(() => {
@@ -373,23 +423,10 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-rose-500/10 blur-3xl" />
 
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-black tracking-wider text-blue-600 uppercase dark:bg-blue-500/20 dark:text-blue-400">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  KLTN Safety Center
-                </span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                  Kiểm duyệt bài viết trực tuyến
-                </span>
-              </div>
+            <div>
               <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl dark:text-white">
                 Trung tâm kiểm duyệt bài viết
               </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                Xem trực tiếp nội dung bài viết bị báo cáo, tác giả bài đăng và thực hiện các quyết định gỡ bỏ hoặc hoàn tác khôi phục bài viết.
-              </p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -410,7 +447,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <StatCard
             icon={<Clock3 className="h-6 w-6 text-amber-500" />}
             label="Bài viết chờ duyệt"
-            sub="Chờ kiểm duyệt viên xử lý"
             value={pending.length}
             accentColor="border-amber-500/30 dark:border-amber-500/20"
             bgGlow="from-amber-500/10 to-transparent"
@@ -418,7 +454,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <StatCard
             icon={<Sparkles className="h-6 w-6 text-purple-500" />}
             label="AI tự động gắn cờ"
-            sub="Độ nghi vấn vi phạm cao"
             value={aiFlagged.length}
             accentColor="border-purple-500/30 dark:border-purple-500/20"
             bgGlow="from-purple-500/10 to-transparent"
@@ -426,7 +461,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <StatCard
             icon={<History className="h-6 w-6 text-blue-500" />}
             label="Đã xử lý & Ghi log"
-            sub="Có thể hoàn tác bất kỳ lúc nào"
             value={logs.length}
             accentColor="border-blue-500/30 dark:border-blue-500/20"
             bgGlow="from-blue-500/10 to-transparent"
@@ -434,16 +468,22 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <StatCard
             icon={<Shield className="h-6 w-6 text-emerald-500" />}
             label="Tổng lượt báo cáo"
-            sub="Theo dõi an toàn cộng đồng"
             value={postReports.length}
             accentColor="border-emerald-500/30 dark:border-emerald-500/20"
             bgGlow="from-emerald-500/10 to-transparent"
+          />
+          <StatCard
+            icon={<AlertTriangle className="h-6 w-6 text-amber-500" />}
+            label="Kháng nghị đang chờ"
+            value={appeals.length}
+            accentColor="border-amber-500/30 dark:border-amber-500/20"
+            bgGlow="from-amber-500/10 to-transparent"
           />
         </div>
 
         {/* Tab & Filter Bar */}
         <div className="mb-6 flex flex-col gap-4 border-b border-gray-200/80 pb-4 dark:border-[#2f3032] md:flex-row md:items-center md:justify-between">
-          <div className="flex rounded-2xl bg-gray-200/60 p-1 backdrop-blur-sm dark:bg-[#1f2022]">
+          <div className="flex flex-wrap rounded-2xl bg-gray-200/60 p-1 backdrop-blur-sm dark:bg-[#1f2022]">
             <TabButton
               active={tab === 'queue'}
               onClick={() => setTab('queue')}
@@ -462,9 +502,16 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               label="Nhật ký & Hoàn tác"
               count={logs.length}
             />
+            <TabButton
+              active={tab === 'appeals'}
+              onClick={() => setTab('appeals')}
+              label="Kháng nghị"
+              count={appeals.length}
+              accentColor="amber"
+            />
           </div>
 
-          {tab !== 'history' && (
+          {tab !== 'history' && tab !== 'appeals' && (
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-[220px] flex-1 sm:w-72">
                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -509,7 +556,15 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         </div>
 
         {/* Content Body */}
-        {loading ? (
+        {tab === 'appeals' ? (
+          <AppealsPanel
+            appeals={appeals}
+            authors={appealAuthors}
+            loading={appealsLoading}
+            busy={appealBusy}
+            onReview={reviewAppeal}
+          />
+        ) : loading ? (
           <div className="flex flex-col items-center justify-center py-28 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
             <p className="mt-4 text-sm font-semibold text-gray-500 dark:text-gray-400">
@@ -754,11 +809,10 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
 const StatCard: React.FC<{
   icon: React.ReactNode;
   label: string;
-  sub: string;
   value: number;
   accentColor: string;
   bgGlow: string;
-}> = ({ icon, label, sub, value, accentColor, bgGlow }) => (
+}> = ({ icon, label, value, accentColor, bgGlow }) => (
   <div
     className={`relative overflow-hidden rounded-3xl border ${accentColor} bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all hover:shadow-md dark:bg-[#1a1b1d]`}
   >
@@ -771,7 +825,6 @@ const StatCard: React.FC<{
     </div>
     <div className="mt-4">
       <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{label}</h3>
-      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{sub}</p>
     </div>
   </div>
 );
@@ -781,12 +834,15 @@ const TabButton: React.FC<{
   onClick: () => void;
   label: string;
   count: number;
-}> = ({ active, onClick, label, count }) => (
+  accentColor?: 'blue' | 'amber';
+}> = ({ active, onClick, label, count, accentColor = 'blue' }) => (
   <button
     onClick={onClick}
     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
       active
-        ? 'bg-white text-blue-600 shadow-sm dark:bg-[#2d2e30] dark:text-white'
+        ? accentColor === 'amber'
+          ? 'bg-white text-amber-600 shadow-sm dark:bg-[#2d2e30] dark:text-amber-400'
+          : 'bg-white text-blue-600 shadow-sm dark:bg-[#2d2e30] dark:text-white'
         : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
     }`}
   >
@@ -794,7 +850,9 @@ const TabButton: React.FC<{
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
         active
-          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
+          ? accentColor === 'amber'
+            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200'
+            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
           : 'bg-gray-300/50 text-gray-600 dark:bg-[#343538] dark:text-gray-400'
       }`}
     >
@@ -1190,6 +1248,138 @@ const AuditLogList: React.FC<{
               )}
             </div>
           </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const AppealsPanel: React.FC<{
+  appeals: any[];
+  authors: Record<string, { name: string; avatarUrl?: string }>;
+  loading: boolean;
+  busy: string | null;
+  onReview: (postId: string, approved: boolean) => void;
+}> = ({ appeals, authors, loading, busy, onReview }) => {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-28 text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
+        <p className="mt-4 text-sm font-semibold text-gray-500 dark:text-gray-400">
+          Đang tải hàng chờ kháng nghị...
+        </p>
+      </div>
+    );
+  }
+
+  if (appeals.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500 shadow-inner dark:bg-emerald-950/50">
+          <ShieldCheck className="h-9 w-9" />
+        </div>
+        <p className="text-lg font-black text-gray-900 dark:text-white">Không có kháng nghị đang chờ.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Tất cả các yêu cầu kháng nghị đã được xử lý hoặc chưa có ai gửi kháng nghị.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {appeals.map((appeal) => {
+        const author = authors[appeal.authorId] || { name: 'Người dùng đang tải...' };
+        const isBusy = busy === appeal.postId;
+        const actionLabel = appeal.action === 'HIDE_POST' ? 'Bài viết đã bị ẩn' : 'Bài viết đã bị gỡ';
+
+        return (
+          <article
+            key={appeal.postId}
+            className="rounded-3xl border border-amber-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-amber-900/40 dark:bg-[#1a1b1d]"
+          >
+            {/* Header */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 text-xs dark:border-[#323336]">
+              <span className="rounded-lg bg-amber-100 px-2.5 py-1 font-black text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                {actionLabel}
+              </span>
+              <span className="font-mono text-gray-400">
+                Mã bài: <code>{appeal.postId}</code>
+              </span>
+            </div>
+
+            {/* Moderation reason */}
+            <p className="mt-3 text-sm text-rose-500">
+              <b>Lý do xử lý:</b> {appeal.reason || 'Nội dung đã bị kiểm duyệt'}
+            </p>
+
+            {/* Original post preview */}
+            <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-[#323336] dark:bg-[#222325]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  {author.avatarUrl ? (
+                    <img
+                      src={author.avatarUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover ring-2 ring-amber-500/20"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-sm font-bold text-white">
+                      {author.name[0]?.toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-extrabold text-gray-900 dark:text-white">{author.name}</p>
+                    <p className="text-[11px] text-gray-400">
+                      Đăng lúc:{' '}
+                      {appeal.createdAt
+                        ? new Date(appeal.createdAt).toLocaleString('vi-VN')
+                        : 'Không rõ thời gian'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 text-xs text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <ThumbsUp size={14} /> {appeal.likeCount || 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MessageSquare size={14} /> {appeal.commentCount || 0}
+                  </span>
+                </div>
+              </div>
+              <p className="mt-4 whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-800 dark:text-gray-200">
+                {appeal.content || (
+                  <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>
+                )}
+              </p>
+            </div>
+
+            {/* Appeal message */}
+            <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm dark:bg-amber-950/20">
+              <b className="text-amber-800 dark:text-amber-300">Lý do kháng nghị:</b>
+              <p className="mt-1 whitespace-pre-wrap text-gray-700 dark:text-gray-300">{appeal.appealMessage}</p>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                disabled={isBusy}
+                onClick={() => onReview(appeal.postId, true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+              >
+                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check size={16} />}
+                Chấp nhận &amp; khôi phục
+              </button>
+              <button
+                disabled={isBusy}
+                onClick={() => onReview(appeal.postId, false)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:scale-95 disabled:opacity-60"
+              >
+                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X size={16} />}
+                Bác bỏ
+              </button>
+            </div>
+          </article>
         );
       })}
     </div>
