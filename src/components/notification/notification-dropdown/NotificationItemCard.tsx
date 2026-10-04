@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   CheckCheck,
   Trash2,
+  Tag,
 } from 'lucide-react';
 import { NotificationItem, NotificationType } from '../../../types/notification';
 import { UserAvatar } from '../../common/UserAvatar';
@@ -38,6 +39,11 @@ const getNotificationIcon = (type: NotificationType) => {
       return {
         icon: <ThumbsUp className="w-3 h-3 text-white fill-white" />,
         bg: 'bg-[#1877f2]',
+      };
+    case 'TAG_POST':
+      return {
+        icon: <Tag className="w-3 h-3 text-white" />,
+        bg: 'bg-[#8b5cf6]',
       };
     case 'COMMENT_POST':
     case 'REPLY_COMMENT':

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Send, Smile } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { CommentAiSuggestions } from './CommentAiSuggestions';
+import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
 
 interface CommentFormFooterProps {
   user: any;
@@ -32,6 +33,28 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
   language,
   postContent,
 }) => {
+  const [cursorPos, setCursorPos] = useState<number | null>(null);
+
+  const {
+    isOpen: isMentionOpen,
+    loading: isMentionLoading,
+    candidates: mentionCandidates,
+    selectedIndex: mentionSelectedIndex,
+    selectCandidate: handleSelectMention,
+    handleKeyDown: handleMentionKeyDown,
+  } = useMentionSuggestions({
+    text: commentText,
+    cursorPosition: cursorPos,
+    onMentionSelected: (candidate, markdown) => {
+      if (cursorPos === null) return;
+      const textBefore = commentText.slice(0, cursorPos);
+      const textAfter = commentText.slice(cursorPos);
+      const atIndex = textBefore.lastIndexOf('@');
+      const newContent = textBefore.slice(0, atIndex) + markdown + textAfter;
+      setCommentText(newContent);
+    },
+  });
+
   return (
     <div className="p-3 border-t border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] shrink-0 space-y-2">
       {/* AI Smart Replies Bar */}
@@ -69,16 +92,35 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
             ref={inputRef}
             type="text"
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            onChange={(e) => {
+              setCommentText(e.target.value);
+              setCursorPos(e.target.selectionStart);
+            }}
+            onKeyUp={(e) => setCursorPos(e.currentTarget.selectionStart)}
+            onClick={(e) => setCursorPos(e.currentTarget.selectionStart)}
+            onKeyDown={(e) => {
+              if (handleMentionKeyDown(e)) return;
+            }}
             placeholder={
               !isAuthenticated
                 ? (language === 'en' ? 'Log in to comment...' : 'Đăng nhập để bình luận...')
                 : replyingTo
                 ? (language === 'en' ? `Reply to ${replyingTo.authorName}...` : `Trả lời ${replyingTo.authorName}...`)
-                : (t('writeComment') || 'Viết bình luận...')
+                : (t('writeComment') || 'Viết bình luận... (gõ @ để nhắc đến ai đó)')
             }
             className="w-full bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full pl-4 pr-10 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-[#2d88ff]"
           />
+
+          {/* Inline Mention Dropdown for Comments */}
+          <MentionDropdown
+            isOpen={isMentionOpen}
+            loading={isMentionLoading}
+            candidates={mentionCandidates}
+            selectedIndex={mentionSelectedIndex}
+            onSelect={handleSelectMention}
+            className="bottom-full left-0 mb-2"
+          />
+
           <button
             type="button"
             className="absolute right-3 text-gray-400 hover:text-amber-500 cursor-pointer"

@@ -29,6 +29,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
     setImageUrl,
     filePreview,
     selectedFileType,
+    taggedFriends,
+    setTaggedFriends,
+    showTagFriendsModal,
+    setShowTagFriendsModal,
     privacy,
     setPrivacy,
     showImageInput,
@@ -86,6 +90,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
               isSubmitting={isSubmitting}
               handleSubmit={handleSubmit}
               t={t}
+              taggedFriends={taggedFriends}
+              setTaggedFriends={setTaggedFriends}
+              showTagFriendsModal={showTagFriendsModal}
+              setShowTagFriendsModal={setShowTagFriendsModal}
             />
           </div>
         </div>

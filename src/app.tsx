@@ -22,6 +22,7 @@ import { Home, Tv, Store, Users } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
 import { HostLiveStudioModal } from './components/live-studio';
 import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
+import { HashtagFeedModal } from './components/post/hashtag';
 
 export const App: React.FC = () => {
   const { isAuthenticated, tokens } = useAuth();
@@ -534,6 +535,9 @@ export const App: React.FC = () => {
 
       {/* Floating AI Social Assistant Widget */}
       <AiSocialChatWidget />
+
+      {/* Global Hashtag Feed Modal */}
+      <HashtagFeedModal />
 
       {/* Multi-Window Chat Popup Container */}
       <ChatPopupContainer

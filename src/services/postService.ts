@@ -121,6 +121,8 @@ export const normalizePost = (p: any): Post => {
     groupPrivacy,
     originalPostId: p.originalPostId ? String(p.originalPostId) : undefined,
     comments: p.comments || [],
+    taggedUserIds: Array.isArray(p.taggedUserIds) ? p.taggedUserIds.map(String) : [],
+    hashtags: Array.isArray(p.hashtags) ? p.hashtags.map(String) : [],
   };
 };
 
@@ -319,13 +321,19 @@ export const postService = {
     privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' = 'PUBLIC',
     files: File[] = [],
     mediaUrls?: string[],
-    groupId?: string
+    groupId?: string,
+    taggedUserIds?: string[]
   ): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
     if (groupId) {
       formData.append('groupId', groupId);
+    }
+    if (taggedUserIds && taggedUserIds.length > 0) {
+      taggedUserIds.forEach((id) => {
+        formData.append('taggedUserIds', id);
+      });
     }
 
     files.forEach((file) => {
@@ -620,6 +628,7 @@ export const postService = {
             createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
             likesCount: Number(c.likeCount || 0),
             parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
+            taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : [],
           };
         });
 
@@ -663,6 +672,7 @@ export const postService = {
                   createdAt: rc.createdAt ? new Date(rc.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
                   likesCount: Number(rc.likeCount || 0),
                   parentCommentId: String(parent.id),
+                  taggedUserIds: Array.isArray(rc.taggedUserIds) ? rc.taggedUserIds.map(String) : [],
                 };
               });
             }
@@ -685,7 +695,13 @@ export const postService = {
     }
   },
 
-  addComment: async (postId: string, content: string, file?: File, parentCommentId?: string): Promise<Comment> => {
+  addComment: async (
+    postId: string,
+    content: string,
+    file?: File,
+    parentCommentId?: string,
+    taggedUserIds?: string[]
+  ): Promise<Comment> => {
     let currentUser: any = null;
     try {
       const uStr = localStorage.getItem('user');
@@ -699,6 +715,11 @@ export const postService = {
     }
     if (file) {
       formData.append('file', file);
+    }
+    if (taggedUserIds && taggedUserIds.length > 0) {
+      taggedUserIds.forEach((id) => {
+        formData.append('taggedUserIds', id);
+      });
     }
     const res = await api.post(`/posts/${postId}/comments`, formData, {
       headers: {
@@ -719,6 +740,7 @@ export const postService = {
       createdAt: 'Vừa xong',
       likesCount: 0,
       parentCommentId: c?.parentCommentId ? String(c.parentCommentId) : parentCommentId,
+      taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : (taggedUserIds || []),
     };
   },
 
@@ -770,5 +792,43 @@ export const postService = {
     const res = await api.post(`/posts/${postId}/share`, { caption, privacy });
     const raw = res.data?.data || res.data?.result || res.data;
     return normalizePost(raw);
+  },
+
+  getPostsByHashtag: async (hashtag: string, page = 0, size = 20): Promise<PagedPostsResponse> => {
+    try {
+      const cleanTag = hashtag.replace(/^#/, '').trim().toLowerCase();
+      const res = await api.get(`/posts/hashtag/${encodeURIComponent(cleanTag)}`, {
+        params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' },
+      });
+      const rawData = res.data;
+      const rawPosts = Array.isArray(rawData?.data?.content)
+        ? rawData.data.content
+        : (Array.isArray(rawData?.data) ? rawData.data : (rawData?.result || []));
+
+      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+        const authorIds = Array.from(new Set(rawPosts.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+        Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+      }
+
+      const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
+      return {
+        posts,
+        page: rawData?.data?.page ?? page,
+        size: rawData?.data?.size ?? size,
+        totalElements: rawData?.data?.totalElements ?? posts.length,
+        totalPages: rawData?.data?.totalPages ?? 1,
+        last: rawData?.data?.last ?? (posts.length < size),
+      };
+    } catch (err) {
+      console.error('getPostsByHashtag error:', err);
+      return {
+        posts: [],
+        page,
+        size,
+        totalElements: 0,
+        totalPages: 0,
+        last: true,
+      };
+    }
   },
 };

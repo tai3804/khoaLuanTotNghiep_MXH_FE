@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CornerDownRight, Pencil, Trash2 } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
+import { RichContentRenderer } from '../../common/RichContentRenderer';
 
 interface CommentItemProps {
   comment: Comment;
@@ -131,7 +132,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
               </div>
             ) : (
               <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
-                {c.content}
+                <RichContentRenderer content={c.content} />
               </p>
             )}
           </div>
@@ -208,7 +209,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                       {rName}
                     </h6>
                     <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
-                      {reply.content}
+                      <RichContentRenderer content={reply.content} />
                     </p>
                   </div>
                   <div className="flex items-center space-x-3 text-[10px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">

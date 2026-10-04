@@ -71,6 +71,7 @@ export interface Comment {
   isLiked?: boolean;
   parentCommentId?: string;
   replies?: Comment[];
+  taggedUserIds?: string[];
 }
 
 export interface PostMediaItem {
@@ -112,6 +113,8 @@ export interface Post {
   isLive?: boolean;
   liveStatus?: 'LIVE' | 'ENDED' | string;
   isOptimistic?: boolean;
+  taggedUserIds?: string[];
+  hashtags?: string[];
 }
 
 export interface ApiResponse<T = any> {

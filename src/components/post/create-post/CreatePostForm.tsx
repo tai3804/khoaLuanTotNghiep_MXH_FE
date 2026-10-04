@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Image, Paperclip, Send, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Image, Paperclip, Send, Sparkles, Tag, Users, X } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { CreatePostPrivacySelector } from './CreatePostPrivacySelector';
 import { CreatePostMediaPreview } from './CreatePostMediaPreview';
 import { CreatePostAiAssistant } from './CreatePostAiAssistant';
+import { TagFriendsModal, TaggedFriend } from './tag-friends';
+import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
 
 interface CreatePostFormProps {
   user: any;
@@ -23,6 +25,10 @@ interface CreatePostFormProps {
   isSubmitting: boolean;
   handleSubmit: (e: React.FormEvent) => void;
   t: (key: string) => string;
+  taggedFriends?: TaggedFriend[];
+  setTaggedFriends?: React.Dispatch<React.SetStateAction<TaggedFriend[]>>;
+  showTagFriendsModal?: boolean;
+  setShowTagFriendsModal?: (show: boolean) => void;
 }
 
 export const CreatePostForm: React.FC<CreatePostFormProps> = ({
@@ -43,35 +49,120 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
   isSubmitting,
   handleSubmit,
   t,
+  taggedFriends = [],
+  setTaggedFriends,
+  showTagFriendsModal = false,
+  setShowTagFriendsModal,
 }) => {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [cursorPos, setCursorPos] = useState<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const {
+    isOpen: isMentionOpen,
+    loading: isMentionLoading,
+    candidates: mentionCandidates,
+    selectedIndex: mentionSelectedIndex,
+    selectCandidate: handleSelectMention,
+    handleKeyDown: handleMentionKeyDown,
+  } = useMentionSuggestions({
+    text: content,
+    cursorPosition: cursorPos,
+    onMentionSelected: (candidate, markdown) => {
+      if (cursorPos === null) return;
+      const textBefore = content.slice(0, cursorPos);
+      const textAfter = content.slice(cursorPos);
+      const atIndex = textBefore.lastIndexOf('@');
+      const newContent = textBefore.slice(0, atIndex) + markdown + textAfter;
+      setContent(newContent);
+
+      if (setTaggedFriends) {
+        setTaggedFriends((prev) => {
+          const id = candidate.id || candidate.userId;
+          if (prev.some((f) => (f.id || f.userId) === id)) return prev;
+          return [
+            ...prev,
+            {
+              id,
+              userId: id,
+              name: candidate.name || candidate.fullName,
+              avatar: candidate.avatar || candidate.avatarUrl,
+            },
+          ];
+        });
+      }
+    },
+  });
 
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-3.5">
       {/* User Info & Privacy Selector */}
       <div className="flex items-center space-x-3">
         <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="lg" />
-        <div>
-          <h4 className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb]">
-            {user?.fullName || user?.username || 'Người dùng'}
-          </h4>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center flex-wrap gap-1">
+            <h4 className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb]">
+              {user?.fullName || user?.username || 'Người dùng'}
+            </h4>
+            {taggedFriends.length > 0 && (
+              <span className="text-xs text-gray-500 dark:text-[#b0b3b8] flex items-center gap-1 flex-wrap">
+                <span>— cùng với</span>
+                <span className="font-semibold text-gray-800 dark:text-[#e4e6eb]">
+                  {taggedFriends[0].name}
+                </span>
+                {taggedFriends.length > 1 && (
+                  <span>và {taggedFriends.length - 1} người khác</span>
+                )}
+                {setShowTagFriendsModal && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTagFriendsModal(true)}
+                    className="text-[#1877f2] hover:underline font-semibold ml-0.5 text-[11px] cursor-pointer"
+                  >
+                    (Chỉnh sửa)
+                  </button>
+                )}
+              </span>
+            )}
+          </div>
           <div className="flex items-center space-x-1.5 mt-0.5">
             <CreatePostPrivacySelector privacy={privacy} setPrivacy={setPrivacy} />
           </div>
         </div>
       </div>
 
-      {/* Content Textarea */}
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder={`${t('whatsOnYourMind') || 'Bạn đang nghĩ gì thế'}, ${
-          user?.fullName || user?.username || ''
-        }?`}
-        rows={4}
-        className="w-full bg-transparent text-gray-900 dark:text-[#e4e6eb] text-sm focus:outline-none resize-none placeholder-gray-400 dark:placeholder-[#b0b3b8] leading-relaxed"
-        autoFocus
-      />
+      {/* Content Textarea with Mention Autocomplete */}
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => {
+            setContent(e.target.value);
+            setCursorPos(e.target.selectionStart);
+          }}
+          onKeyUp={(e) => setCursorPos(e.currentTarget.selectionStart)}
+          onClick={(e) => setCursorPos(e.currentTarget.selectionStart)}
+          onKeyDown={(e) => {
+            if (handleMentionKeyDown(e)) return;
+          }}
+          placeholder={`${t('whatsOnYourMind') || 'Bạn đang nghĩ gì thế'}, ${
+            user?.fullName || user?.username || ''
+          }? (Gõ @ để gắn thẻ bạn bè, # để thêm hashtag)`}
+          rows={4}
+          className="w-full bg-transparent text-gray-900 dark:text-[#e4e6eb] text-sm focus:outline-none resize-none placeholder-gray-400 dark:placeholder-[#b0b3b8] leading-relaxed"
+          autoFocus
+        />
+
+        {/* Inline Mention Dropdown */}
+        <MentionDropdown
+          isOpen={isMentionOpen}
+          loading={isMentionLoading}
+          candidates={mentionCandidates}
+          selectedIndex={mentionSelectedIndex}
+          onSelect={handleSelectMention}
+          className="top-full left-0 mt-1"
+        />
+      </div>
 
       {/* AI Assistant Drawer */}
       {showAiAssistant && (
@@ -123,6 +214,15 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setShowTagFriendsModal?.(true)}
+            className="flex items-center space-x-1.5 py-1.5 px-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877f2] rounded-lg transition cursor-pointer"
+            title="Gắn thẻ bạn bè"
+          >
+            <Tag className="w-5 h-5 text-[#1877f2]" />
+            <span className="text-xs font-semibold">Gắn thẻ</span>
+          </button>
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center space-x-1.5 py-1.5 px-2.5 hover:bg-green-50 dark:hover:bg-green-950/30 text-[#45bd62] rounded-lg transition cursor-pointer"
             title="Tải ảnh hoặc video từ máy"
@@ -141,6 +241,16 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Tag Friends Modal */}
+      {showTagFriendsModal && setShowTagFriendsModal && setTaggedFriends && (
+        <TagFriendsModal
+          isOpen={showTagFriendsModal}
+          onClose={() => setShowTagFriendsModal(false)}
+          taggedFriends={taggedFriends}
+          onSaveTags={setTaggedFriends}
+        />
+      )}
 
       {/* Submit Button */}
       <button

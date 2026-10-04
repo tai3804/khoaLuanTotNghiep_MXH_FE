@@ -3,6 +3,7 @@ import { Sparkles, Languages, RotateCcw } from 'lucide-react';
 import { Post } from '../../../types';
 import { aiService } from '../../../services/aiService';
 import { LiveStreamPlayer } from './live-stream';
+import { RichContentRenderer } from '../../common/RichContentRenderer';
 
 interface PostCardContentProps {
   post: Post;
@@ -136,10 +137,6 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
     }
   };
 
-  const renderContent = (content: string) => content.split(/(#[\p{L}\p{N}_]+|@[\p{L}\p{N}_.-]+)/gu).map((part, index) =>
-    part.startsWith('#') ? <button key={index} type="button" className="text-[#1877f2] font-semibold hover:underline">{part}</button> :
-    part.startsWith('@') ? <span key={index} className="text-[#1877f2] font-semibold">{part}</span> : part
-  );
   const isLive = isLivePost(post);
   const displayContent = translatedText || post.content;
 
@@ -149,7 +146,7 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
       {post.content && !isLive && (
         <div className="px-4 pb-2.5 space-y-2">
           <div className="text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line">
-            {renderContent(displayContent)}
+            <RichContentRenderer content={displayContent} />
           </div>
 
           {/* AI Action Chips */}

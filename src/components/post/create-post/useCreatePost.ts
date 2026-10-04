@@ -6,6 +6,7 @@ import { useLiveStream } from '../../../context/LiveStreamContext';
 import { Post } from '../../../types';
 import { postService } from '../../../services/api';
 import { mediaService } from '../../../services/mediaService';
+import { TaggedFriend } from './tag-friends';
 
 interface UseCreatePostProps {
   onPostCreated: (newPost: Post) => void;
@@ -25,6 +26,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileType, setSelectedFileType] = useState<'image' | 'video' | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [taggedFriends, setTaggedFriends] = useState<TaggedFriend[]>([]);
+  const [showTagFriendsModal, setShowTagFriendsModal] = useState(false);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>(() => {
     const saved = localStorage.getItem('default_post_privacy');
     if (saved === 'FRIENDS') return 'friends';
@@ -147,6 +150,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       : (uploadedUrl ? [{ fileUrl: uploadedUrl, mediaType: isVideoFile ? 'VIDEO' : 'IMAGE' }] : []);
     const optimisticMediaUrls = optimisticMediaList.map((m) => m.fileUrl);
 
+    const taggedUserIds = Array.from(new Set(taggedFriends.map((f) => f.id || f.userId)));
+
     // Build temporary optimistic post object
     const optimisticPost: Post = {
       id: tempId,
@@ -165,6 +170,7 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       privacy: postPrivacy,
       groupId: targetGroupId,
       isOptimistic: true,
+      taggedUserIds,
     };
 
     // 1. Instantly display in feed
@@ -178,6 +184,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     setSelectedFileType(null);
     setFilePreview(null);
     setShowImageInput(false);
+    setTaggedFriends([]);
+    setShowTagFriendsModal(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -202,7 +210,14 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
         }
 
         const files: File[] = (fileToUpload && mediaUrls.length === 0) ? [fileToUpload] : [];
-        const createdPost = await postService.createPost(fullContent, postPrivacy, files, mediaUrls, targetGroupId);
+        const createdPost = await postService.createPost(
+          fullContent,
+          postPrivacy,
+          files,
+          mediaUrls,
+          targetGroupId,
+          taggedUserIds
+        );
 
         if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
           createdPost.mediaUrls = mediaUrls;
@@ -265,6 +280,10 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     selectedFileType,
     filePreview,
     setFilePreview,
+    taggedFriends,
+    setTaggedFriends,
+    showTagFriendsModal,
+    setShowTagFriendsModal,
     privacy,
     setPrivacy,
     showImageInput,

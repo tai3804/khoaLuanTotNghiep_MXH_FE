@@ -24,6 +24,8 @@ import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { AlertTriangle } from 'lucide-react';
 import { ReportModal } from '../../report/ReportModal';
+import { PostTaggedUsers } from './PostTaggedUsers';
+
 interface PostCardHeaderProps {
   post: Post;
   authorName: string;
@@ -212,6 +214,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                 >
                   {authorName || post.authorName || 'Thành viên'}
                 </span>
+                <PostTaggedUsers taggedUserIds={post.taggedUserIds} />
                 <span>•</span>
                 {post.isOptimistic ? (
                   <span className="inline-flex items-center gap-1 text-blue-500 font-medium">
@@ -250,14 +253,17 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
               />
             </div>
             <div>
-              <h4
-                onClick={() => {
-                  if (onViewProfile && post.userId) onViewProfile(post.userId);
-                }}
-                className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer leading-tight"
-              >
-                {authorName || post.authorName || 'Thành viên'}
-              </h4>
+              <div className="flex items-center flex-wrap gap-1 leading-tight">
+                <h4
+                  onClick={() => {
+                    if (onViewProfile && post.userId) onViewProfile(post.userId);
+                  }}
+                  className="font-bold text-gray-900 dark:text-[#e4e6eb] text-sm hover:underline cursor-pointer"
+                >
+                  {authorName || post.authorName || 'Thành viên'}
+                </h4>
+                <PostTaggedUsers taggedUserIds={post.taggedUserIds} />
+              </div>
               <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
                 {post.isOptimistic ? (
                   <span className="inline-flex items-center gap-1 text-blue-500 font-medium">
