@@ -22,7 +22,7 @@ export interface GroupData {
 interface GroupBannerProps {
   group: GroupData;
   activeTab: string;
-  setActiveTab: (tab: 'discussion' | 'members' | 'media' | 'settings') => void;
+  setActiveTab: (tab: 'discussion' | 'members' | 'media' | 'appeals' | 'management' | 'pending-posts' | 'settings') => void;
   members?: CommunityGroupMember[];
   onNavigateProfile?: (userId: string) => void;
   onInviteClick?: () => void;
@@ -132,7 +132,7 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
             )}
 
             {(group.isAdmin || group.isModerator) && (
-              <button onClick={() => setActiveTab('settings')} className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition" title="Quản lý nhóm">
+              <button onClick={() => setActiveTab('management')} className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition" title="Quản trị nhóm">
                 <Settings className="w-5 h-5" />
               </button>
             )}
@@ -152,8 +152,14 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
               File phương tiện
             </button>
           )}
-          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('settings')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'settings' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
-            Quản lý
+          {group.isMember && <button onClick={() => setActiveTab('appeals')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'appeals' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            Kháng nghị
+          </button>}
+          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('pending-posts')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'pending-posts' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            Bài chờ duyệt
+          </button>}
+          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('management')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'management' || activeTab === 'settings' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            Quản trị nhóm
           </button>}
         </div>
       </div>

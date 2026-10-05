@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { FriendsPage } from './pages/FriendsPage';
@@ -269,6 +269,7 @@ export const App: React.FC = () => {
     else if (tab === 'groups') navigate('/groups');
     else if (tab === 'saved') navigate('/saved');
     else if (tab === 'moderation') navigate('/moderation');
+    else if (tab === 'moderation-appeals') navigate('/moderation/appeals');
     else if (tab === 'support') navigate('/support-inbox');
   };
 
@@ -464,6 +465,10 @@ export const App: React.FC = () => {
               setActiveChatUser={setActiveChatUser}
             />
           }
+        />
+        <Route
+          path="/moderation/appeals"
+          element={<Navigate to="/admin" replace />}
         />
         <Route
           path="/admin"

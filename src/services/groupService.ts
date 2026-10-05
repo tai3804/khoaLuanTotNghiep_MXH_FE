@@ -79,6 +79,10 @@ export const mapGroupForCurrentUser = (group: any): GroupResponse => {
   const isAdmin = Boolean(group.admin === true || group.isAdmin === true || isOwner);
   const isDefaultUnsplash = typeof group.coverUrl === 'string' && group.coverUrl.includes('images.unsplash.com/photo-1522071820081');
   const validCoverUrl = isDefaultUnsplash ? undefined : (typeof group.coverUrl === 'string' && group.coverUrl.trim() ? group.coverUrl.trim() : undefined);
+  // Lombok/Jackson serializes Java boolean `isModerator` as `moderator` in
+  // some responses. Normalize both shapes so moderators always see their
+  // group-management tools.
+  const isModerator = Boolean(group.moderator === true || group.isModerator === true);
 
   const mapped: GroupResponse = {
     ...group,
@@ -91,6 +95,7 @@ export const mapGroupForCurrentUser = (group: any): GroupResponse => {
     isMember,
     isAdmin,
     joinStatus,
+    isModerator,
     memberIds: rawMemberIds,
     memberCount: Number(group.memberCount || rawMemberIds.length || 1),
     createdAt: group.createdAt || new Date().toISOString(),
