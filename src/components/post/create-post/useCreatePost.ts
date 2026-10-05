@@ -181,29 +181,10 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       toast.showSuccess(isVideoFile ? 'Đã đăng video thành công!' : 'Đã đăng bài viết mới thành công!');
     } catch (err: any) {
       console.error('Failed to create post:', err);
-      const newPost: Post = {
-        id: 'post-' + Date.now(),
-        userId: user?.id || 'me',
-        authorName: user?.fullName || user?.username || 'Bạn',
-        authorAvatar: user?.avatar || '',
-        content: content.trim(),
-        mediaUrls: filePreview ? [filePreview] : imageUrl.trim() ? [imageUrl.trim()] : [],
-        createdAt: 'Vừa xong',
-        likesCount: 0,
-        commentsCount: 0,
-        sharesCount: 0,
-        isLiked: false,
-        privacy: privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC',
-        comments: [],
-        groupId,
-      };
-      onPostCreated(newPost);
-      setContent('');
-      setImageUrl('');
-      handleClearFile();
-      setShowImageInput(false);
-      setIsOpenModal(false);
-      toast.showWarning('Backend chưa phản hồi; bài viết đang hiển thị tạm thời trên thiết bị này.');
+      // Do not render an optimistic post with a fake `post-...` id.  Any
+      // reaction, saved-status or comment request on that id is invalid for
+      // the UUID-based backend and creates a cascade of misleading 500 errors.
+      toast.showError(err?.response?.data?.message || 'Không thể tạo bài viết. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }

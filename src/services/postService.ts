@@ -393,6 +393,30 @@ export const postService = {
     return normalizePost(res.data?.data || res.data);
   },
 
+  removeGroupPost: async (postId: string, reason?: string): Promise<void> => {
+    await api.delete(`/posts/${postId}/group-moderation`, { params: reason?.trim() ? { reason: reason.trim() } : undefined });
+  },
+
+  getMyGroupAppeals: async (groupId: string): Promise<any[]> => {
+    const res = await api.get(`/posts/group/${groupId}/my-appeals`);
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  appealGroupPost: async (postId: string, message: string) => {
+    const res = await api.post(`/posts/${postId}/group-appeal`, { message });
+    return res.data?.data || res.data;
+  },
+
+  getGroupAppeals: async (groupId: string): Promise<any[]> => {
+    const res = await api.get(`/posts/group/${groupId}/appeals`);
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  reviewGroupAppeal: async (postId: string, approved: boolean, note?: string) => {
+    const res = await api.patch(`/posts/${postId}/group-appeal/review`, { note }, { params: { approved } });
+    return res.data?.data || res.data;
+  },
+
   getMyModerationAppeals: async (): Promise<any[]> => {
     const res = await api.get('/posts/moderation-appeals/mine');
     return Array.isArray(res.data?.data) ? res.data.data : [];

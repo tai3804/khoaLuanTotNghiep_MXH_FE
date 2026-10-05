@@ -67,6 +67,10 @@ export const mapGroupForCurrentUser = (group: any): GroupResponse => {
   );
   
   const isAdmin = Boolean(group.admin === true || group.isAdmin === true || isOwner);
+  // Lombok/Jackson serializes Java boolean `isModerator` as `moderator` in
+  // some responses. Normalize both shapes so moderators always see their
+  // group-management tools.
+  const isModerator = Boolean(group.moderator === true || group.isModerator === true);
 
   return {
     ...group,
@@ -78,6 +82,7 @@ export const mapGroupForCurrentUser = (group: any): GroupResponse => {
     coverUrl: group.coverUrl || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
     isMember,
     isAdmin,
+    isModerator,
     memberIds: rawMemberIds,
     memberCount: Number(group.memberCount || rawMemberIds.length || 1),
     createdAt: group.createdAt || new Date().toISOString(),
