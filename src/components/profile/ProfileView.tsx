@@ -13,6 +13,8 @@ import {
   ProfileFriendsTab,
   ProfilePhotosTab,
 } from './view';
+import { ProfessionalModeModal, ProfessionalDashboardModal } from './professional';
+import { userService } from '../../services/userService';
 
 interface ProfileViewProps {
   userId?: string | null;
@@ -28,6 +30,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showManagementModal, setShowManagementModal] = React.useState(false);
+  const [showProfessionalModal, setShowProfessionalModal] = React.useState(false);
+  const [showProfessionalDashboard, setShowProfessionalDashboard] = React.useState(false);
   const [archivedPostIds, setArchivedPostIds] = React.useState<string[]>([]);
   const profileData = useProfileViewData({ userId });
   const {
@@ -70,9 +74,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     handleRejectFriendRequest,
     handleUnfriendProfile,
   } = profileData;
+
   React.useEffect(() => {
     try { setArchivedPostIds(JSON.parse(localStorage.getItem(`profile_management_archived_posts_${targetUserId || currentUser?.id || 'me'}`) || '[]')); } catch { setArchivedPostIds([]); }
   }, [targetUserId, currentUser?.id]);
+
+  // Record profile view when someone views another user's profile
+  React.useEffect(() => {
+    if (!isOwnProfile && targetUserId) {
+      const storageKey = `profile_viewed_${targetUserId}`;
+      if (!sessionStorage.getItem(storageKey)) {
+        sessionStorage.setItem(storageKey, '1');
+        userService.recordProfileView(targetUserId).catch(() => {});
+      }
+    }
+  }, [isOwnProfile, targetUserId]);
+
   const publishedPosts = posts.filter((post) => !archivedPostIds.includes(post.id));
 
   return (
@@ -85,6 +102,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         fullName={fullName}
         friendCount={friends.length}
         postCount={publishedPosts.length}
+        isProfessionalMode={Boolean(profile?.isProfessionalMode)}
+        creatorCategory={profile?.creatorCategory}
+        profileViewCount={profile?.profileViewCount}
+        followerCount={profile?.followerCount}
         coverError={coverError}
         setCoverError={setCoverError}
         isFriend={isFriend}
@@ -97,6 +118,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onShowEditModal={() => setShowEditModal(true)}
         onShowManagement={() => setShowManagementModal(true)}
         onShowMediaGallery={() => setShowMediaGalleryModal(true)}
+        onOpenProfessionalDashboard={() => setShowProfessionalDashboard(true)}
+        onOpenProfessionalModeModal={() => setShowProfessionalModal(true)}
         onAddFriend={handleAddFriendProfile}
         onCancelRequest={handleCancelSentRequest}
         onAcceptRequest={handleAcceptFriendRequest}
@@ -187,6 +210,39 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onOpenPrivacy={() => navigate('/settings/privacy')}
         onArchiveChange={setArchivedPostIds}
       />}
+
+      {/* Professional Mode Modal (Bật / Tắt / Chọn Category) */}
+      {isOwnProfile && (
+        <ProfessionalModeModal
+          isOpen={showProfessionalModal}
+          onClose={() => setShowProfessionalModal(false)}
+          isCurrentlyEnabled={Boolean(profile?.isProfessionalMode)}
+          currentCategory={profile?.creatorCategory}
+          onSuccess={(updated) => {
+            if (setProfile && updated) {
+              setProfile((prev: any) => ({
+                ...prev,
+                ...updated,
+                isProfessionalMode: updated.isProfessionalMode,
+                creatorCategory: updated.creatorCategory,
+              }));
+            }
+          }}
+        />
+      )}
+
+      {/* Professional Dashboard Modal (Bảng điều khiển & Phân tích lượt xem) */}
+      {isOwnProfile && (
+        <ProfessionalDashboardModal
+          isOpen={showProfessionalDashboard}
+          onClose={() => setShowProfessionalDashboard(false)}
+          fullName={fullName}
+          avatarUrl={avatarUrl}
+          creatorCategory={profile?.creatorCategory}
+          profileViewCount={profile?.profileViewCount}
+          followerCount={profile?.followerCount}
+        />
+      )}
     </div>
   );
 };

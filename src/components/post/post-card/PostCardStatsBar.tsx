@@ -1,8 +1,10 @@
 import React from 'react';
+import { Eye } from 'lucide-react';
 
 interface PostCardStatsBarProps {
   likesCount: number;
   sharesCount: number;
+  viewsCount?: number;
   totalComments: number;
   topReactionIcons: string[];
   language: string;
@@ -12,6 +14,7 @@ interface PostCardStatsBarProps {
 export const PostCardStatsBar: React.FC<PostCardStatsBarProps> = ({
   likesCount,
   sharesCount,
+  viewsCount,
   totalComments,
   topReactionIcons,
   language,
@@ -44,6 +47,15 @@ export const PostCardStatsBar: React.FC<PostCardStatsBarProps> = ({
         )}
       </div>
       <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-[#b0b3b8]">
+        {viewsCount !== undefined && viewsCount > 0 && (
+          <span
+            className="flex items-center gap-1 font-medium text-gray-500 dark:text-[#b0b3b8] hover:text-blue-500 transition cursor-default"
+            title={`${viewsCount.toLocaleString('vi-VN')} lượt xem`}
+          >
+            <Eye className="w-3.5 h-3.5 text-blue-500/80" />
+            <span>{viewsCount.toLocaleString('vi-VN')}</span>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setShowCommentModal(true)}

@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Image, Paperclip, Send, Sparkles, Tag, Users, X } from 'lucide-react';
+import { Image, Paperclip, Send, Sparkles, Tag, Users, X, CalendarClock } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { CreatePostPrivacySelector } from './CreatePostPrivacySelector';
 import { CreatePostMediaPreview } from './CreatePostMediaPreview';
 import { CreatePostAiAssistant } from './CreatePostAiAssistant';
 import { TagFriendsModal, TaggedFriend } from './tag-friends';
 import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
+import { PostSchedulePicker } from '../../profile/professional/scheduler/PostSchedulePicker';
 
 interface CreatePostFormProps {
   user: any;
@@ -29,6 +30,8 @@ interface CreatePostFormProps {
   setTaggedFriends?: React.Dispatch<React.SetStateAction<TaggedFriend[]>>;
   showTagFriendsModal?: boolean;
   setShowTagFriendsModal?: (show: boolean) => void;
+  scheduledPublishAt?: string;
+  setScheduledPublishAt?: (val?: string) => void;
 }
 
 export const CreatePostForm: React.FC<CreatePostFormProps> = ({
@@ -53,8 +56,11 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
   setTaggedFriends,
   showTagFriendsModal = false,
   setShowTagFriendsModal,
+  scheduledPublishAt,
+  setScheduledPublishAt,
 }) => {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
   const [cursorPos, setCursorPos] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -239,6 +245,19 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
             <Paperclip className="w-4 h-4" />
             <span className="text-xs font-semibold">Chèn link</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowSchedulePicker(!showSchedulePicker)}
+            className={`flex items-center space-x-1.5 py-1.5 px-2.5 rounded-lg transition cursor-pointer ${
+              scheduledPublishAt || showSchedulePicker
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                : 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+            }`}
+            title="Hẹn giờ lên lịch đăng bài viết"
+          >
+            <CalendarClock className="w-4 h-4" />
+            <span className="text-xs font-semibold">Lên lịch</span>
+          </button>
         </div>
       </div>
 
@@ -252,18 +271,55 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
         />
       )}
 
+      {/* Schedule Picker Popover */}
+      {showSchedulePicker && setScheduledPublishAt && (
+        <div className="relative">
+          <PostSchedulePicker
+            scheduledAt={scheduledPublishAt}
+            onChange={(val) => {
+              setScheduledPublishAt(val);
+              setShowSchedulePicker(false);
+            }}
+            onClose={() => setShowSchedulePicker(false)}
+          />
+        </div>
+      )}
+
+      {/* Scheduled Time Indicator */}
+      {scheduledPublishAt && (
+        <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 font-semibold animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>
+              Hẹn giờ đăng: {new Date(scheduledPublishAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setScheduledPublishAt?.(undefined)}
+            className="text-xs text-red-500 hover:underline cursor-pointer"
+          >
+            Hủy
+          </button>
+        </div>
+      )}
+
       {/* Submit Button */}
       <button
         type="submit"
         disabled={isSubmitting || (!content.trim() && !imageUrl.trim() && !filePreview)}
-        className="w-full bg-[#1877f2] hover:bg-[#166fe5] active:bg-[#1464d2] text-white font-semibold text-sm py-2.5 rounded-lg disabled:opacity-50 disabled:bg-[#1877f2] dark:disabled:bg-[#3a3b3c] dark:disabled:text-[#737578] transition flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+        className={`w-full ${
+          scheduledPublishAt
+            ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
+            : 'bg-[#1877f2] hover:bg-[#166fe5] active:bg-[#1464d2]'
+        } text-white font-semibold text-sm py-2.5 rounded-lg disabled:opacity-50 disabled:bg-[#1877f2] dark:disabled:bg-[#3a3b3c] dark:disabled:text-[#737578] transition flex items-center justify-center space-x-2 cursor-pointer shadow-sm`}
       >
         {isSubmitting ? (
           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
         ) : (
           <>
-            <Send className="w-4 h-4" />
-            <span>Đăng bài viết</span>
+            {scheduledPublishAt ? <CalendarClock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            <span>{scheduledPublishAt ? 'Lên lịch xuất bản bài viết' : 'Đăng bài viết'}</span>
           </>
         )}
       </button>

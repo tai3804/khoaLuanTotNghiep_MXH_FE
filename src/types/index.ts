@@ -30,6 +30,9 @@ export interface UserProfile {
   followerCount?: number;
   followingCount?: number;
   friendCount?: number;
+  isProfessionalMode?: boolean;
+  creatorCategory?: string;
+  profileViewCount?: number;
   createdAt?: string;
 }
 
@@ -72,6 +75,7 @@ export interface Comment {
   parentCommentId?: string;
   replies?: Comment[];
   taggedUserIds?: string[];
+  isTopFan?: boolean;
 }
 
 export interface PostMediaItem {
@@ -96,11 +100,14 @@ export interface Post {
   likesCount: number;
   commentsCount: number;
   sharesCount: number;
+  viewsCount?: number;
   isLiked?: boolean;
   isSaved?: boolean;
   isPinned?: boolean;
   isArchived?: boolean;
-  status?: 'PUBLISHED' | 'PENDING_APPROVAL' | 'REJECTED' | 'PROCESSING' | 'FAILED' | string;
+  isTrending?: boolean;
+  scheduledPublishAt?: string;
+  status?: 'PUBLISHED' | 'SCHEDULED' | 'PENDING_APPROVAL' | 'REJECTED' | 'PROCESSING' | 'FAILED' | string;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;
   groupId?: string;
   groupName?: string;
@@ -115,6 +122,64 @@ export interface Post {
   isOptimistic?: boolean;
   taggedUserIds?: string[];
   hashtags?: string[];
+}
+
+export interface ProfileVisitor {
+  id?: string;
+  viewerId: string;
+  viewerUsername?: string;
+  viewerFullName?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  avatarUrl?: string;
+  viewerAvatarUrl?: string;
+  lastViewedAt: string;
+  isFriend?: boolean;
+  isFollowing?: boolean;
+}
+
+export interface AudienceDemographics {
+  totalAudience: number;
+  genderBreakdown: {
+    malePercentage: number;
+    femalePercentage: number;
+    otherPercentage: number;
+  };
+  ageRanges: Array<{
+    range: string;
+    percentage: number;
+  }>;
+  topCities: Array<{
+    city: string;
+    percentage: number;
+  }>;
+  hourlyActivity: Array<{
+    hour: string;
+    activePercentage: number;
+  }>;
+}
+
+export interface PostInsights {
+  postId: string;
+  contentSnippet: string;
+  publishedAt: string;
+  views: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  engagementRate: number;
+  avgWatchRetention: number;
+  trafficSources: Record<string, number>;
+  audienceGender: Record<string, number>;
+  hourlyViews: Array<{
+    hour: string;
+    views: number;
+    engagements: number;
+  }>;
 }
 
 export interface ApiResponse<T = any> {

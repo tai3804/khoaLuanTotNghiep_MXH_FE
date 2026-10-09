@@ -10,8 +10,11 @@ import {
   UserX,
   UserPlus,
   MoreHorizontal,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import { ChatUser } from '../../../components/chat/chat-box';
+import { ProfessionalBadge } from '../professional/ProfessionalBadge';
 
 interface ProfileHeaderBannerProps {
   coverUrl: string;
@@ -23,6 +26,10 @@ interface ProfileHeaderBannerProps {
   friendCount: number;
   postCount: number;
   bio?: string;
+  isProfessionalMode?: boolean;
+  creatorCategory?: string;
+  profileViewCount?: number;
+  followerCount?: number;
   isFriend: boolean;
   hasPendingReceived: boolean;
   hasPendingSent: boolean;
@@ -33,6 +40,8 @@ interface ProfileHeaderBannerProps {
   onShowMediaGallery: () => void;
   onShowEditModal: () => void;
   onShowManagement: () => void;
+  onOpenProfessionalDashboard?: () => void;
+  onOpenProfessionalModeModal?: () => void;
   onUnfriend: () => void;
   onAcceptRequest: () => void;
   onRejectRequest: () => void;
@@ -53,6 +62,10 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
   friendCount,
   postCount,
   bio,
+  isProfessionalMode,
+  creatorCategory,
+  profileViewCount,
+  followerCount,
   isFriend,
   hasPendingReceived,
   hasPendingSent,
@@ -63,6 +76,8 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
   onShowMediaGallery,
   onShowEditModal,
   onShowManagement,
+  onOpenProfessionalDashboard,
+  onOpenProfessionalModeModal,
   onUnfriend,
   onAcceptRequest,
   onRejectRequest,
@@ -146,12 +161,25 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
 
               {/* Name & Basic Counts */}
               <div className="pb-1">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-[#e4e6eb] flex items-center justify-center sm:justify-start space-x-2">
-                  <span>{fullName}</span>
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" title="Đang hoạt động" />
-                </h1>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-[#e4e6eb] flex items-center space-x-2">
+                    <span>{fullName}</span>
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" title="Đang hoạt động" />
+                  </h1>
+                  {isProfessionalMode && (
+                    <ProfessionalBadge category={creatorCategory} />
+                  )}
+                </div>
                 <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-[#b0b3b8] mt-1">
+                  {followerCount !== undefined && followerCount > 0
+                    ? `${followerCount.toLocaleString('vi-VN')} người theo dõi • `
+                    : ''}
                   {friendCount} bạn bè • {postCount} bài viết
+                  {profileViewCount !== undefined && profileViewCount > 0 && isOwnProfile ? (
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold ml-1">
+                      • {profileViewCount.toLocaleString('vi-VN')} lượt xem hồ sơ
+                    </span>
+                  ) : null}
                 </p>
                 {bio && (
                   <p className="text-xs sm:text-sm text-gray-700 dark:text-[#b0b3b8] mt-1 max-w-md italic">
@@ -162,24 +190,50 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
             </div>
 
             {/* Right: Action Buttons */}
-            <div className="flex items-center justify-center sm:justify-end space-x-2 pb-1">
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 pb-1">
               {isOwnProfile ? (
                 <>
+                  {/* Professional Dashboard button */}
+                  {isProfessionalMode && onOpenProfessionalDashboard && (
+                    <button
+                      onClick={onOpenProfessionalDashboard}
+                      className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition cursor-pointer"
+                      title="Xem Bảng điều khiển chuyên nghiệp"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      <span>Bảng điều khiển</span>
+                    </button>
+                  )}
+
+                  {/* Toggle / Edit Professional Mode */}
+                  {onOpenProfessionalModeModal && (
+                    <button
+                      onClick={onOpenProfessionalModeModal}
+                      className="flex items-center space-x-1.5 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                      title={isProfessionalMode ? 'Cài đặt Chế độ chuyên nghiệp' : 'Bật Chế độ chuyên nghiệp'}
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span className="hidden sm:inline">
+                        {isProfessionalMode ? 'Chế độ chuyên nghiệp' : 'Bật chế độ chuyên nghiệp'}
+                      </span>
+                    </button>
+                  )}
+
                   <button
                     onClick={onShowMediaGallery}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+                    className="flex items-center space-x-2 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
                     title="Thư viện Media"
                   >
                     <HardDrive className="w-4 h-4" />
-                    <span>Thư viện Media</span>
+                    <span className="hidden sm:inline">Media</span>
                   </button>
 
                   <button
                     onClick={onShowEditModal}
-                    className="flex items-center space-x-2 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer"
+                    className="flex items-center space-x-2 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
                   >
                     <Edit3 className="w-4 h-4" />
-                    <span>Chỉnh sửa trang cá nhân</span>
+                    <span>Chỉnh sửa</span>
                   </button>
                   <button onClick={onShowManagement} className="p-2.5 rounded-xl bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50]" title="Quản lý trang cá nhân"><MoreHorizontal className="w-5 h-5" /></button>
                 </>

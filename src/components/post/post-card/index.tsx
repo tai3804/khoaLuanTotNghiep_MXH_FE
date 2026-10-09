@@ -62,6 +62,18 @@ export const PostCard: React.FC<PostCardProps> = ({
     };
   }, [post.originalPostId, post.sharedPost]);
 
+  // Record post impression / view
+  useEffect(() => {
+    const pId = currentPost?.id;
+    if (pId && !pId.startsWith('post-')) {
+      const storageKey = `post_viewed_${pId}`;
+      if (!sessionStorage.getItem(storageKey)) {
+        sessionStorage.setItem(storageKey, '1');
+        postService.recordPostView(pId).catch(() => {});
+      }
+    }
+  }, [currentPost?.id]);
+
   const handleShareSuccess = () => {
     window.dispatchEvent(new CustomEvent('feed_refresh_needed'));
   };
@@ -178,6 +190,7 @@ export const PostCard: React.FC<PostCardProps> = ({
       <PostCardStatsBar
         likesCount={data.likesCount}
         sharesCount={data.sharesCount}
+        viewsCount={currentPost.viewsCount}
         totalComments={data.totalComments}
         topReactionIcons={data.topReactionIcons}
         language={data.language}

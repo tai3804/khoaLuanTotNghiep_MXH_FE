@@ -490,4 +490,37 @@ export const userService = {
     const res = await api.put('/users/privacy', settings);
     return res.data?.data || res.data?.result || res.data;
   },
+
+  updateProfessionalMode: async (payload: { isProfessionalMode: boolean; creatorCategory?: string }) => {
+    const res = await api.patch('/users/profile/professional-mode', payload);
+    return res.data?.data || res.data?.result || res.data;
+  },
+
+  recordProfileView: async (userId: string) => {
+    if (!userId) return;
+    try {
+      const res = await api.post(`/users/profile/${userId}/view`);
+      return res.data?.data;
+    } catch {
+      return null;
+    }
+  },
+
+  getProfileVisitors: async (page = 0, size = 15) => {
+    try {
+      const res = await api.get('/users/profile/visitors', { params: { page, size } });
+      return res.data?.data || res.data?.result || res.data;
+    } catch {
+      return { content: [], totalElements: 0, totalPages: 0, last: true };
+    }
+  },
+
+  getAudienceInsights: async () => {
+    try {
+      const res = await api.get('/users/profile/audience-insights');
+      return res.data?.data || res.data?.result || res.data;
+    } catch {
+      return null;
+    }
+  },
 };

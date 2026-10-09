@@ -3,6 +3,7 @@ import { CornerDownRight, Smile, Send, Sparkles } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { aiService } from '../../../services/aiService';
+import { TopFanBadge } from '../common/TopFanBadge';
 
 interface PostCardCommentsPreviewProps {
   displayedComments: Comment[];
@@ -104,14 +105,17 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2.5 px-3 rounded-2xl inline-block max-w-full">
-                      <h5
-                        onClick={() => {
-                          if (onViewProfile && comment.userId) onViewProfile(comment.userId);
-                        }}
-                        className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
-                      >
-                        {displayName}
-                      </h5>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h5
+                          onClick={() => {
+                            if (onViewProfile && comment.userId) onViewProfile(comment.userId);
+                          }}
+                          className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
+                        >
+                          {displayName}
+                        </h5>
+                        {comment.isTopFan && <TopFanBadge size="sm" />}
+                      </div>
                       <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
                         {comment.content}
                       </p>
@@ -157,14 +161,17 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2 px-3 rounded-2xl inline-block max-w-full">
-                            <h6
-                              onClick={() => {
-                                if (onViewProfile && firstReply.userId) onViewProfile(firstReply.userId);
-                              }}
-                              className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
-                            >
-                              {rName}
-                            </h6>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h6
+                                onClick={() => {
+                                  if (onViewProfile && firstReply.userId) onViewProfile(firstReply.userId);
+                                }}
+                                className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
+                              >
+                                {rName}
+                              </h6>
+                              {firstReply.isTopFan && <TopFanBadge size="sm" />}
+                            </div>
                             <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
                               {firstReply.content}
                             </p>

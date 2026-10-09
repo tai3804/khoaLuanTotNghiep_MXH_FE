@@ -38,6 +38,8 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
     showImageInput,
     setShowImageInput,
     isSubmitting,
+    scheduledPublishAt,
+    setScheduledPublishAt,
     fileInputRef,
     handleOpen,
     handleOpenLive,
@@ -94,6 +96,8 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
               setTaggedFriends={setTaggedFriends}
               showTagFriendsModal={showTagFriendsModal}
               setShowTagFriendsModal={setShowTagFriendsModal}
+              scheduledPublishAt={scheduledPublishAt}
+              setScheduledPublishAt={setScheduledPublishAt}
             />
           </div>
         </div>

@@ -50,6 +50,7 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
 
   const [showImageInput, setShowImageInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scheduledPublishAt, setScheduledPublishAt] = useState<string | undefined>(undefined);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -225,8 +226,10 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
           files,
           mediaUrls,
           targetGroupId,
-          taggedUserIds
+          taggedUserIds,
+          scheduledPublishAt
         );
+        setScheduledPublishAt(undefined);
 
         if ((!createdPost.mediaUrls || createdPost.mediaUrls.length === 0) && mediaUrls.length > 0) {
           createdPost.mediaUrls = mediaUrls;
@@ -298,6 +301,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     showImageInput,
     setShowImageInput,
     isSubmitting,
+    scheduledPublishAt,
+    setScheduledPublishAt,
     fileInputRef,
     handleOpen,
     handleOpenLive,

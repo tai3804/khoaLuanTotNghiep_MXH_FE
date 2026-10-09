@@ -18,6 +18,7 @@ import {
   Languages,
   EyeOff,
   Loader2,
+  BarChart3,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
@@ -25,6 +26,8 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { AlertTriangle } from 'lucide-react';
 import { ReportModal } from '../../report/ReportModal';
 import { PostTaggedUsers } from './PostTaggedUsers';
+import { TrendingBadge } from '../common/TrendingBadge';
+import { PostInsightsModal } from '../post-insights/PostInsightsModal';
 
 interface PostCardHeaderProps {
   post: Post;
@@ -86,6 +89,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
   const [showReportModal, setShowReportModal] = React.useState(false);
+  const [showInsightsModal, setShowInsightsModal] = React.useState(false);
 
   const currentUserId = String(
     user?.id ||
@@ -234,6 +238,12 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                     <Globe className="w-3 h-3 text-gray-500 dark:text-[#b0b3b8]" />
                   </span>
                 )}
+                {post.isTrending && <TrendingBadge size="sm" />}
+                {post.status === 'SCHEDULED' && (
+                  <span className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                    Đã lên lịch
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -275,6 +285,12 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                 )}
                 <span>•</span>
                 {renderPrivacyIcon()}
+                {post.isTrending && <TrendingBadge size="sm" />}
+                {post.status === 'SCHEDULED' && (
+                  <span className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                    Đã lên lịch
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -293,6 +309,26 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
 
             {showOptionsMenu && (
               <div className="absolute right-0 top-10 w-72 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-1.5 z-40 animate-in fade-in duration-100">
+                {/* 0. View Post Insights (Owner only) */}
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInsightsModal(true);
+                      setShowOptionsMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-xl text-xs font-semibold text-blue-600 dark:text-blue-400 transition cursor-pointer text-left"
+                  >
+                    <BarChart3 className="w-4 h-4 shrink-0" />
+                    <div>
+                      <div>Xem thông tin chi tiết</div>
+                      <div className="text-[11px] text-blue-500/80 font-normal">
+                        Số lượt xem, tiếp cận & phân tích tương tác
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {/* 1. Pin / Unpin */}
                 {isOwner && onTogglePin && (
                   <button
@@ -503,6 +539,14 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
         targetId={post.id} 
         targetType="POST" 
       />
+
+      {showInsightsModal && (
+        <PostInsightsModal
+          postId={post.id}
+          isOpen={showInsightsModal}
+          onClose={() => setShowInsightsModal(false)}
+        />
+      )}
     </div>
   );
 };

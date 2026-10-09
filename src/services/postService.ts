@@ -1,5 +1,5 @@
 import { api } from './axiosClient';
-import { Post, Comment } from '../types';
+import { Post, Comment, PostInsights } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 import { groupMetaCache, fetchGroupMeta } from './groupService';
 
@@ -109,9 +109,12 @@ export const normalizePost = (p: any): Post => {
     likesCount: Number(p.likeCount ?? p.likesCount ?? 0),
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),
     sharesCount: Number(p.shareCount ?? p.sharesCount ?? 0),
+    viewsCount: Number(p.viewCount ?? p.viewsCount ?? 0),
     isLiked: Boolean(p.isLiked),
     isPinned: Boolean(p.isPinned),
     isArchived: Boolean(p.isArchived),
+    isTrending: Boolean(p.isTrending ?? ((Number(p.viewCount ?? p.viewsCount ?? 0) >= 50) || ((Number(p.likeCount ?? p.likesCount ?? 0) + Number(p.commentCount ?? p.commentsCount ?? 0)) >= 10))),
+    scheduledPublishAt: p.scheduledPublishAt,
     status: p.status || 'PUBLISHED',
     privacy: p.privacy || 'PUBLIC',
     groupId,
@@ -322,13 +325,17 @@ export const postService = {
     files: File[] = [],
     mediaUrls?: string[],
     groupId?: string,
-    taggedUserIds?: string[]
+    taggedUserIds?: string[],
+    scheduledPublishAt?: string
   ): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('privacy', privacy);
     if (groupId) {
       formData.append('groupId', groupId);
+    }
+    if (scheduledPublishAt) {
+      formData.append('scheduledPublishAt', scheduledPublishAt);
     }
     if (taggedUserIds && taggedUserIds.length > 0) {
       taggedUserIds.forEach((id) => {
@@ -629,6 +636,7 @@ export const postService = {
             likesCount: Number(c.likeCount || 0),
             parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
             taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : [],
+            isTopFan: Boolean(c.isTopFan ?? c.topFan ?? (Number(c.likeCount || 0) >= 2)),
           };
         });
 
@@ -839,6 +847,74 @@ export const postService = {
       caption: caption || '',
       privacy: privacy || 'PUBLIC',
     });
+    const data = res.data?.data || res.data?.result || res.data;
+    return normalizePost(data);
+  },
+
+  /**
+   * Ghi nhận lượt xem bài viết
+   */
+  recordPostView: async (postId: string): Promise<number | null> => {
+    if (!postId) return null;
+    try {
+      const res = await api.post(`/posts/${postId}/view`);
+      return res.data?.data ?? 1;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Lấy số liệu phân tích người sáng tạo (Creator Analytics)
+   */
+  getCreatorAnalytics: async (period: '7d' | '28d' | '60d' = '28d'): Promise<any> => {
+    try {
+      const res = await api.get('/posts/analytics/me', { params: { period } });
+      return res.data?.data || res.data?.result || res.data;
+    } catch (err) {
+      console.error('getCreatorAnalytics error:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Lấy thông tin chi tiết hiệu suất bài viết (Facebook style Insights)
+   */
+  getPostInsights: async (postId: string): Promise<PostInsights | null> => {
+    if (!postId) return null;
+    try {
+      const res = await api.get(`/posts/${postId}/insights`);
+      return res.data?.data || res.data?.result || res.data;
+    } catch (err) {
+      console.error('getPostInsights error:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Lấy danh sách bài viết đã lên lịch của tôi
+   */
+  getScheduledPosts: async (page = 0, size = 15): Promise<{ content: Post[]; totalElements: number; totalPages: number }> => {
+    try {
+      const res = await api.get('/posts/scheduled/me', { params: { page, size } });
+      const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
+      const totalElements = res.data?.data?.totalElements ?? raw.length;
+      const totalPages = res.data?.data?.totalPages ?? 1;
+      return {
+        content: Array.isArray(raw) ? raw.map(normalizePost) : [],
+        totalElements,
+        totalPages,
+      };
+    } catch {
+      return { content: [], totalElements: 0, totalPages: 0 };
+    }
+  },
+
+  /**
+   * Xuất bản ngay một bài viết đang lên lịch
+   */
+  publishPostNow: async (postId: string): Promise<Post> => {
+    const res = await api.post(`/posts/${postId}/publish-now`);
     const data = res.data?.data || res.data?.result || res.data;
     return normalizePost(data);
   },

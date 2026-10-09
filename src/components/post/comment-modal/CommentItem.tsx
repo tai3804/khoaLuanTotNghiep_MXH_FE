@@ -3,6 +3,7 @@ import { CornerDownRight, Pencil, Trash2 } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
+import { TopFanBadge } from '../common/TopFanBadge';
 
 interface CommentItemProps {
   comment: Comment;
@@ -92,17 +93,20 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         </div>
         <div className="flex-1">
           <div className="bg-gray-100 dark:bg-[#3a3b3c] p-3 rounded-2xl inline-block max-w-full">
-            <h5
-              onClick={() => {
-                if (onViewProfile && c.userId) {
-                  onClose();
-                  onViewProfile(c.userId);
-                }
-              }}
-              className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
-            >
-              {displayName}
-            </h5>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h5
+                onClick={() => {
+                  if (onViewProfile && c.userId) {
+                    onClose();
+                    onViewProfile(c.userId);
+                  }
+                }}
+                className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline"
+              >
+                {displayName}
+              </h5>
+              {c.isTopFan && <TopFanBadge size="sm" />}
+            </div>
             {editing ? (
               <div className="mt-1 flex gap-1 items-center">
                 <input
@@ -205,9 +209,12 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                 <UserAvatar src={rAvatar} alt={rName} size="sm" className="w-7 h-7 rounded-full shrink-0" />
                 <div className="flex-1">
                   <div className="bg-gray-100 dark:bg-[#3a3b3c] p-2.5 rounded-2xl inline-block max-w-full">
-                    <h6 className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline">
-                      {rName}
-                    </h6>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h6 className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] cursor-pointer hover:underline">
+                        {rName}
+                      </h6>
+                      {reply.isTopFan && <TopFanBadge size="sm" />}
+                    </div>
                     <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
                       <RichContentRenderer content={reply.content} />
                     </p>
