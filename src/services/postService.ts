@@ -103,9 +103,11 @@ export const normalizePost = (p: any): Post => {
     authorName: authorName || 'Thành viên KLTN',
     authorAvatar,
     content: p.content || '',
+    summary: typeof p.summary === 'string' && p.summary.trim() ? p.summary : undefined,
     mediaUrls,
     mediaList,
     createdAt: p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : 'Vừa xong',
+    createdAtRaw: p.createdAt ? String(p.createdAt) : undefined,
     likesCount: Number(p.likeCount ?? p.likesCount ?? 0),
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),
     sharesCount: Number(p.shareCount ?? p.sharesCount ?? 0),
@@ -126,8 +128,11 @@ export const normalizePost = (p: any): Post => {
     comments: p.comments || [],
     taggedUserIds: Array.isArray(p.taggedUserIds) ? p.taggedUserIds.map(String) : [],
     hashtags: Array.isArray(p.hashtags) ? p.hashtags.map(String) : [],
+    relevanceReason: typeof p.relevanceReason === 'string' ? p.relevanceReason : undefined,
   };
 };
+
+export type FeedMode = 'relevance' | 'recent' | 'trending';
 
 export interface PagedPostsResponse {
   posts: Post[];
@@ -163,15 +168,22 @@ export const postService = {
     }
   },
 
-  getFeedPaged: async (page = 1, size = 10, cursor?: string | null): Promise<PagedPostsResponse> => {
+  /**
+   * mode:
+   *  - 'relevance' (Tất cả): bảng tin xếp hạng theo độ liên quan, phân trang theo số trang
+   *  - 'trending'  (Nổi bật): xếp theo tốc độ tương tác, phân trang theo số trang
+   *  - 'recent'    (Mới nhất): thứ tự thời gian, phân trang theo cursor
+   */
+  getFeedPaged: async (page = 1, size = 10, cursor?: string | null, mode: FeedMode = 'recent'): Promise<PagedPostsResponse> => {
     try {
+      const ranked = mode === 'relevance' || mode === 'trending';
       const params: Record<string, any> = {
         page,
         size,
-        sortBy: 'createdAt',
+        sortBy: ranked ? mode : 'createdAt',
         sortDirection: 'DESC',
       };
-      if (cursor) {
+      if (!ranked && cursor) {
         params.cursor = cursor;
       }
 
@@ -201,8 +213,9 @@ export const postService = {
       // friends request before rendering the feed.
       const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
 
+      // Bảng tin xếp hạng dùng số trang; chỉ chế độ "Mới nhất" mới cần cursor theo thời gian
       let nextCursor: string | null = null;
-      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+      if (!ranked && Array.isArray(rawPosts) && rawPosts.length > 0) {
         const lastRaw = rawPosts[rawPosts.length - 1];
         if (lastRaw?.createdAt) {
           nextCursor = lastRaw.createdAt;
@@ -486,6 +499,50 @@ export const postService = {
     return normalizePost(res.data?.data || res.data);
   },
 
+  removeGroupPost: async (postId: string, reason?: string): Promise<void> => {
+    await api.delete(`/posts/${postId}/group-moderation`, { params: reason?.trim() ? { reason: reason.trim() } : undefined });
+  },
+
+  getMyGroupAppeals: async (groupId: string): Promise<any[]> => {
+    const res = await api.get(`/posts/group/${groupId}/my-appeals`);
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  appealGroupPost: async (postId: string, message: string) => {
+    const res = await api.post(`/posts/${postId}/group-appeal`, { message });
+    return res.data?.data || res.data;
+  },
+
+  getGroupAppeals: async (groupId: string): Promise<any[]> => {
+    const res = await api.get(`/posts/group/${groupId}/appeals`);
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  reviewGroupAppeal: async (postId: string, approved: boolean, note?: string) => {
+    const res = await api.patch(`/posts/${postId}/group-appeal/review`, { note }, { params: { approved } });
+    return res.data?.data || res.data;
+  },
+
+  getMyModerationAppeals: async (): Promise<any[]> => {
+    const res = await api.get('/posts/moderation-appeals/mine');
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  appealModeratedPost: async (postId: string, message: string) => {
+    const res = await api.post(`/posts/${postId}/appeal`, { message });
+    return res.data?.data || res.data;
+  },
+
+  getModerationAppeals: async (): Promise<any[]> => {
+    const res = await api.get('/posts/moderation-appeals');
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
+  reviewModerationAppeal: async (postId: string, approved: boolean, note?: string) => {
+    const res = await api.patch(`/posts/${postId}/appeal/review`, { note }, { params: { approved } });
+    return res.data?.data || res.data;
+  },
+
   updatePostDate: async (postId: string, createdAt: string): Promise<Post> => {
     const res = await api.patch(`/posts/${postId}/date`, { createdAt });
     const normalized = normalizePost(res.data?.data || res.data);
@@ -656,6 +713,7 @@ export const postService = {
             authorAvatar: authorAvatar || cached?.avatar || '',
             content: c.content || '',
             createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+            createdAtRaw: c.createdAt ? String(c.createdAt) : undefined,
             likesCount: Number(c.likeCount || 0),
             parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
             taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : [],
@@ -701,6 +759,7 @@ export const postService = {
                   authorAvatar: rAvatar || rCached?.avatar || '',
                   content: rc.content || '',
                   createdAt: rc.createdAt ? new Date(rc.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+                  createdAtRaw: rc.createdAt ? String(rc.createdAt) : undefined,
                   likesCount: Number(rc.likeCount || 0),
                   parentCommentId: String(parent.id),
                   taggedUserIds: Array.isArray(rc.taggedUserIds) ? rc.taggedUserIds.map(String) : [],
@@ -769,6 +828,7 @@ export const postService = {
       authorAvatar: currentUser?.avatar || cached?.avatar || c.authorAvatar || '',
       content: c.content || content,
       createdAt: 'Vừa xong',
+      createdAtRaw: c.createdAt ? String(c.createdAt) : new Date().toISOString(),
       likesCount: 0,
       parentCommentId: c?.parentCommentId ? String(c.parentCommentId) : parentCommentId,
       taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : (taggedUserIds || []),
@@ -787,6 +847,7 @@ export const postService = {
       id: String(c.id), postId: String(c.postId || postId), userId: String(c.authorId || c.userId || ''),
       authorName: c.authorName || '', authorAvatar: c.authorAvatar || '', content: c.content || content,
       createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+      createdAtRaw: c.createdAt ? String(c.createdAt) : undefined,
       likesCount: Number(c.likeCount || 0), parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
     };
   },

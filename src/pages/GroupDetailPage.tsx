@@ -9,6 +9,9 @@ import { GroupDiscussionTab } from '../components/groups/GroupDiscussionTab';
 import { GroupMembersTab } from '../components/groups/GroupMembersTab';
 import { GroupMediaTab } from '../components/groups/GroupMediaTab';
 import { GroupSettingsTab } from '../components/groups/GroupSettingsTab';
+import { GroupManagementTab } from '../components/groups/GroupManagementTab';
+import { GroupPendingPostsTab } from '../components/groups/GroupPendingPostsTab';
+import { GroupAppealsTab } from '../components/groups/GroupAppealsTab';
 import { InviteCommunityMembersModal } from '../components/groups/InviteCommunityMembersModal';
 import { Skeleton } from '../components/common/Skeleton';
 import { CommunityGroupMember, groupService, GroupResponse } from '../services/groupService';
@@ -30,7 +33,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media' | 'settings'>('discussion');
+  const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media' | 'appeals' | 'management' | 'pending-posts' | 'settings'>('discussion');
   const [isLoading, setIsLoading] = useState(true);
   const [group, setGroup] = useState<GroupResponse | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -251,7 +254,6 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
             onToggleJoin={handleToggleJoin}
             onLeaveGroup={handleLeaveGroup}
           />
-
           <div className="w-full">
             {activeTab === 'discussion' && <GroupDiscussionTab group={group} onToggleJoin={handleToggleJoin} />}
             {activeTab === 'members' && (
@@ -262,6 +264,9 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
               />
             )}
             {activeTab === 'media' && <GroupMediaTab group={group} />}
+            {activeTab === 'appeals' && <GroupAppealsTab group={group} />}
+            {activeTab === 'management' && <GroupManagementTab group={group} onNavigate={setActiveTab} />}
+            {activeTab === 'pending-posts' && <GroupPendingPostsTab group={group} />}
             {activeTab === 'settings' && (
               <GroupSettingsTab
                 group={group}

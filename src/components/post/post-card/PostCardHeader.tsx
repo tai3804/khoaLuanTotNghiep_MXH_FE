@@ -28,6 +28,7 @@ import { ReportModal } from '../../report/ReportModal';
 import { PostTaggedUsers } from './PostTaggedUsers';
 import { TrendingBadge } from '../common/TrendingBadge';
 import { PostInsightsModal } from '../post-insights/PostInsightsModal';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface PostCardHeaderProps {
   post: Post;
@@ -226,7 +227,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                     <span>Đang đăng...</span>
                   </span>
                 ) : (
-                  <span>{post.createdAt || 'Vừa xong'}</span>
+                  <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
                 )}
                 <span>•</span>
                 {groupPrivacy === 'PRIVATE' ? (
@@ -281,7 +282,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                     <span>Đang đăng...</span>
                   </span>
                 ) : (
-                  <span>{post.createdAt || 'Vừa xong'}</span>
+                  <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
                 )}
                 <span>•</span>
                 {renderPrivacyIcon()}

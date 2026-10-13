@@ -11,6 +11,14 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
 
+// Nhãn nhỏ phía trên bài viết giải thích vì sao bài này được đề xuất (chỉ với bài không phải của bạn bè/người đang theo dõi)
+const REASON_LABELS: Record<string, { vi: string; en: string }> = {
+  popular: { vi: 'Đang được nhiều người quan tâm', en: 'Popular right now' },
+  trending: { vi: 'Đang thịnh hành', en: 'Trending' },
+  interacted: { vi: 'Từ người bạn hay tương tác', en: 'From someone you interact with' },
+  group: { vi: 'Từ nhóm bạn tham gia', en: 'From a group you joined' },
+};
+
 import { SystemAnnouncementBanner } from '../components/common/SystemAnnouncementBanner';
 
 interface HomePageProps {
@@ -58,7 +66,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   loadingMore = false,
   onLoadMore,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isAuthenticated, openLoginModal } = useAuth();
   const observerRef = useRef<HTMLDivElement | null>(null);
 
@@ -235,14 +243,27 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           ) : (
             <>
-              {posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onDeletePost={onDeletePost}
-                  onViewProfile={onViewProfile}
-                />
-              ))}
+              {posts.map((post) => {
+                const label = post.relevanceReason ? REASON_LABELS[post.relevanceReason] : undefined;
+                return (
+                  <React.Fragment key={post.id}>
+                    {label && (
+                      <div
+                        data-testid="feed-reason"
+                        className="flex items-center gap-1.5 px-1 pb-1 -mb-2 text-[11px] font-semibold text-gray-500 dark:text-[#b0b3b8] select-none"
+                      >
+                        <Sparkles className="w-3 h-3 text-[#2d88ff]" />
+                        <span>{language === 'en' ? label.en : label.vi}</span>
+                      </div>
+                    )}
+                    <PostCard
+                      post={post}
+                      onDeletePost={onDeletePost}
+                      onViewProfile={onViewProfile}
+                    />
+                  </React.Fragment>
+                );
+              })}
 
               {/* Sentinel trigger element for infinite scrolling */}
               <div ref={observerRef} className="h-4 w-full pointer-events-none" />

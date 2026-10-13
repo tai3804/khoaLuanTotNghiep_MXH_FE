@@ -1,31 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
-import { ProfilePage } from './pages/ProfilePage';
-import { CreatorDashboardPage } from './pages/CreatorDashboardPage';
-import { FriendsPage } from './pages/FriendsPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { AuthPage } from './pages/AuthPage';
-import { SearchPage } from './pages/SearchPage';
-import { WatchPage } from './pages/WatchPage';
-import { GroupsPage } from './pages/GroupsPage';
-import { GroupDetailPage } from './pages/GroupDetailPage';
-import { ModeratorPage } from './pages/ModeratorPage';
-import { SupportInboxPage } from './pages/SupportInboxPage';
-import { SavedPage } from './pages/SavedPage';
-import { ChatUser } from './components/chat/chat-box';
-import { ChatPopupContainer } from './components/chat/ChatPopupContainer';
-import { useAuth } from './context/AuthContext';
-import { useLanguage } from './context/LanguageContext';
-import { useSystemConfig } from './context/SystemConfigContext';
-import { MaintenanceScreen } from './components/common/MaintenanceScreen';
-import { postService } from './services/api';
-import { Post } from './types';
-import { Home, Tv, Users, UsersRound } from 'lucide-react';
-import { CallManager } from './components/call/CallManager';
-import { HostLiveStudioModal } from './components/live-studio';
-import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
-import { HashtagFeedModal } from './components/post/hashtag';
+// Các trang còn lại được tách thành file riêng và chỉ tải khi người dùng thực sự vào trang đó
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage').then((m) => ({ default: m.CreatorDashboardPage })));
+const FriendsPage = lazy(() => import('./pages/FriendsPage').then((m) => ({ default: m.FriendsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const AuthPage = lazy(() => import('./pages/AuthPage').then((m) => ({ default: m.AuthPage })));
+const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
+const WatchPage = lazy(() => import('./pages/WatchPage').then((m) => ({ default: m.WatchPage })));
+const GroupsPage = lazy(() => import('./pages/GroupsPage').then((m) => ({ default: m.GroupsPage })));
+const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then((m) => ({ default: m.GroupDetailPage })));
+const ModeratorPage = lazy(() => import('./pages/ModeratorPage').then((m) => ({ default: m.ModeratorPage })));
+const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage').then((m) => ({ default: m.SupportInboxPage })));
+const SavedPage = lazy(() => import('./pages/SavedPage').then((m) => ({ default: m.SavedPage })));
+
+// Tab của bảng tin -> cách xếp hạng ở máy chủ: Tất cả = độ liên quan, Mới nhất = thời gian, Nổi bật = tốc độ tương tác
+const FEED_MODE_BY_CATEGORY: Record<'all' | 'recent' | 'popular', FeedMode> = {
+  all: 'relevance',
+  recent: 'recent',
+  popular: 'trending',
+};
+
+const RouteFallback: React.FC = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-600 border-t-transparent dark:border-blue-400" />
+  </div>
+);
 
 export const App: React.FC = () => {
   const { isAuthenticated, tokens, user } = useAuth();
@@ -76,6 +77,8 @@ export const App: React.FC = () => {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  // Mỗi lần tải lại bảng tin (đổi tab, làm mới) tăng số này; phản hồi của lần tải cũ đến muộn sẽ bị bỏ qua
+  const feedRequestRef = useRef(0);
 
   const isPostHidden = (postId: string) => {
     try {
@@ -107,13 +110,15 @@ export const App: React.FC = () => {
   }, [path]);
 
   const fetchFeed = async (isBackground = false) => {
+    const requestId = ++feedRequestRef.current;
     if (!isBackground) {
       setLoading(true);
       setBackendError(null);
     }
     try {
       // Fetch first page (10 posts) [UC-FE02]
-      const pagedRes = await postService.getFeedPaged(1, 10);
+      const pagedRes = await postService.getFeedPaged(1, 10, null, FEED_MODE_BY_CATEGORY[feedCategory]);
+      if (requestId !== feedRequestRef.current) return; // đã đổi tab/làm mới trong lúc chờ
       const feedData = pagedRes.posts.filter((post) => !isPostHidden(post.id));
 
       if (!isBackground) {
@@ -148,6 +153,7 @@ export const App: React.FC = () => {
         }
       }
     } catch (e: any) {
+      if (requestId !== feedRequestRef.current) return;
       if (!isBackground) {
         console.error('Error fetching feed:', e);
         setPosts([]);
@@ -156,7 +162,7 @@ export const App: React.FC = () => {
         }
       }
     } finally {
-      if (!isBackground) {
+      if (!isBackground && requestId === feedRequestRef.current) {
         setLoading(false);
       }
     }
@@ -167,9 +173,11 @@ export const App: React.FC = () => {
     if (loadingMore || !hasMore || loading) return;
 
     setLoadingMore(true);
+    const requestId = feedRequestRef.current;
     try {
       const nextPage = currentPage + 1;
-      const result = await postService.getFeedPaged(nextPage, 10, cursor);
+      const result = await postService.getFeedPaged(nextPage, 10, cursor, FEED_MODE_BY_CATEGORY[feedCategory]);
+      if (requestId !== feedRequestRef.current) return; // người dùng đã đổi tab: không trộn bài của tab cũ vào
       if (result.posts && result.posts.length > 0) {
         setPosts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
@@ -191,11 +199,15 @@ export const App: React.FC = () => {
     }
   };
 
+  // Tải lại bảng tin khi đăng nhập và mỗi lần đổi tab Tất cả / Mới nhất / Nổi bật
   useEffect(() => {
     if (isAuthenticated) {
+      setPosts([]);
+      setCursor(null);
+      setHasMore(true);
       fetchFeed();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, feedCategory]);
 
   useEffect(() => {
     const hasToken = !!tokens?.accessToken;
@@ -272,16 +284,31 @@ export const App: React.FC = () => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
+  const TAB_PATHS: Record<string, string> = {
+    home: '/',
+    friends: '/friends',
+    settings: '/settings/profile',
+    profile: '/profile',
+    watch: '/watch',
+    groups: '/groups',
+    saved: '/saved',
+    moderation: '/moderation',
+    'moderation-appeals': '/moderation/appeals',
+    support: '/support-inbox',
+  };
+
   const handleTabChange = (tab: string) => {
-    if (tab === 'home') navigate('/');
-    else if (tab === 'friends') navigate('/friends');
-    else if (tab === 'settings') navigate('/settings/profile');
-    else if (tab === 'profile') navigate('/profile');
-    else if (tab === 'watch') navigate('/watch');
-    else if (tab === 'groups') navigate('/groups');
-    else if (tab === 'saved') navigate('/saved');
-    else if (tab === 'moderation') navigate('/moderation');
-    else if (tab === 'support') navigate('/support-inbox');
+    const path = TAB_PATHS[tab];
+    if (!path) return;
+
+    // Bấm vào tab/logo của trang đang đứng: cuộn mượt lên đầu trang (giống Facebook)
+    if (location.pathname === path) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Chuyển sang trang khác: trang mới luôn bắt đầu từ trên cùng, không giữ vị trí cuộn của trang cũ
+    navigate(path);
+    window.scrollTo({ top: 0 });
   };
 
   const handleViewProfile = (userId?: string) => {
@@ -293,18 +320,8 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filter posts based on active category
-  let displayedPosts = [...posts];
-  if (feedCategory === 'recent') {
-    displayedPosts = [...posts].sort((a, b) => {
-      const timeA = new Date(a.createdAt || 0).getTime() || 0;
-      const timeB = new Date(b.createdAt || 0).getTime() || 0;
-      return timeB - timeA;
-    });
-  } else if (feedCategory === 'popular') {
-    const engagement = (post: Post) => (post.likesCount || 0) + (post.commentsCount || 0) * 2 + (post.sharesCount || 0) * 3;
-    displayedPosts = [...posts].sort((a, b) => engagement(b) - engagement(a));
-  }
+  // Thứ tự bài đã do máy chủ xếp theo từng tab, không sắp xếp lại ở trình duyệt
+  const displayedPosts = posts;
 
   const isAdmin = Array.isArray(user?.roles) && (user.roles.includes('ADMIN') || user.roles.includes('ROLE_ADMIN') || user.roles.includes('MODERATOR'));
   if (isMaintenance && !isAdmin) {
@@ -313,6 +330,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-[#050505] dark:text-[#e4e6eb] transition-colors duration-150 pb-16 md:pb-0">
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route
           path="/"
@@ -498,6 +516,10 @@ export const App: React.FC = () => {
           }
         />
         <Route
+          path="/moderation/appeals"
+          element={<Navigate to="/admin" replace />}
+        />
+        <Route
           path="/admin"
           element={
             <ModeratorPage
@@ -546,6 +568,7 @@ export const App: React.FC = () => {
           }
         />
       </Routes>
+      </Suspense>
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-[#242526] border-t border-gray-200 dark:border-[#393a3b] h-14 flex items-center justify-around md:hidden z-40 shadow-lg">

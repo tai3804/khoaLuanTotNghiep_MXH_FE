@@ -4,6 +4,7 @@ import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { aiService } from '../../../services/aiService';
 import { TopFanBadge } from '../common/TopFanBadge';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface PostCardCommentsPreviewProps {
   displayedComments: Comment[];
@@ -134,7 +135,7 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                         <span>{language === 'en' ? 'Reply' : 'Phản hồi'}</span>
                       </button>
                       <span>•</span>
-                      <span>{comment.createdAt}</span>
+                      <TimeAgo iso={comment.createdAtRaw} fallback={comment.createdAt} />
                     </div>
                   </div>
                 </div>
@@ -189,7 +190,7 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                               {language === 'en' ? 'Reply' : 'Phản hồi'}
                             </button>
                             <span>•</span>
-                            <span>{firstReply.createdAt}</span>
+                            <TimeAgo iso={firstReply.createdAtRaw} fallback={firstReply.createdAt} />
                           </div>
                         </div>
                       </div>

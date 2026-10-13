@@ -170,7 +170,11 @@ export const useSidebarLeftData = ({
   }, [user]);
 
   if (canModerate) {
-    menuItems.splice(3, 0, {
+    // Moderator/Admin uses the dedicated moderation work queue. Support Inbox
+    // is reserved for regular users appealing decisions on their own content.
+    const supportIndex = menuItems.findIndex((item) => item.id === 'support');
+    if (supportIndex >= 0) menuItems.splice(supportIndex, 1);
+    menuItems.splice(2, 0, {
       id: 'moderation',
       label: 'Trung tâm kiểm duyệt',
       iconNode: (
@@ -178,6 +182,10 @@ export const useSidebarLeftData = ({
           <ShieldCheck className="w-4 h-4" />
         </div>
       ),
+    });
+    menuItems.splice(3, 0, {
+      id: 'moderation-appeals', label: 'Kháng nghị chờ xử lý',
+      iconNode: <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white shadow-sm"><HelpCircle className="w-5 h-5" /></div>,
     });
   }
 

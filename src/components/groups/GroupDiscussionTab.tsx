@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Check, Clock3, X, Users, Lock, Eye, Clock, UserPlus, Shield, Globe, FileText } from 'lucide-react';
+import { Clock3, Trash2, Users, Lock, Eye, Clock, UserPlus, Shield, Globe, FileText } from 'lucide-react';
 import { CreatePostBox } from '../post/CreatePostBox';
 import { PostCard } from '../post/post-card';
 import { GroupData } from './GroupBanner';
+import { GroupRemovePostModal } from './GroupRemovePostModal';
 import { postService } from '../../services/api';
 import { Post } from '../../types';
 
@@ -13,37 +14,30 @@ interface GroupDiscussionTabProps {
 
 export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, onToggleJoin }) => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [submissionMessage, setSubmissionMessage] = useState('');
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [postToRemove, setPostToRemove] = useState<Post | null>(null);
 
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
-  const canReviewPosts = Boolean(group.isAdmin || group.isModerator);
+  const canModerate = Boolean(group.isAdmin || group.isModerator);
 
   const loadPosts = useCallback(async () => {
     if (!group.id || isPrivateLocked) {
       setPosts([]);
-      setPendingPosts([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const [published, pending] = await Promise.all([
-        postService.getGroupPosts(group.id),
-        canReviewPosts ? postService.getPendingGroupPosts(group.id) : Promise.resolve([]),
-      ]);
-      setPosts(published);
-      setPendingPosts(pending);
+      setPosts(await postService.getGroupPosts(group.id));
     } catch (err) {
       console.warn('Could not load group posts:', err);
       setPosts([]);
-      setPendingPosts([]);
     } finally {
       setLoading(false);
     }
-  }, [group.id, isPrivateLocked, canReviewPosts]);
+  }, [group.id, isPrivateLocked]);
 
   useEffect(() => {
     loadPosts();
@@ -86,19 +80,20 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
     };
   }, [group.id, loadPosts]);
 
-  const reviewPost = async (post: Post, approved: boolean) => {
-    try {
-      setReviewingId(post.id);
-      const reviewed = await postService.reviewGroupPost(post.id, approved);
-      setPendingPosts((items) => items.filter((item) => item.id !== post.id));
-      if (approved) setPosts((items) => [reviewed, ...items]);
-    } finally {
-      setReviewingId(null);
-    }
-  };
-
   const handleDeletePost = (id: string) => {
     setPosts((current) => current.filter((item) => item.id !== id));
+  };
+
+  const removePost = async (reason: string) => {
+    if (!postToRemove) return;
+    try {
+      setRemovingId(postToRemove.id);
+      await postService.removeGroupPost(postToRemove.id, reason || undefined);
+      setPosts((items) => items.filter((item) => item.id !== postToRemove.id));
+      setPostToRemove(null);
+    } finally {
+      setRemovingId(null);
+    }
   };
 
   return (
@@ -179,41 +174,6 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
               </div>
             )}
 
-            {canReviewPosts && pendingPosts.length > 0 && (
-              <section className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-700/40 dark:bg-amber-900/10">
-                <div className="mb-3 flex items-center gap-2">
-                  <Clock3 className="h-5 w-5 text-amber-600" />
-                  <h2 className="font-bold text-gray-900 dark:text-[#e4e6eb]">Bài viết chờ duyệt ({pendingPosts.length})</h2>
-                </div>
-                <div className="space-y-3">
-                  {pendingPosts.map((post) => (
-                    <div key={post.id} className="rounded-xl bg-white p-3 shadow-sm dark:bg-[#242526]">
-                      <p className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-100">{post.content || 'Bài viết có tệp đính kèm'}</p>
-                      <p className="mt-2 text-xs text-gray-500">Đăng bởi {post.authorName}</p>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          disabled={reviewingId === post.id}
-                          onClick={() => reviewPost(post, true)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[#1877f2] px-3 py-2 text-xs font-bold text-white disabled:opacity-60 cursor-pointer"
-                        >
-                          <Check className="h-4 w-4" />
-                          Duyệt
-                        </button>
-                        <button
-                          disabled={reviewingId === post.id}
-                          onClick={() => reviewPost(post, false)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-gray-200 px-3 py-2 text-xs font-bold text-gray-700 disabled:opacity-60 dark:bg-[#3a3b3c] dark:text-gray-100 cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                          Từ chối
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Create Post or Non-member Join Callout */}
             {group.isMember || group.isAdmin ? (
               <div className="mb-4">
@@ -253,13 +213,29 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
               </div>
             ) : (
               posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onDeletePost={handleDeletePost}
-                />
+                <div key={post.id} className="relative mb-4">
+                  {canModerate && !post.isOptimistic && (
+                    <div className="absolute right-3 top-3 z-10">
+                      <button
+                        disabled={removingId === post.id}
+                        onClick={() => setPostToRemove(post)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white shadow hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Gỡ bài
+                      </button>
+                    </div>
+                  )}
+                  <PostCard post={post} onDeletePost={handleDeletePost} />
+                </div>
               ))
             )}
+            <GroupRemovePostModal
+              post={postToRemove}
+              loading={removingId === postToRemove?.id}
+              onClose={() => setPostToRemove(null)}
+              onConfirm={(reason) => void removePost(reason)}
+            />
           </>
         )}
       </div>

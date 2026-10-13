@@ -3,6 +3,7 @@ import { GraduationCap, MapPin, Mail, Clock } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
 import { ProfileBioAiModal } from '../ai/ProfileBioAiModal';
 import { UserProfile } from '../../../types';
+import { ProfileReputationCard } from './ProfileReputationCard';
 
 interface ProfileIntroBoxProps {
   profile: UserProfile | null;
@@ -145,6 +146,8 @@ export const ProfileIntroBox: React.FC<ProfileIntroBoxProps> = ({
           </div>
         </div>
       )}
+
+      {isOwnProfile && <ProfileReputationCard />}
 
       {isOwnProfile && (
         <button

@@ -54,6 +54,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     <img
       src={effectiveSrc}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       onError={handleError}
       className={`${baseSizeClass} rounded-full object-cover border border-gray-200/80 dark:border-slate-700 shadow-sm shrink-0 ${className}`}
     />

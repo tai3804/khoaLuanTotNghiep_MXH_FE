@@ -11,6 +11,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { Globe } from 'lucide-react';
 import { isVideo, VideoPlayer } from '../post-card/PostCardContent';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface CommentModalProps {
   isOpen: boolean;
@@ -141,7 +142,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
                         {post.sharedPost.authorName}
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-[#b0b3b8]">
-                        {post.sharedPost.createdAt}
+                        <TimeAgo iso={post.sharedPost.createdAtRaw} fallback={post.sharedPost.createdAt} />
                       </div>
                     </div>
                   </div>

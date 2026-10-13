@@ -172,6 +172,7 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       mediaUrls: optimisticMediaUrls,
       mediaList: optimisticMediaList,
       createdAt: 'Vừa xong',
+      createdAtRaw: new Date().toISOString(),
       likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,

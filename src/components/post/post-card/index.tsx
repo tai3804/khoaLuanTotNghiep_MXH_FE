@@ -15,6 +15,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Globe } from 'lucide-react';
 import { postService } from '../../../services/api';
+import { TimeAgo } from '../../common/TimeAgo';
 
 export interface PostCardProps {
   post: Post;
@@ -92,7 +93,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   if (data.isDeleted || data.isHidden) return null;
 
   return (
-    <div id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-visible">
+    <div ref={data.cardRef} id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-visible">
       <PostCardHeader
         post={currentPost}
         authorName={data.authorName}
@@ -145,7 +146,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                     {originalPost.authorName}
                   </div>
                   <div className="flex items-center space-x-1 text-[11px] text-gray-500 dark:text-[#b0b3b8]">
-                    <span>{originalPost.createdAt}</span>
+                    <TimeAgo iso={originalPost.createdAtRaw} fallback={originalPost.createdAt} />
                     <span>·</span>
                     <Globe className="w-3 h-3" />
                   </div>
@@ -162,7 +163,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                     isVideo(originalPost.mediaUrls[0]) ? (
                       <VideoPlayer src={originalPost.mediaUrls[0]} className="w-full max-h-[420px] object-contain bg-black" />
                     ) : (
-                      <img src={originalPost.mediaUrls[0]} alt="Original media" className="w-full max-h-[420px] object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
+                      <img src={originalPost.mediaUrls[0]} loading="lazy" decoding="async" alt="Original media" className="w-full max-h-[420px] object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
                     )
                   ) : (
                     <div className="grid grid-cols-2 gap-0.5">
@@ -170,7 +171,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                         isVideo(url) ? (
                           <VideoPlayer key={i} src={url} className="w-full h-48 sm:h-56 object-cover bg-black" />
                         ) : (
-                          <img key={i} src={url} alt={`Original media ${i}`} className="w-full h-48 sm:h-56 object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
+                          <img key={i} src={url} loading="lazy" decoding="async" alt={`Original media ${i}`} className="w-full h-48 sm:h-56 object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
                         )
                       ))}
                     </div>

@@ -1,6 +1,6 @@
 import { api } from './axiosClient';
 
-export type ModerationAction = 'HIDE_POST' | 'DELETE_POST' | 'DELETE_COMMENT' | 'WARN_USER' | 'BAN_USER' | 'DISMISS' | 'RESTORE_POST';
+export type ModerationAction = 'HIDE_POST' | 'DELETE_POST' | 'DELETE_COMMENT' | 'WARN_USER' | 'BAN_USER' | 'DISMISS' | 'RESTORE_POST' | 'APPEAL_ACCEPTED' | 'APPEAL_REJECTED';
 
 export interface ModerationReport {
   reportId: string;
@@ -13,6 +13,12 @@ export interface ModerationReport {
   createdAt: string;
   resolvedAt?: string;
   resolvedBy?: string;
+  /** 'AI' khi báo cáo do AI tự động gắn cờ; 'USER' hoặc không có khi do người dùng báo cáo. */
+  source?: 'USER' | 'AI';
+  aiScore?: number;
+  aiCategory?: string;
+  aiSeverity?: string;
+  aiReason?: string;
 }
 
 export interface ModerationLog {

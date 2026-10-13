@@ -1,6 +1,17 @@
 import { api } from './axiosClient';
 import { store } from '../store/store';
 
+export interface MyReputation {
+  userId: string;
+  score: number;
+  maxScore: number;
+  /** EXCELLENT | GOOD | CAUTION | WARNING | CRITICAL */
+  level: string;
+  levelLabel: string;
+  /** Điểm tối thiểu của bậc kế tiếp phía trên, null nếu đã ở bậc cao nhất */
+  nextLevelScore: number | null;
+}
+
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
 export const myFriendIdsMemoryCache = new Set<string>();
 const authorProfilePendingMap = new Map<string, Promise<{ name: string; avatar: string } | null>>();
@@ -413,6 +424,8 @@ export const userService = {
             avatar,
             avatarUrl: avatar,
             mutualFriendsCount: mutual,
+            // Lý do gợi ý do máy chủ chấm điểm (bạn chung, cùng nhóm, đang theo dõi...), đã sắp theo mức quan trọng
+            reasons: Array.isArray(s.reasons) ? s.reasons.map(String) : [],
             bio: s.bio || '',
           });
         }
@@ -490,6 +503,15 @@ export const userService = {
   unfollow: async (targetId: string) => {
     const res = await api.post(`/users/connections/unfollow/${targetId}`);
     return res.data;
+  },
+
+  getMyReputation: async (): Promise<MyReputation | null> => {
+    try {
+      const res = await api.get('/users/reputation/me');
+      return res.data?.data ?? null;
+    } catch {
+      return null;
+    }
   },
 
   getPrivacySettings: async () => {

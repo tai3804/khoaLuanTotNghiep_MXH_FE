@@ -4,6 +4,7 @@ import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { TopFanBadge } from '../common/TopFanBadge';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface CommentItemProps {
   comment: Comment;
@@ -153,7 +154,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
               <span>{language === 'en' ? 'Reply' : 'Phản hồi'}</span>
             </button>
             <span>•</span>
-            <span>{c.createdAt}</span>
+            <TimeAgo iso={c.createdAtRaw} fallback={c.createdAt} />
             {canEdit && (
               <>
                 <span>•</span>
@@ -231,7 +232,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
                       {language === 'en' ? 'Reply' : 'Phản hồi'}
                     </button>
                     <span>•</span>
-                    <span>{reply.createdAt}</span>
+                    <TimeAgo iso={reply.createdAtRaw} fallback={reply.createdAt} />
                     {canDeleteReply && (
                       <>
                         <span>•</span>
