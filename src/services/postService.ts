@@ -939,7 +939,7 @@ export const postService = {
    * Ghi nhận lượt xem bài viết
    */
   recordPostView: async (postId: string): Promise<number | null> => {
-    if (!postId) return null;
+    if (!postId || postId.startsWith('temp-')) return null;
     try {
       const res = await api.post(`/posts/${postId}/view`);
       return res.data?.data ?? 1;

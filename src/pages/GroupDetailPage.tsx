@@ -179,6 +179,10 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
                 onInviteClick={() => setShowInviteModal(true)}
                 onToggleJoin={handleToggleJoin}
                 onLeaveGroup={handleLeaveGroup}
+                onGroupUpdated={(updated) => {
+                  setGroup(updated);
+                  groupDetailsCache[updated.id] = { group: updated, members };
+                }}
               />
               <div className="w-full">
                 {activeTab === 'discussion' && <GroupDiscussionTab group={group} onToggleJoin={handleToggleJoin} />}

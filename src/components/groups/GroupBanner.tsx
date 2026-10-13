@@ -1,6 +1,8 @@
-import React from 'react';
-import { Globe, Lock, Image as ImageIcon, UserPlus, Settings, Users, Clock } from 'lucide-react';
-import { CommunityGroupMember } from '../../services/groupService';
+import React, { useRef, useState } from 'react';
+import { Globe, Lock, Image as ImageIcon, UserPlus, Settings, Users, Clock, Loader2, Edit3 } from 'lucide-react';
+import { CommunityGroupMember, GroupResponse, groupService } from '../../services/groupService';
+import { mediaService } from '../../services/mediaService';
+import { useToast } from '../../context/ToastContext';
 import { UserAvatar } from '../common/UserAvatar';
 import { GroupAvatar } from '../common/GroupAvatar';
 
@@ -29,6 +31,7 @@ interface GroupBannerProps {
   onInviteClick?: () => void;
   onToggleJoin?: () => void;
   onLeaveGroup?: () => void;
+  onGroupUpdated?: (updated: GroupResponse) => void;
 }
 
 export const GroupBanner: React.FC<GroupBannerProps> = ({
@@ -40,9 +43,35 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
   onInviteClick,
   onToggleJoin,
   onLeaveGroup,
+  onGroupUpdated,
 }) => {
   const approvedMembers = members.filter((m) => m.status !== 'PENDING');
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const toast = useToast();
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !group.id) return;
+    try {
+      setIsUploadingCover(true);
+      const mediaItem = await mediaService.uploadMedia(file, 'groups');
+      if (mediaItem?.fileUrl) {
+        const updated = await groupService.updateGroup(group.id, { coverUrl: mediaItem.fileUrl });
+        onGroupUpdated?.(updated);
+        toast.showSuccess('Cập nhật ảnh bìa nhóm thành công!');
+      } else {
+        toast.showError('Không nhận được đường dẫn ảnh từ máy chủ.');
+      }
+    } catch (err: any) {
+      console.error('Failed to update group cover:', err);
+      toast.showError(err?.message || 'Không thể cập nhật ảnh bìa nhóm.');
+    } finally {
+      setIsUploadingCover(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="w-full bg-white dark:bg-[#242526] shadow-sm rounded-3xl border border-gray-200 dark:border-[#393a3b] overflow-hidden">
@@ -63,11 +92,35 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
                 />
               </div>
             )}
+
             {group.isAdmin && (
-              <button className="absolute bottom-4 right-4 bg-white/90 dark:bg-[#3a3b3c]/90 hover:bg-white dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md transition cursor-pointer backdrop-blur-sm">
-                <ImageIcon className="w-4 h-4" />
-                <span>{hasCover ? 'Chỉnh sửa ảnh bìa' : 'Thêm ảnh bìa'}</span>
-              </button>
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleCoverFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingCover}
+                  className="absolute bottom-4 right-4 bg-white/90 dark:bg-[#3a3b3c]/90 hover:bg-white dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md transition cursor-pointer backdrop-blur-sm disabled:opacity-60 z-10"
+                >
+                  {isUploadingCover ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#1877f2]" />
+                      <span>Đang tải ảnh lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-4 h-4" />
+                      <span>{hasCover ? 'Chỉnh sửa ảnh bìa' : 'Thêm ảnh bìa'}</span>
+                    </>
+                  )}
+                </button>
+              </>
             )}
           </div>
         );
@@ -141,8 +194,23 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
               </button>
             )}
 
+            {group.isAdmin && (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition cursor-pointer"
+                title="Chỉnh sửa thông tin & cài đặt nhóm"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Chỉnh sửa thông tin</span>
+              </button>
+            )}
+
             {(group.isAdmin || group.isModerator) && (
-              <button onClick={() => setActiveTab('management')} className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition" title="Quản trị nhóm">
+              <button
+                onClick={() => setActiveTab(group.isAdmin ? 'settings' : 'management')}
+                className="bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] p-2 rounded-xl transition cursor-pointer"
+                title={group.isAdmin ? 'Cài đặt nhóm' : 'Quản trị nhóm'}
+              >
                 <Settings className="w-5 h-5" />
               </button>
             )}
@@ -150,26 +218,29 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex mt-1">
-          <button onClick={() => setActiveTab('discussion')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'discussion' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+        <div className="flex mt-1 overflow-x-auto scrollbar-none">
+          <button onClick={() => setActiveTab('discussion')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'discussion' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             Thảo luận
           </button>
-          <button onClick={() => setActiveTab('members')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'members' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+          <button onClick={() => setActiveTab('members')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'members' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             Thành viên
           </button>
           {!isPrivateLocked && (
-            <button onClick={() => setActiveTab('media')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'media' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            <button onClick={() => setActiveTab('media')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'media' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
               File phương tiện
             </button>
           )}
-          {group.isMember && <button onClick={() => setActiveTab('appeals')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'appeals' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+          {group.isMember && <button onClick={() => setActiveTab('appeals')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'appeals' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             Kháng nghị
           </button>}
-          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('pending-posts')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'pending-posts' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('pending-posts')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'pending-posts' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             Bài chờ duyệt
           </button>}
-          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('management')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition ${activeTab === 'management' || activeTab === 'settings' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+          {(group.isAdmin || group.isModerator) && <button onClick={() => setActiveTab('management')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'management' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
             Quản trị nhóm
+          </button>}
+          {group.isAdmin && <button onClick={() => setActiveTab('settings')} className={`px-4 py-4 font-bold text-sm border-b-[3px] transition whitespace-nowrap cursor-pointer ${activeTab === 'settings' ? 'text-[#1877f2] border-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8] border-transparent hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50 rounded-t-lg'}`}>
+            Cài đặt nhóm
           </button>}
         </div>
       </div>
