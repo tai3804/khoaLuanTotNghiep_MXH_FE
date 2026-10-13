@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { postService } from '../../services/api';
 import { isVideo } from './post-card/PostCardContent';
 import { ShareViaMessageTab } from './ShareViaMessageTab';
+import { TimeAgo } from '../common/TimeAgo';
 
 interface ShareModalProps {
   post: Post;
@@ -215,7 +216,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       {post.authorName}
                     </span>
                     <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                      {post.createdAt}
+                      <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
                     </span>
                   </div>
                 </div>

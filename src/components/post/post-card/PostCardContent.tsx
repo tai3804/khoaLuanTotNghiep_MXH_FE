@@ -1,9 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Sparkles, Languages, RotateCcw } from 'lucide-react';
 import { Post } from '../../../types';
 import { aiService } from '../../../services/aiService';
 import { LiveStreamPlayer } from './live-stream';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
+import { useToast } from '../../../context/ToastContext';
+import { useLanguage } from '../../../context/LanguageContext';
+import { needsTranslation } from '../../../utils/languageDetect';
+
+// Chỉ bài viết dài hơn ngưỡng này mới có tóm tắt AI (khớp ai.summary.min-length ở ai-service)
+const SUMMARY_MIN_LENGTH = 1000;
 
 interface PostCardContentProps {
   post: Post;
@@ -98,22 +104,38 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
   post,
   setShowCommentModal,
 }) => {
-  const [summary, setSummary] = useState<string | null>(null);
+  const toast = useToast();
+  // Bản tóm tắt tạo theo yêu cầu, chỉ dùng cho bài cũ chưa có bản tóm tắt lưu sẵn từ AI
+  const [onDemandSummary, setOnDemandSummary] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(true);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const { language } = useLanguage();
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [targetLang, setTargetLang] = useState<'vi' | 'en'>('vi');
+
+  // Dịch sang ngôn ngữ giao diện của người xem; chỉ hiện nút khi bài viết rõ ràng không cùng ngôn ngữ đó
+  const viewerLang: 'vi' | 'en' = language === 'en' ? 'en' : 'vi';
+  const canTranslate = useMemo(() => needsTranslation(post.content, viewerLang), [post.content, viewerLang]);
+
+  const summary = post.summary || onDemandSummary;
+  const isLongPost = (post.content?.trim().length ?? 0) > SUMMARY_MIN_LENGTH;
 
   const handleSummarize = async () => {
     if (!post.content || isSummarizing) return;
     if (summary) {
-      setSummary(null); // Toggle off
+      setSummaryOpen((open) => !open); // Ẩn/hiện bản tóm tắt đã có, không gọi lại AI
       return;
     }
     setIsSummarizing(true);
     try {
       const res = await aiService.summarizePost(post.content);
-      setSummary(res);
+      // aiService trả lại nguyên văn bài viết khi gọi lỗi, không coi đó là bản tóm tắt
+      if (res && res.trim() && res.trim() !== post.content.trim()) {
+        setOnDemandSummary(res);
+        setSummaryOpen(true);
+      } else {
+        toast.showError('Không thể tóm tắt bài viết lúc này. Vui lòng thử lại sau.');
+      }
     } finally {
       setIsSummarizing(false);
     }
@@ -127,11 +149,13 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
     }
     setIsTranslating(true);
     try {
-      // If content seems Vietnamese, default translate to English, else Vietnamese
-      const lang = /^[a-zA-Z0-9\s.,!?'"()-]+$/.test(post.content.slice(0, 100)) ? 'vi' : 'en';
-      setTargetLang(lang);
-      const res = await aiService.translatePost(post.content, lang);
-      setTranslatedText(res);
+      const res = await aiService.translatePost(post.content, viewerLang);
+      // aiService trả lại nguyên văn bài viết khi gọi lỗi, không coi đó là bản dịch
+      if (res && res.trim() && res.trim() !== post.content.trim()) {
+        setTranslatedText(res);
+      } else {
+        toast.showError('Không thể dịch bài viết lúc này. Vui lòng thử lại sau.');
+      }
     } finally {
       setIsTranslating(false);
     }
@@ -150,23 +174,25 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
           </div>
 
           {/* AI Action Chips */}
+          {(isLongPost || canTranslate || translatedText) && (
           <div className="flex items-center gap-2 pt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {post.content.length > 120 && (
+            {isLongPost && (
               <button
                 type="button"
                 onClick={handleSummarize}
                 disabled={isSummarizing}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold transition cursor-pointer ${
-                  summary
+                  summary && summaryOpen
                     ? 'bg-blue-100 dark:bg-blue-900/40 text-[#1877f2] dark:text-blue-400'
                     : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-300 hover:text-[#1877f2]'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#1877f2]" />
-                <span>{isSummarizing ? 'Đang tóm tắt...' : summary ? 'Đóng tóm tắt' : 'Tóm tắt AI'}</span>
+                <span>{isSummarizing ? 'Đang tóm tắt...' : summary && summaryOpen ? 'Ẩn tóm tắt' : 'Tóm tắt AI'}</span>
               </button>
             )}
 
+            {(canTranslate || translatedText) && (
             <button
               type="button"
               onClick={handleTranslate}
@@ -189,10 +215,12 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
                 </>
               )}
             </button>
+            )}
           </div>
+          )}
 
           {/* AI Summary Highlight Box */}
-          {summary && (
+          {isLongPost && summary && summaryOpen && (
             <div className="p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-[#2d88ff]/10 dark:to-[#8b5cf6]/10 border border-blue-200/80 dark:border-blue-900/40 rounded-xl space-y-1 text-xs">
               <div className="flex items-center justify-between text-[#1877f2] dark:text-blue-400 font-bold">
                 <span className="flex items-center gap-1.5">
@@ -201,7 +229,7 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setSummary(null)}
+                  onClick={() => setSummaryOpen(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-[11px]"
                 >
                   ✕
@@ -230,6 +258,8 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
               ) : (
                 <img
                   src={post.mediaUrls[0]}
+                  loading="lazy"
+                  decoding="async"
                   alt="Post media"
                   className="w-full max-h-[550px] object-cover hover:opacity-95 transition cursor-pointer"
                   onClick={() => setShowCommentModal(true)}
@@ -248,6 +278,8 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
                     <img
                       key={i}
                       src={url}
+                      loading="lazy"
+                      decoding="async"
                       alt={`Media ${i}`}
                       className="w-full h-64 object-cover hover:opacity-95 transition cursor-pointer"
                       onClick={() => setShowCommentModal(true)}

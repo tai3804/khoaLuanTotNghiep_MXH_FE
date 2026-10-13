@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 import { Search, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Logo } from '../../common/Logo';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface HeaderBrandSearchProps {
   searchRef: RefObject<HTMLDivElement | null>;
@@ -169,7 +170,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
                         className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition"
                       >
                         <p className="text-xs font-medium text-gray-800 dark:text-[#e4e6eb] line-clamp-2">{p.content}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-[#b0b3b8] mt-1">{p.authorName || (language === 'en' ? 'Member' : 'Thành viên')} • {p.createdAt || (language === 'en' ? 'Just now' : 'Vừa xong')}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-[#b0b3b8] mt-1">{p.authorName || (language === 'en' ? 'Member' : 'Thành viên')} • <TimeAgo iso={p.createdAtRaw} fallback={p.createdAt} /></p>
                       </div>
                     ))}
                   </div>

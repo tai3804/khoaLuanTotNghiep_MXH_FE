@@ -52,6 +52,7 @@ export const LoginModal: React.FC = () => {
     handleVerifyRegisterOtp,
     handleCompleteRegistration,
     handleSubmitLogin,
+    handleQuickLogin,
     toggleRegisterMode,
   } = useLoginForm();
 
@@ -117,6 +118,7 @@ export const LoginModal: React.FC = () => {
             setShowPassword={setShowPassword}
             loading={loading}
             onSubmit={handleSubmitLogin}
+            onQuickLogin={handleQuickLogin}
             onForgotPassword={() => {
               setIsForgotPasswordMode(true);
               setForgotStep(1);

@@ -4,6 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { Comment, Post } from '../../../types';
 import { postService, fetchAuthorProfile, fetchGroupMeta, groupMetaCache } from '../../../services/api';
+import { useNearViewport } from '../../../utils/useNearViewport';
 
 interface UsePostCardDataProps {
   post: Post;
@@ -16,6 +17,9 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const { user, isAuthenticated, openLoginModal } = useAuth();
   const { t, language } = useLanguage();
   const toast = useToast();
+
+  // Cảm xúc, trạng thái đã lưu và bình luận chỉ được nạp khi thẻ sắp vào màn hình (tránh hàng chục request ngay khi mở trang)
+  const [cardRef, nearViewport] = useNearViewport<HTMLDivElement>();
 
   const [liked, setLiked] = useState<boolean>(post.isLiked || false);
   const [likesCount, setLikesCount] = useState<number>(post.likesCount ?? 0);
@@ -182,7 +186,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       setLiked(true);
     }
 
-    if (isAuthenticated && post.id && !post.isOptimistic && !post.id.startsWith('temp-')) {
+    if (isAuthenticated && nearViewport && post.id && !post.isOptimistic && !post.id.startsWith('temp-')) {
       postService
         .getReactions(post.id)
         .then((reactions) => {
@@ -210,7 +214,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
         })
         .catch(() => {});
     }
-  }, [post.id, user?.id, isAuthenticated, post.isLiked]);
+  }, [post.id, user?.id, isAuthenticated, post.isLiked, nearViewport]);
 
   useEffect(() => {
     if (post.isSaved !== undefined) {
@@ -220,7 +224,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
 
   useEffect(() => {
     if (!isAuthenticated || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
-    postService.isPostSaved(post.id).then(setSaved).catch(() => {});
+    if (nearViewport) postService.isPostSaved(post.id).then(setSaved).catch(() => {});
 
     const handleSavedChanged = (e: any) => {
       if (e?.detail && String(e.detail.postId) === String(post.id)) {
@@ -229,10 +233,10 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     };
     window.addEventListener('saved_posts_changed', handleSavedChanged);
     return () => window.removeEventListener('saved_posts_changed', handleSavedChanged);
-  }, [post.id, isAuthenticated, post.isOptimistic]);
+  }, [post.id, isAuthenticated, post.isOptimistic, nearViewport]);
 
   useEffect(() => {
-    if (!post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
+    if (!nearViewport || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
     let isMounted = true;
     setLoadingComments(true);
     postService
@@ -250,7 +254,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     return () => {
       isMounted = false;
     };
-  }, [post.id]);
+  }, [post.id, nearViewport]);
 
   const getReactionLabel = (emoji: string) => {
     switch (emoji) {
@@ -346,6 +350,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
         authorAvatar: user?.avatar || '',
         content: text.trim(),
         createdAt: 'Vừa xong',
+        createdAtRaw: new Date().toISOString(),
         likesCount: 0,
         parentCommentId,
       };
@@ -536,6 +541,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const totalComments = Math.max(comments.length, commentsCount);
 
   return {
+    cardRef,
     user,
     isAuthenticated,
     openLoginModal,

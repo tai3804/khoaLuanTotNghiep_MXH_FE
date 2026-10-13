@@ -21,9 +21,9 @@ const toInputValue = (value?: string) => {
 
 export const EditPostDateModal: React.FC<Props> = ({ isOpen, post, onClose, onUpdated }) => {
   const toast = useToast();
-  const [date, setDate] = useState(toInputValue(post.createdAt));
+  const [date, setDate] = useState(toInputValue(post.createdAtRaw || post.createdAt));
   const [saving, setSaving] = useState(false);
-  useEffect(() => setDate(toInputValue(post.createdAt)), [post.createdAt, isOpen]);
+  useEffect(() => setDate(toInputValue(post.createdAtRaw || post.createdAt)), [post.createdAtRaw, post.createdAt, isOpen]);
   if (!isOpen) return null;
   const save = async () => {
     if (!date) return;
