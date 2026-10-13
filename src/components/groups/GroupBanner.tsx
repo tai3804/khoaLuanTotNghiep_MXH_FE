@@ -2,6 +2,7 @@ import React from 'react';
 import { Globe, Lock, Image as ImageIcon, UserPlus, Settings, Users, Clock } from 'lucide-react';
 import { CommunityGroupMember } from '../../services/groupService';
 import { UserAvatar } from '../common/UserAvatar';
+import { GroupAvatar } from '../common/GroupAvatar';
 
 export interface GroupData {
   id?: string;
@@ -44,15 +45,24 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
 
   return (
-    <div className="w-full bg-white dark:bg-[#242526] shadow-sm rounded-2xl border border-gray-200 dark:border-[#393a3b] overflow-hidden">
+    <div className="w-full bg-white dark:bg-[#242526] shadow-sm rounded-3xl border border-gray-200 dark:border-[#393a3b] overflow-hidden">
       {/* Cover Photo Frame */}
       {(() => {
         const hasCover = typeof group.coverUrl === 'string' && group.coverUrl.trim() && !group.coverUrl.includes('images.unsplash.com/photo-1522071820081');
         return (
-          <div className="relative h-48 sm:h-72 w-full bg-gradient-to-br from-slate-100 via-gray-200 to-slate-300 dark:from-[#242526] dark:via-[#3a3b3c] dark:to-[#18191a] flex items-center justify-center overflow-hidden">
+          <div className="relative h-56 sm:h-80 md:h-96 w-full bg-gradient-to-br from-slate-100 via-gray-200 to-slate-300 dark:from-[#242526] dark:via-[#3a3b3c] dark:to-[#18191a] flex items-center justify-center overflow-hidden">
             {hasCover ? (
               <img src={group.coverUrl} alt="Cover" className="w-full h-full object-cover" />
-            ) : null}
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 via-gray-300 to-slate-200 dark:from-[#2a2b2d] dark:via-[#343538] dark:to-[#222325]">
+                <GroupAvatar
+                  name={group.name}
+                  size="2xl"
+                  shape="squircle"
+                  className="scale-125 shadow-2xl ring-8 ring-white/30 dark:ring-white/10"
+                />
+              </div>
+            )}
             {group.isAdmin && (
               <button className="absolute bottom-4 right-4 bg-white/90 dark:bg-[#3a3b3c]/90 hover:bg-white dark:hover:bg-[#4e4f50] text-gray-900 dark:text-[#e4e6eb] px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md transition cursor-pointer backdrop-blur-sm">
                 <ImageIcon className="w-4 h-4" />
