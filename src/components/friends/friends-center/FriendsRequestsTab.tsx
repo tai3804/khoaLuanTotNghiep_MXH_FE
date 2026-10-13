@@ -4,6 +4,7 @@ import { FacebookFriendCard } from './FacebookFriendCard';
 
 interface FriendsRequestsTabProps {
   requests: any[];
+  searchTerm?: string;
   loading: boolean;
   t: (key: string) => string;
   setActiveTab: (tab: 'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following') => void;
@@ -32,6 +33,7 @@ const SkeletonCards = () => (
 
 export const FriendsRequestsTab: React.FC<FriendsRequestsTabProps> = ({
   requests,
+  searchTerm = '',
   loading,
   t,
   setActiveTab,
@@ -39,6 +41,13 @@ export const FriendsRequestsTab: React.FC<FriendsRequestsTabProps> = ({
   onRejectRequest,
   onViewProfile,
 }) => {
+  const filteredRequests = requests.filter((r) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    const name = (r.name || r.fullName || r.senderName || `${r.lastName || ''} ${r.firstName || ''}`).toLowerCase();
+    return name.includes(term);
+  });
+
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
       <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-[#393a3b]">
@@ -47,7 +56,9 @@ export const FriendsRequestsTab: React.FC<FriendsRequestsTabProps> = ({
             {t('friends.requests')}
           </h2>
           <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-            {requests.length}
+            {filteredRequests.length !== requests.length
+              ? `${filteredRequests.length} / ${requests.length} lời mời`
+              : `${requests.length} lời mời`}
           </p>
         </div>
       </div>
@@ -74,7 +85,7 @@ export const FriendsRequestsTab: React.FC<FriendsRequestsTabProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-          {requests.map((item) => (
+          {filteredRequests.map((item) => (
             <FacebookFriendCard
               key={item.id}
               item={item}

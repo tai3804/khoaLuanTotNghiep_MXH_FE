@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { FacebookFriendCard } from './FacebookFriendCard';
 import { ChatUser } from '../../../components/chat/chat-box';
 
@@ -50,26 +50,16 @@ export const FriendsAllTab: React.FC<FriendsAllTabProps> = ({
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200 dark:border-[#393a3b]">
+      <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-[#393a3b]">
         <div>
           <h2 className="text-2xl font-black text-gray-900 dark:text-[#e4e6eb]">
             {t('friends.allFriends')}
           </h2>
           <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-            {friends.length}
+            {filteredFriends.length !== friends.length
+              ? `${filteredFriends.length} / ${friends.length} người bạn`
+              : `${friends.length} người bạn`}
           </p>
-        </div>
-
-        {/* Search Friends Input */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('friends.searchPlaceholder')}
-            className="w-full bg-white dark:bg-[#242526] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 pl-9 pr-4 py-2 rounded-full border border-gray-200 dark:border-[#393a3b] text-xs focus:outline-none focus:ring-1 focus:ring-[#1877f2] shadow-sm"
-          />
         </div>
       </div>
 

@@ -9,7 +9,7 @@ export const useFriendsData = () => {
   const { t } = useLanguage();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('friends');
   const [friends, setFriends] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Home, UserPlus, Sparkles, UserCheck, Heart, Users } from 'lucide-react';
+import { RefreshCw, Search, UserPlus, Sparkles, UserCheck, X } from 'lucide-react';
 
 interface FriendsTopNavProps {
   activeTab: 'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following';
@@ -25,67 +25,91 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
   requestsCount,
   suggestionsCount,
   friendsCount,
-  followersCount,
-  followingCount,
   t,
   onRefresh,
 }) => {
+  // Chỉ giữ lại 3 option: Tất cả, Lời mời, Gợi ý
   const tabs = [
-    { id: 'home', label: t('friends.home') || 'Tổng quan', icon: Home, count: null },
+    { id: 'friends', label: t('friends.allFriends') || 'Tất cả bạn bè', icon: UserCheck, count: friendsCount },
     { id: 'requests', label: t('friends.requests') || 'Lời mời kết bạn', icon: UserPlus, count: requestsCount },
     { id: 'suggestions', label: t('friends.suggestions') || 'Gợi ý kết bạn', icon: Sparkles, count: suggestionsCount },
-    { id: 'friends', label: t('friends.allFriends') || 'Tất cả bạn bè', icon: UserCheck, count: friendsCount },
-    { id: 'followers', label: t('friends.followers') || 'Người theo dõi', icon: Heart, count: followersCount },
-    { id: 'following', label: t('friends.following') || 'Đang theo dõi', icon: Users, count: followingCount },
   ];
 
   return (
-    <div className="mb-4">
-      {/* Freestanding Navigation Option Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                setSearchTerm('');
-              }}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count !== null && tab.count > 0 && (
-                <span
-                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : tab.id === 'requests'
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+    <div className="mb-4 space-y-3">
+      {/* Row 1: 3 Option Pills & Refresh Button */}
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 flex-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                }}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.count !== null && tab.count > 0 && (
+                  <span
+                    className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : tab.id === 'requests'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Refresh button at the end of the pills */}
+        {/* Refresh button */}
         <button
           onClick={onRefresh}
           title="Làm mới danh sách"
-          className="p-2 rounded-xl bg-white dark:bg-[#242526] border border-gray-200/80 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0 ml-auto"
+          className="p-2 rounded-xl bg-white dark:bg-[#242526] border border-gray-200/80 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0 shadow-2xs"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
+      </div>
+
+      {/* Row 2: Thanh tìm kiếm cố định mềm mại (rounded-full chuẩn Facebook) */}
+      <div className="relative w-full">
+        <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder={
+            activeTab === 'requests'
+              ? 'Tìm kiếm lời mời kết bạn...'
+              : activeTab === 'suggestions'
+              ? 'Tìm kiếm gợi ý kết bạn...'
+              : 'Tìm kiếm bạn bè...'
+          }
+          className="w-full pl-9.5 pr-9 py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm('')}
+            className="absolute right-3.5 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+            title="Xóa tìm kiếm"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

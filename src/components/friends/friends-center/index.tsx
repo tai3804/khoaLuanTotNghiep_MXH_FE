@@ -106,6 +106,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         {activeTab === 'requests' && (
           <FriendsRequestsTab
             requests={requests}
+            searchTerm={searchTerm}
             loading={loading}
             t={t}
             setActiveTab={setActiveTab}
@@ -119,6 +120,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
           <FriendsSuggestionsTab
             visibleSuggestions={visibleSuggestions}
             sentRequests={sentRequests}
+            searchTerm={searchTerm}
             loading={loading}
             t={t}
             onAddFriend={handleAddFriend}
