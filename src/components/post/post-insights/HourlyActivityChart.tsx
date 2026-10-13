@@ -23,29 +23,29 @@ export const HourlyActivityChart: React.FC<HourlyActivityChartProps> = ({
   const maxViews = Math.max(...data.map((d) => d.views), 1);
 
   return (
-    <div className="bg-white dark:bg-gray-800/60 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-2xs space-y-4">
+    <div className="bg-gray-50/80 dark:bg-[#1a1b1d] p-5 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-2xs space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+          <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
             Xu hướng xem theo khung giờ
           </h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
             Số lượt xem & tương tác theo các mốc trong ngày
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-xs bg-blue-500" />
-            <span className="text-gray-500 dark:text-gray-400">Lượt xem</span>
+            <span className="w-2.5 h-2.5 rounded-xs bg-[#1877f2]" />
+            <span className="text-gray-500 dark:text-[#b0b3b8]">Lượt xem</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-xs bg-purple-500" />
-            <span className="text-gray-500 dark:text-gray-400">Tương tác</span>
+            <span className="text-gray-500 dark:text-[#b0b3b8]">Tương tác</span>
           </div>
         </div>
       </div>
 
-      <div className="pt-4 flex items-end justify-between gap-2 h-36 border-b border-gray-100 dark:border-gray-800 pb-2">
+      <div className="pt-4 flex items-end justify-between gap-2 h-36 border-b border-gray-200 dark:border-[#393a3b] pb-2">
         {data.map((item) => {
           const viewHeight = Math.max(8, (item.views / maxViews) * 100);
           const engHeight = Math.max(4, (item.engagements / maxViews) * 100);
@@ -69,7 +69,7 @@ export const HourlyActivityChart: React.FC<HourlyActivityChartProps> = ({
                   className="w-2 sm:w-2.5 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-sm transition-all duration-300 group-hover:brightness-110"
                 />
               </div>
-              <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+              <span className="text-[10px] font-medium text-gray-500 dark:text-[#b0b3b8]">
                 {item.hour}
               </span>
             </div>

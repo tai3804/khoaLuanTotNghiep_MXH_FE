@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Lock, MessageSquare, Image, Wifi, BatteryMedium } from 'lucide-react';
+import { Globe, Lock, MessageSquare, Image, Wifi, BatteryMedium, Camera } from 'lucide-react';
 import { GroupAvatar } from '../../common/GroupAvatar';
 import { UserAvatar } from '../../common/UserAvatar';
 
@@ -8,6 +8,9 @@ interface CreateGroupMobilePreviewProps {
   name: string;
   description: string;
   privacy: 'PUBLIC' | 'PRIVATE';
+  coverUrl?: string;
+  onSelectCover?: () => void;
+  uploadingCover?: boolean;
   memberCount: number;
 }
 
@@ -16,6 +19,9 @@ export const CreateGroupMobilePreview: React.FC<CreateGroupMobilePreviewProps> =
   name,
   description,
   privacy,
+  coverUrl,
+  onSelectCover,
+  uploadingCover,
   memberCount,
 }) => {
   const displayName = name.trim() || 'Tên nhóm của bạn';
@@ -39,10 +45,15 @@ export const CreateGroupMobilePreview: React.FC<CreateGroupMobilePreviewProps> =
         </div>
 
         {/* Mobile Cover Banner */}
-        <div className="h-32 w-full relative flex items-center justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 overflow-hidden">
-          <div className="opacity-35 transform scale-110">
-            <GroupAvatar name={displayName} size="xl" shape="squircle" />
-          </div>
+        <div className="h-32 w-full relative flex items-center justify-center bg-gray-100 dark:bg-[#1a1b1d] border-b border-gray-200 dark:border-[#393a3b] overflow-hidden">
+          {coverUrl ? (
+            <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="flex flex-col items-center gap-1 text-gray-400 dark:text-[#b0b3b8]">
+              <Camera className="w-5 h-5 opacity-50" />
+              <span className="text-[10px]">Chưa có ảnh bìa</span>
+            </div>
+          )}
         </div>
 
         {/* Mobile Header Info */}

@@ -12,6 +12,9 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
+  Camera,
+  Trash2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 
@@ -21,6 +24,10 @@ interface CreateGroupSidebarProps {
   setName: (name: string) => void;
   description: string;
   setDescription: (desc: string) => void;
+  coverUrl?: string;
+  setCoverUrl?: (url: string) => void;
+  uploadingCover?: boolean;
+  onSelectCover?: () => void;
   privacy: 'PUBLIC' | 'PRIVATE';
   setPrivacy: (p: 'PUBLIC' | 'PRIVATE') => void;
   postApprovalRequired: boolean;
@@ -48,6 +55,10 @@ export const CreateGroupSidebar: React.FC<CreateGroupSidebarProps> = ({
   setName,
   description,
   setDescription,
+  coverUrl = '',
+  setCoverUrl,
+  uploadingCover = false,
+  onSelectCover,
   privacy,
   setPrivacy,
   postApprovalRequired,
@@ -135,6 +146,57 @@ export const CreateGroupSidebar: React.FC<CreateGroupSidebarProps> = ({
             className="w-full px-4 py-2.5 bg-gray-50/80 dark:bg-[#1a1b1d] border border-gray-200 dark:border-[#393a3b] rounded-2xl text-xs sm:text-sm text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-none focus:border-[#1877f2] focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
             autoFocus
           />
+        </div>
+
+        {/* Cover Photo Picker */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8] flex items-center justify-between">
+            <span>Ảnh bìa nhóm (Tùy chọn)</span>
+            {coverUrl && (
+              <button
+                type="button"
+                onClick={() => setCoverUrl?.('')}
+                className="text-[11px] text-red-500 hover:text-red-600 transition flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Gỡ ảnh</span>
+              </button>
+            )}
+          </label>
+
+          {coverUrl ? (
+            <div className="relative h-28 w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-[#393a3b] group">
+              <img src={coverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={onSelectCover}
+                disabled={uploadingCover}
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Thay đổi ảnh bìa</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onSelectCover}
+              disabled={uploadingCover}
+              className="w-full py-3 px-4 rounded-2xl border border-dashed border-gray-300 dark:border-[#393a3b] hover:border-[#1877f2] dark:hover:border-[#1877f2] bg-gray-50/60 dark:bg-[#1a1b1d] transition flex items-center justify-center gap-2 text-xs font-bold text-gray-700 dark:text-[#e4e6eb] cursor-pointer disabled:opacity-60"
+            >
+              {uploadingCover ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#1877f2]" />
+                  <span>Đang tải ảnh bìa lên...</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-4 h-4 text-[#1877f2]" />
+                  <span>Tải ảnh bìa nhóm lên</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Privacy Selector Cards */}

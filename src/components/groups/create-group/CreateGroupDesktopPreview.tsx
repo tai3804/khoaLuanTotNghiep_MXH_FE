@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Lock, Users, Sparkles, MessageSquare, Image, Shield } from 'lucide-react';
+import { Globe, Lock, Users, Sparkles, MessageSquare, Image, Shield, Camera } from 'lucide-react';
 import { GroupAvatar } from '../../common/GroupAvatar';
 import { UserAvatar } from '../../common/UserAvatar';
 
@@ -8,6 +8,9 @@ interface CreateGroupDesktopPreviewProps {
   name: string;
   description: string;
   privacy: 'PUBLIC' | 'PRIVATE';
+  coverUrl?: string;
+  onSelectCover?: () => void;
+  uploadingCover?: boolean;
   memberCount: number;
 }
 
@@ -16,6 +19,9 @@ export const CreateGroupDesktopPreview: React.FC<CreateGroupDesktopPreviewProps>
   name,
   description,
   privacy,
+  coverUrl,
+  onSelectCover,
+  uploadingCover,
   memberCount,
 }) => {
   const displayName = name.trim() || 'Tên nhóm của bạn';
@@ -23,15 +29,29 @@ export const CreateGroupDesktopPreview: React.FC<CreateGroupDesktopPreviewProps>
   return (
     <div className="w-full max-w-[880px] xl:max-w-[920px] bg-white dark:bg-[#242526] rounded-2xl shadow-xl border border-gray-200/90 dark:border-[#393a3b] overflow-hidden transition-all duration-300">
       {/* Cover Banner Mockup */}
-      <div className="h-56 sm:h-72 w-full relative flex items-center justify-center overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500">
-        {/* Subtle Background Pattern */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
-        <div className="opacity-35 transform scale-125 transition-transform duration-300">
-          <GroupAvatar name={displayName} size="2xl" shape="squircle" />
-        </div>
-        <div className="absolute bottom-3 right-3 bg-black/40 backdrop-blur-md text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg">
-          Ảnh bìa nhóm
-        </div>
+      <div className="h-56 sm:h-72 w-full relative flex items-center justify-center overflow-hidden bg-gray-100 dark:bg-[#1a1b1d] border-b border-gray-200 dark:border-[#393a3b]">
+        {coverUrl ? (
+          <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-[#b0b3b8]">
+            <div className="w-12 h-12 rounded-full bg-gray-200/80 dark:bg-[#2b2d30] flex items-center justify-center text-gray-500 dark:text-gray-400 shadow-xs">
+              <Camera className="w-6 h-6" />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-[#b0b3b8]">
+              Chưa có ảnh bìa tùy chỉnh
+            </span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onSelectCover}
+          disabled={uploadingCover}
+          className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white text-xs font-bold px-3 py-1.5 rounded-xl backdrop-blur-sm transition flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-60"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>{coverUrl ? 'Chỉnh sửa ảnh bìa' : 'Thêm ảnh bìa'}</span>
+        </button>
       </div>
 
       {/* Group Info Header */}

@@ -27,7 +27,7 @@ export const GroupManagementTab = ({ group, onNavigate }: Props) => {
 
   const moderator = group.isModerator && !group.isAdmin;
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       <section className="rounded-2xl bg-white p-6 shadow dark:bg-[#242526]">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-blue-100 p-3 text-[#1877f2] dark:bg-blue-900/30"><ShieldCheck size={25} /></div>

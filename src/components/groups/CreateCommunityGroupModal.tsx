@@ -24,6 +24,11 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
     setName,
     description,
     setDescription,
+    coverUrl,
+    setCoverUrl,
+    uploadingCover,
+    coverInputRef,
+    handleCoverUpload,
     privacy,
     setPrivacy,
     postApprovalRequired,
@@ -50,6 +55,15 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] bg-[#f0f2f5] dark:bg-[#18191a] flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-200">
+      {/* Hidden file input for uploading cover photo */}
+      <input
+        type="file"
+        ref={coverInputRef}
+        onChange={handleCoverUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Left Sidebar Controller */}
       <CreateGroupSidebar
         user={user}
@@ -57,6 +71,10 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
         setName={setName}
         description={description}
         setDescription={setDescription}
+        coverUrl={coverUrl}
+        setCoverUrl={setCoverUrl}
+        uploadingCover={uploadingCover}
+        onSelectCover={() => coverInputRef.current?.click()}
         privacy={privacy}
         setPrivacy={setPrivacy}
         postApprovalRequired={postApprovalRequired}
@@ -126,6 +144,9 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
               name={name}
               description={description}
               privacy={privacy}
+              coverUrl={coverUrl}
+              onSelectCover={() => coverInputRef.current?.click()}
+              uploadingCover={uploadingCover}
               memberCount={selectedFriendIds.size + 1}
             />
           ) : (
@@ -134,6 +155,9 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
               name={name}
               description={description}
               privacy={privacy}
+              coverUrl={coverUrl}
+              onSelectCover={() => coverInputRef.current?.click()}
+              uploadingCover={uploadingCover}
               memberCount={selectedFriendIds.size + 1}
             />
           )}

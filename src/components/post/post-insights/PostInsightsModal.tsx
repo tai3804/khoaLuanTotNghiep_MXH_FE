@@ -51,57 +51,60 @@ export const PostInsightsModal: React.FC<PostInsightsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+    >
       <div
-        className="w-full max-w-2xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-2xl bg-white dark:bg-[#242526] rounded-3xl shadow-2xl border border-gray-200 dark:border-[#393a3b] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 cursor-default"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#393a3b] bg-gray-50/70 dark:bg-[#1f2021]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-[#1877f2] text-white flex items-center justify-center shadow-md shadow-blue-500/20">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-gray-900 dark:text-[#e4e6eb] flex items-center gap-2">
                 Thông tin chi tiết về bài viết
-                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
+                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-[#1877f2] dark:text-blue-300 font-semibold px-2 py-0.5 rounded-full">
                   Facebook Insights
                 </span>
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
                 Hiệu suất tiếp cận, số lượt xem và tương tác của người xem
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-6 overflow-y-auto space-y-5 flex-1">
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-8 h-8 text-[#1877f2] animate-spin" />
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
                 Đang tổng hợp số liệu phân tích bài viết...
               </p>
             </div>
           ) : !insights ? (
-            <div className="py-16 text-center text-gray-500 dark:text-gray-400 text-sm">
+            <div className="py-16 text-center text-gray-500 dark:text-[#b0b3b8] text-sm">
               Không thể tải thông tin chi tiết bài viết này.
             </div>
           ) : (
             <>
               {/* Snippet Card */}
               {insights.contentSnippet && (
-                <div className="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-300 flex items-start gap-2.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                  <div className="line-clamp-2 italic">
+                <div className="p-3.5 bg-gray-50 dark:bg-[#1a1b1d] rounded-2xl border border-gray-200 dark:border-[#393a3b] text-xs text-gray-700 dark:text-[#e4e6eb] flex items-start gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-[#1877f2] mt-1.5 shrink-0" />
+                  <div className="line-clamp-2 italic leading-relaxed">
                     "{insights.contentSnippet}"
                   </div>
                 </div>
@@ -141,37 +144,37 @@ export const PostInsightsModal: React.FC<PostInsightsModalProps> = ({
 
               {/* Secondary Metrics */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white dark:bg-gray-800 text-rose-500 shadow-2xs">
+                <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-[#1a1b1d] border border-gray-200 dark:border-[#393a3b] flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white dark:bg-[#242526] text-rose-500 shadow-2xs border border-gray-100 dark:border-[#393a3b]/60">
                     <Heart className="w-4 h-4 fill-rose-500" />
                   </div>
                   <div>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">Lượt thích</span>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                    <span className="text-[11px] text-gray-500 dark:text-[#b0b3b8]">Lượt thích</span>
+                    <p className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
                       {insights.likes}
                     </p>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white dark:bg-gray-800 text-blue-500 shadow-2xs">
+                <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-[#1a1b1d] border border-gray-200 dark:border-[#393a3b] flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white dark:bg-[#242526] text-[#1877f2] shadow-2xs border border-gray-100 dark:border-[#393a3b]/60">
                     <MessageCircle className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">Bình luận</span>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                    <span className="text-[11px] text-gray-500 dark:text-[#b0b3b8]">Bình luận</span>
+                    <p className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
                       {insights.comments}
                     </p>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-white dark:bg-gray-800 text-emerald-500 shadow-2xs">
+                <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-[#1a1b1d] border border-gray-200 dark:border-[#393a3b] flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white dark:bg-[#242526] text-emerald-500 shadow-2xs border border-gray-100 dark:border-[#393a3b]/60">
                     <Share2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">Chia sẻ</span>
-                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                    <span className="text-[11px] text-gray-500 dark:text-[#b0b3b8]">Chia sẻ</span>
+                    <p className="text-base font-bold text-gray-900 dark:text-[#e4e6eb]">
                       {insights.shares}
                     </p>
                   </div>
@@ -185,13 +188,13 @@ export const PostInsightsModal: React.FC<PostInsightsModalProps> = ({
               <HourlyActivityChart data={insights.hourlyViews} />
 
               {/* Creator Tip */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-500/20 flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-900/15 border border-blue-200 dark:border-blue-800/30 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-[#1877f2] shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <h5 className="font-bold text-amber-900 dark:text-amber-300">
+                  <h5 className="font-bold text-gray-900 dark:text-[#e4e6eb]">
                     Mẹo tối ưu hóa tương tác bài viết
                   </h5>
-                  <p className="text-amber-800 dark:text-amber-400/90 leading-relaxed">
+                  <p className="text-gray-600 dark:text-[#b0b3b8] leading-relaxed">
                     Bài viết đạt lưu lượng tương tác cao nhất từ Bảng tin người theo dõi. Đặt câu hỏi mở ở cuối bài hoặc gắn hashtag thịnh hành sẽ kích thích bình luận tăng thêm 35%.
                   </p>
                 </div>

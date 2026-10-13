@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { groupService, GroupResponse } from '../../../services/groupService';
 import { userService } from '../../../services/userService';
+import { mediaService } from '../../../services/mediaService';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -15,6 +16,9 @@ export const useCreateGroupData = ({ isOpen, onClose, onGroupCreated }: UseCreat
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [privacy, setPrivacy] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [postApprovalRequired, setPostApprovalRequired] = useState(false);
   const [rules, setRules] = useState('');
@@ -32,6 +36,7 @@ export const useCreateGroupData = ({ isOpen, onClose, onGroupCreated }: UseCreat
     if (isOpen) {
       setName('');
       setDescription('');
+      setCoverUrl('');
       setSelectedFriendIds(new Set());
       setPostApprovalRequired(false);
       setRules('');
@@ -40,6 +45,24 @@ export const useCreateGroupData = ({ isOpen, onClose, onGroupCreated }: UseCreat
       loadFriends();
     }
   }, [isOpen]);
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingCover(true);
+      const media = await mediaService.uploadMedia(file, 'groups');
+      if (media?.fileUrl) {
+        setCoverUrl(media.fileUrl);
+        toast.showSuccess('Đã tải ảnh bìa lên thành công!');
+      }
+    } catch (err: any) {
+      toast.showError(err?.message || 'Không thể tải ảnh bìa lên.');
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
 
   const loadFriends = async () => {
     setLoadingFriends(true);
@@ -100,6 +123,7 @@ export const useCreateGroupData = ({ isOpen, onClose, onGroupCreated }: UseCreat
         name: name.trim(),
         description: description.trim(),
         privacy,
+        coverUrl: coverUrl.trim() || undefined,
         initialMemberIds: Array.from(selectedFriendIds),
         postApprovalRequired,
         rules: rules.trim(),
@@ -124,6 +148,11 @@ export const useCreateGroupData = ({ isOpen, onClose, onGroupCreated }: UseCreat
     setName,
     description,
     setDescription,
+    coverUrl,
+    setCoverUrl,
+    uploadingCover,
+    coverInputRef,
+    handleCoverUpload,
     privacy,
     setPrivacy,
     postApprovalRequired,

@@ -32,18 +32,18 @@ export const TrafficSourcesBreakdown: React.FC<TrafficSourcesBreakdownProps> = (
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800/60 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-2xs space-y-4">
+    <div className="bg-gray-50/80 dark:bg-[#1a1b1d] p-5 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-2xs space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+        <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
           Nguồn lưu lượng truy cập
         </h4>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-gray-500 dark:text-[#b0b3b8]">
           Tỷ lệ %
         </span>
       </div>
 
       {/* Multi-segment Progress Bar */}
-      <div className="w-full h-3 bg-gray-100 dark:bg-gray-700/60 rounded-full overflow-hidden flex shadow-inner">
+      <div className="w-full h-3 bg-gray-200 dark:bg-[#3a3b3c] rounded-full overflow-hidden flex shadow-inner">
         {Object.entries(sources).map(([name, pct], idx) => (
           <div
             key={name}
@@ -58,14 +58,14 @@ export const TrafficSourcesBreakdown: React.FC<TrafficSourcesBreakdownProps> = (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
         {Object.entries(sources).map(([name, pct], idx) => {
           return (
-            <div key={name} className="flex items-center justify-between text-xs p-2 rounded-xl bg-gray-50 dark:bg-gray-800/80">
+            <div key={name} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-white dark:bg-[#242526] border border-gray-100 dark:border-[#393a3b]/60">
               <div className="flex items-center gap-2 truncate">
                 <span className={`w-2.5 h-2.5 rounded-full ${getSourceColor(idx)} shrink-0`} />
-                <span className="text-gray-700 dark:text-gray-300 truncate font-medium">
+                <span className="text-gray-700 dark:text-[#b0b3b8] truncate font-medium">
                   {name}
                 </span>
               </div>
-              <span className="font-bold text-gray-900 dark:text-white shrink-0 ml-2">
+              <span className="font-bold text-gray-900 dark:text-[#e4e6eb] shrink-0 ml-2">
                 {pct.toFixed(1)}%
               </span>
             </div>

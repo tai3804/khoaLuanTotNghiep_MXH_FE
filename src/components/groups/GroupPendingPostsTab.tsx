@@ -73,7 +73,7 @@ export const GroupPendingPostsTab: React.FC<{ group: GroupResponse }> = ({ group
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-4">
+    <div className="w-full space-y-4">
       {/* Header Banner */}
       <GroupPendingPostsHeader count={posts.length} />
 
