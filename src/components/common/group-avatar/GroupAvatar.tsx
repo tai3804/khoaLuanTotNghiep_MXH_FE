@@ -13,14 +13,14 @@ export interface GroupAvatarProps {
 
 // 8 bảng màu gradient thời thượng và trang nhã dành cho cộng đồng
 const GRADIENT_PALETTES = [
-  'from-blue-600 via-indigo-600 to-indigo-800 text-white shadow-blue-500/20',
-  'from-emerald-500 via-teal-600 to-teal-800 text-white shadow-emerald-500/20',
-  'from-violet-600 via-purple-600 to-indigo-800 text-white shadow-purple-500/20',
-  'from-amber-500 via-orange-500 to-rose-600 text-white shadow-orange-500/20',
-  'from-sky-500 via-blue-600 to-indigo-700 text-white shadow-sky-500/20',
-  'from-rose-500 via-pink-600 to-purple-700 text-white shadow-rose-500/20',
-  'from-cyan-500 via-teal-600 to-blue-700 text-white shadow-cyan-500/20',
-  'from-fuchsia-600 via-pink-600 to-rose-600 text-white shadow-fuchsia-500/20',
+  'from-blue-600 via-indigo-600 to-indigo-800 text-white',
+  'from-emerald-500 via-teal-600 to-teal-800 text-white',
+  'from-violet-600 via-purple-600 to-indigo-800 text-white',
+  'from-amber-500 via-orange-500 to-rose-600 text-white',
+  'from-sky-500 via-blue-600 to-indigo-700 text-white',
+  'from-rose-500 via-pink-600 to-purple-700 text-white',
+  'from-cyan-500 via-teal-600 to-blue-700 text-white',
+  'from-fuchsia-600 via-pink-600 to-rose-600 text-white',
 ];
 
 const getGradientForName = (name: string): string => {
@@ -78,7 +78,7 @@ export const GroupAvatar: React.FC<GroupAvatarProps> = ({
     '2xl': 'w-10 h-10',
   };
 
-  const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-xl';
+  const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-2xl';
   const baseSize = sizeClasses[size] || sizeClasses.md;
   const iconSize = iconSizes[size] || iconSizes.md;
   const initials = getGroupInitials(name);
@@ -105,17 +105,15 @@ export const GroupAvatar: React.FC<GroupAvatarProps> = ({
     <div
       onClick={onClick}
       title={title || name}
-      className={`relative shrink-0 flex items-center justify-center font-bold tracking-wider bg-gradient-to-tr ${gradient} ${shapeClass} ${baseSize} border border-white/20 dark:border-white/10 shadow-sm select-none transition-all duration-200 ${className}`}
+      className={`relative shrink-0 overflow-hidden flex items-center justify-center font-bold tracking-wider bg-gradient-to-tr ${gradient} ${shapeClass} ${baseSize} select-none transition-all duration-200 ${className}`}
     >
       {initials ? (
-        <span className="drop-shadow-xs font-extrabold uppercase">
+        <span className="font-extrabold uppercase select-none drop-shadow-xs">
           {initials}
         </span>
       ) : (
         <Users className={`${iconSize} opacity-90`} />
       )}
-      {/* Subtle modern specular highlight on top border */}
-      <div className="absolute inset-0 rounded-inherit bg-gradient-to-b from-white/15 to-transparent pointer-events-none" />
     </div>
   );
 };

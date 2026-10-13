@@ -42,7 +42,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     const initial = alt && alt !== 'Avatar' && alt.trim() ? alt.trim().charAt(0).toUpperCase() : '';
     return (
       <div
-        className={`${baseSizeClass} rounded-full bg-zinc-800 text-zinc-300 font-semibold border border-zinc-700/80 shadow-sm shrink-0 flex items-center justify-center select-none ${className}`}
+        className={`${baseSizeClass} rounded-full bg-zinc-800 text-zinc-300 font-semibold border border-zinc-700/80 shadow-sm shrink-0 flex items-center justify-center select-none overflow-hidden ${className}`}
         title={alt}
       >
         {initial ? <span>{initial}</span> : <User className={`${iconSizeClass} text-zinc-400`} />}
