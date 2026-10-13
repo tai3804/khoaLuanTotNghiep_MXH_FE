@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Header } from '../components/layout/header-bar';
 import { SidebarLeft } from '../components/layout/SidebarLeft';
 import { SidebarRight } from '../components/layout/SidebarRight';
@@ -7,7 +7,7 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { postService } from '../services/api';
-import { FileQuestion, Loader2, CheckCircle2, PlaySquare, Flame, Clock, RefreshCw } from 'lucide-react';
+import { FileQuestion, Loader2, CheckCircle2, PlaySquare, Flame, Clock, RefreshCw, Search, X } from 'lucide-react';
 
 interface WatchPageProps {
   activeNavTab: string;
@@ -41,6 +41,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
   const [activeWatchTab, setActiveWatchTab] = useState<'for_you' | 'trending' | 'recent'>('for_you');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchWatchFeed = async (isLoadMore = false) => {
     if (isLoadMore) {
@@ -100,6 +101,17 @@ export const WatchPage: React.FC<WatchPageProps> = ({
     setPosts(posts.filter((p) => p.id !== postId));
   };
 
+  const displayedPosts = useMemo(() => {
+    if (!searchTerm.trim()) return posts;
+    const q = searchTerm.toLowerCase();
+    return posts.filter(
+      (p) =>
+        p.content?.toLowerCase().includes(q) ||
+        p.user?.name?.toLowerCase().includes(q) ||
+        p.authorName?.toLowerCase().includes(q)
+    );
+  }, [posts, searchTerm]);
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
       <Header
@@ -137,7 +149,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({
 
         <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           
-          {/* Watch Navigation Option Pills */}
+          {/* Watch Navigation Option Pills & Right Search + Reload */}
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
               <button
@@ -180,30 +192,57 @@ export const WatchPage: React.FC<WatchPageProps> = ({
               </button>
             </div>
 
-            <button
-              onClick={() => fetchWatchFeed()}
-              title="Làm mới video"
-              className="p-2 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs shrink-0"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            {/* Right side: Compact Soft Capsule Search Bar & Reload Button */}
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <div className="relative w-36 sm:w-52">
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm kiếm video..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => fetchWatchFeed()}
+                title="Làm mới video"
+                className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
 
           {loading && posts.length === 0 ? (
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
             </div>
-          ) : posts.length === 0 ? (
+          ) : displayedPosts.length === 0 ? (
             <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
               <FileQuestion className="w-12 h-12 text-gray-400 mx-auto" />
-              <h4 className="font-bold text-base text-gray-800 dark:text-[#e4e6eb]">Chưa có video nào</h4>
+              <h4 className="font-bold text-base text-gray-800 dark:text-[#e4e6eb]">
+                {searchTerm ? 'Không tìm thấy video phù hợp' : 'Chưa có video nào'}
+              </h4>
               <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-sm mx-auto">
-                Hiện tại không có bài viết nào chứa video trên hệ thống.
+                {searchTerm
+                  ? 'Hãy thử tìm kiếm với từ khóa khác.'
+                  : 'Hiện tại không có bài viết nào chứa video trên hệ thống.'}
               </p>
             </div>
           ) : (
             <>
-              {posts.map((post) => (
+              {displayedPosts.map((post) => (
                 <PostCard
                   key={post.id}
                   post={post}

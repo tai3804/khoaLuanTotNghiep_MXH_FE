@@ -12,6 +12,8 @@ export interface User {
   bio?: string;
   createdAt?: string;
   roles?: string[];
+  isProfessionalMode?: boolean;
+  creatorCategory?: string;
 }
 
 export interface UserProfile {

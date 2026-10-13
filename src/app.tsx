@@ -103,7 +103,8 @@ export const App: React.FC = () => {
   };
 
   let activeNavTab = 'home';
-  if (path.startsWith('/settings')) activeNavTab = 'settings';
+  if (path.startsWith('/profile/creator-dashboard')) activeNavTab = 'creator-dashboard';
+  else if (path.startsWith('/settings')) activeNavTab = 'settings';
   else if (path.startsWith('/profile')) activeNavTab = 'profile';
   else if (path.startsWith('/friends')) activeNavTab = 'friends';
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
@@ -114,6 +115,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (path === '/') setActiveSidebarFilter('home');
+    else if (path.startsWith('/profile/creator-dashboard')) setActiveSidebarFilter('creator-dashboard');
     else if (path.startsWith('/friends')) setActiveSidebarFilter('friends');
     else if (path.startsWith('/groups')) setActiveSidebarFilter('groups');
     else if (path.startsWith('/watch')) setActiveSidebarFilter('watch');
@@ -309,6 +311,7 @@ export const App: React.FC = () => {
     moderation: '/moderation',
     'moderation-appeals': '/moderation/appeals',
     support: '/support-inbox',
+    'creator-dashboard': '/profile/creator-dashboard',
   };
 
   const handleTabChange = (tab: string) => {

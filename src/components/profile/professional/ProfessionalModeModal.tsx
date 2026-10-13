@@ -51,6 +51,16 @@ export const ProfessionalModeModal: React.FC<ProfessionalModeModalProps> = ({
         isProfessionalMode: enable,
         creatorCategory: enable ? selectedCategory : undefined,
       });
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          u.isProfessionalMode = enable;
+          u.creatorCategory = enable ? selectedCategory : undefined;
+          localStorage.setItem('user', JSON.stringify(u));
+        }
+      } catch {}
+      window.dispatchEvent(new Event('profile_updated'));
       onSuccess(res);
       onClose();
     } catch (err: any) {

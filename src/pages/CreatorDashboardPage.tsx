@@ -50,9 +50,15 @@ export const CreatorDashboardPage: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/profile')}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/');
+                }
+              }}
               className="p-2 rounded-xl bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
-              title={isEn ? 'Back to Profile' : 'Quay lại Trang cá nhân'}
+              title={isEn ? 'Back' : 'Quay lại'}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

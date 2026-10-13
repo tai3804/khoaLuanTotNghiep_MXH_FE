@@ -597,190 +597,173 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         />
 
         <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
-        {/* Hero Header */}
-        <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/80 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/30 p-5 shadow-sm backdrop-blur-md dark:border-[#2f3032] dark:from-[#1e1f21] dark:via-[#1a1b1d] dark:to-[#161719] sm:p-6">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-rose-500/10 blur-3xl" />
-
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                  Trung tâm kiểm duyệt bài viết
-                </h1>
-                <p className="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Xem xét báo cáo, bài bị AI gắn cờ, kháng nghị và nhật ký xử lý tại một nơi.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {pending.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-                  {pending.length} bài đang chờ xử lý
-                </span>
-              )}
-              <button
-                onClick={load}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/90 px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 disabled:opacity-50 dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-200 dark:hover:bg-[#303134]"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-500' : ''}`} />
-                <span>Làm mới</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Metric Cards (bấm vào để chuyển tab) */}
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard
-            icon={<Clock3 className="h-5 w-5 text-amber-500" />}
-            label="Bài viết chờ duyệt"
-            value={pending.length}
-            accentColor="border-amber-500/30 dark:border-amber-500/20"
-            bgGlow="from-amber-500/15 to-transparent"
-            onClick={() => setTab('queue')}
-            active={tab === 'queue'}
-          />
-          <StatCard
-            icon={<Sparkles className="h-5 w-5 text-purple-500" />}
-            label="AI tự động gắn cờ"
-            value={aiFlagged.length}
-            accentColor="border-purple-500/30 dark:border-purple-500/20"
-            bgGlow="from-purple-500/15 to-transparent"
-            onClick={() => setTab('ai')}
-            active={tab === 'ai'}
-          />
-          <StatCard
-            icon={<History className="h-5 w-5 text-blue-500" />}
-            label="Đã xử lý & Ghi log"
-            value={logs.length}
-            accentColor="border-blue-500/30 dark:border-blue-500/20"
-            bgGlow="from-blue-500/15 to-transparent"
-            onClick={() => setTab('history')}
-            active={tab === 'history'}
-          />
-          <StatCard
-            icon={<Shield className="h-5 w-5 text-emerald-500" />}
-            label="Tổng lượt báo cáo"
-            value={postReports.length}
-            accentColor="border-emerald-500/30 dark:border-emerald-500/20"
-            bgGlow="from-emerald-500/15 to-transparent"
-          />
-          <StatCard
-            icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-            label="Kháng nghị đang chờ"
-            value={appeals.length}
-            accentColor="border-amber-500/30 dark:border-amber-500/20"
-            bgGlow="from-amber-500/15 to-transparent"
-            onClick={() => setTab('appeals')}
-            active={tab === 'appeals'}
-          />
-        </div>
-
-        {/* Tabs & Filters */}
-        <div className="mb-5 rounded-3xl border border-gray-200/80 bg-white/85 p-3 shadow-sm backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/85">
-          <div className="flex flex-wrap rounded-2xl bg-gray-200/60 p-1 dark:bg-[#1f2022]">
-            <TabButton
-              active={tab === 'queue'}
+          {/* Main Option Pills & Right Search + Reload */}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
+            <button
+              type="button"
               onClick={() => setTab('queue')}
-              label="Hàng chờ báo cáo bài viết"
-              count={pending.length}
-            />
-            <TabButton
-              active={tab === 'ai'}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                tab === 'queue'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
+            >
+              <Clock3 className="w-4 h-4" />
+              <span>Hàng chờ báo cáo</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                tab === 'queue' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
+                {pending.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setTab('ai')}
-              label="AI gắn cờ nghi vấn"
-              count={aiFlagged.length}
-            />
-            <TabButton
-              active={tab === 'history'}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                tab === 'ai'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>AI gắn cờ</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                tab === 'ai' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
+                {aiFlagged.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setTab('history')}
-              label="Nhật ký & Hoàn tác"
-              count={logs.length}
-            />
-            <TabButton
-              active={tab === 'appeals'}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                tab === 'history'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              <span>Nhật ký & Hoàn tác</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                tab === 'history' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
+                {logs.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setTab('appeals')}
-              label="Kháng nghị"
-              count={appeals.length}
-              accentColor="amber"
-            />
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                tab === 'appeals'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>Kháng nghị</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                tab === 'appeals' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
+                {appeals.length}
+              </span>
+            </button>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          {/* Right side: Compact Soft Capsule Search Bar & Reload Button */}
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <div className="relative w-36 sm:w-52">
+              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={
                   tab === 'history'
-                    ? 'Tìm theo ghi chú, nội dung bài, tác giả, mã bài...'
+                    ? 'Tìm nhật ký...'
                     : tab === 'appeals'
-                      ? 'Tìm theo nội dung bài, lý do kháng nghị, tác giả...'
-                      : 'Tìm theo nội dung, tác giả, lý do AI, mã bài...'
+                      ? 'Tìm kháng nghị...'
+                      : 'Tìm bài vi phạm...'
                 }
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-9 pl-9 text-xs font-semibold text-gray-900 transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-100"
+                className="w-full pl-8 pr-7 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute top-1/2 right-2.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  aria-label="Xoá từ khoá tìm kiếm"
+                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+                  title="Xóa tìm kiếm"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            {tab !== 'appeals' && (
+            <button
+              onClick={load}
+              disabled={loading}
+              title="Làm mới dữ liệu kiểm duyệt"
+              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Secondary Filters Bar */}
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {tab !== 'appeals' && (
+                <ToolbarSelect
+                  value={reasonFilter}
+                  onChange={setReasonFilter}
+                  options={reasonOptions}
+                  ariaLabel="Lọc theo loại vi phạm"
+                />
+              )}
               <ToolbarSelect
-                value={reasonFilter}
-                onChange={setReasonFilter}
-                options={reasonOptions}
-                ariaLabel="Lọc theo loại vi phạm"
+                value={sortOrder}
+                onChange={(v) => setSortOrder(v as SortOrder)}
+                options={sortOptions}
+                ariaLabel="Sắp xếp"
               />
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+              >
+                Đặt lại bộ lọc
+              </button>
             )}
-            <ToolbarSelect
-              value={sortOrder}
-              onChange={(v) => setSortOrder(v as SortOrder)}
-              options={sortOptions}
-              ariaLabel="Sắp xếp"
-            />
           </div>
 
           {tab === 'queue' && (
-            <div className="mt-3 border-t border-gray-100 pt-3 dark:border-[#2a2b2e]">
-              <FilterGroup label="Nguồn báo cáo">
-                <FilterChip active={sourceFilter === 'ALL'} onClick={() => setSourceFilter('ALL')} label="Tất cả" count={pending.length} />
-                <FilterChip
-                  active={sourceFilter === 'USER'}
-                  onClick={() => setSourceFilter('USER')}
-                  label="Người dùng báo cáo"
-                  count={pending.filter((r) => r.source !== 'AI').length}
-                />
-                <FilterChip
-                  active={sourceFilter === 'AI'}
-                  onClick={() => setSourceFilter('AI')}
-                  label="AI gắn cờ"
-                  icon={<Sparkles className="h-3 w-3" />}
-                  count={pending.filter((r) => r.source === 'AI').length}
-                />
-              </FilterGroup>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <FilterChip active={sourceFilter === 'ALL'} onClick={() => setSourceFilter('ALL')} label="Tất cả nguồn" count={pending.length} />
+              <FilterChip
+                active={sourceFilter === 'USER'}
+                onClick={() => setSourceFilter('USER')}
+                label="Người dùng báo cáo"
+                count={pending.filter((r) => r.source !== 'AI').length}
+              />
+              <FilterChip
+                active={sourceFilter === 'AI'}
+                onClick={() => setSourceFilter('AI')}
+                label="AI gắn cờ"
+                icon={<Sparkles className="h-3 w-3" />}
+                count={pending.filter((r) => r.source === 'AI').length}
+              />
             </div>
           )}
 
           {tab === 'history' && (
-            <div className="mt-3 space-y-2.5 border-t border-gray-100 pt-3 dark:border-[#2a2b2e]">
-              <FilterGroup label="Hành động">
-                <FilterChip active={actionFilter === 'ALL'} onClick={() => setActionFilter('ALL')} label="Tất cả" count={logs.length} />
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <FilterChip active={actionFilter === 'ALL'} onClick={() => setActionFilter('ALL')} label="Tất cả hành động" count={logs.length} />
                 {Object.keys(actionDetails)
                   .filter((a) => logActionCounts[a])
                   .map((a) => (
@@ -792,14 +775,12 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                       count={logActionCounts[a]}
                     />
                   ))}
-              </FilterGroup>
-              <FilterGroup label="Thời gian">
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {rangeOptions.map((o) => (
                   <FilterChip key={o.value} active={rangeFilter === o.value} onClick={() => setRangeFilter(o.value)} label={o.label} />
                 ))}
-              </FilterGroup>
-              <FilterGroup label="Người xử lý">
-                <FilterChip active={actorFilter === 'ALL'} onClick={() => setActorFilter('ALL')} label="Tất cả" />
+                <FilterChip active={actorFilter === 'ALL'} onClick={() => setActorFilter('ALL')} label="Tất cả người xử lý" />
                 <FilterChip
                   active={actorFilter === 'AUTO'}
                   onClick={() => setActorFilter('AUTO')}
@@ -812,7 +793,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                   label="Kiểm duyệt viên"
                   icon={<Gavel className="h-3 w-3" />}
                 />
-              </FilterGroup>
+              </div>
             </div>
           )}
         </div>

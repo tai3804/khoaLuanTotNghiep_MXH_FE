@@ -83,6 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             bio: profile.bio || prev?.bio || '',
             roles: currentRoles,
             coverUrl: profile.coverUrl || (prev as any)?.coverUrl || '',
+            isProfessionalMode: Boolean(profile.isProfessionalMode ?? (prev as any)?.isProfessionalMode),
+            creatorCategory: profile.creatorCategory || (prev as any)?.creatorCategory || '',
           } as any;
           localStorage.setItem('user', JSON.stringify(updated));
           return updated;
@@ -160,8 +162,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     window.addEventListener('auth_session_expired', handleExpired);
 
+    const handleProfileUpdated = () => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          setUser(JSON.parse(stored));
+        }
+      } catch {}
+    };
+    window.addEventListener('profile_updated', handleProfileUpdated);
+
     return () => {
       window.removeEventListener('auth_session_expired', handleExpired);
+      window.removeEventListener('profile_updated', handleProfileUpdated);
     };
   }, []);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Tv, Users, UsersRound } from 'lucide-react';
+import { Home, Tv, Users, UsersRound, BarChart3 } from 'lucide-react';
 
 interface HeaderNavigationTabsProps {
   activeTab: string;
@@ -7,6 +7,7 @@ interface HeaderNavigationTabsProps {
   language: string;
   t: (key: string) => string;
   onNavClick: (tab: string) => void;
+  isProfessionalMode?: boolean;
 }
 
 export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
@@ -15,6 +16,7 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
   language,
   t,
   onNavClick,
+  isProfessionalMode,
 }) => {
   return (
     <nav className="hidden md:flex items-center justify-center space-x-0.5 lg:space-x-1 xl:space-x-2 h-full flex-1 max-w-xl lg:max-w-2xl mx-2">
@@ -70,6 +72,20 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
       >
         <UsersRound className="w-5 h-5 lg:w-6 lg:h-6" />
       </button>
+
+      {isProfessionalMode && (
+        <button
+          onClick={() => onNavClick('creator-dashboard')}
+          className={`flex items-center justify-center w-12 md:w-14 lg:w-24 xl:w-28 h-full transition ${
+            activeTab === 'creator-dashboard'
+              ? 'text-[#2d88ff] border-b-[3px] border-[#2d88ff]'
+              : 'text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60 border-b-[3px] border-transparent rounded-lg h-12 my-1'
+          }`}
+          title={language === 'en' ? 'Professional Dashboard' : 'Bảng điều khiển chuyên nghiệp'}
+        >
+          <BarChart3 className="w-5 h-5 lg:w-6 lg:h-6" />
+        </button>
+      )}
     </nav>
   );
 };

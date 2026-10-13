@@ -1,5 +1,6 @@
 import React, { RefObject } from 'react';
-import { Settings, Moon, Globe, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Settings, Moon, Globe, LogOut, BarChart3 } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 
 interface HeaderUserDropdownProps {
@@ -35,6 +36,8 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
   onNavigateProfile,
   onNavigateSettings,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div ref={userMenuRef} className="relative pl-0.5">
       <button
@@ -65,6 +68,19 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
               <div className="text-[11px] text-[#2d88ff] font-semibold">{t('userMenu.seeProfile')}</div>
             </div>
           </div>
+
+          {Boolean((user as any)?.isProfessionalMode || localStorage.getItem('kltn_prof_mode_enabled') === 'true') && (
+            <button
+              onClick={() => {
+                navigate('/profile/creator-dashboard');
+                setShowUserMenu(false);
+              }}
+              className="w-full flex items-center space-x-3 p-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877f2] dark:text-[#4599ff] rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              <BarChart3 className="w-4 h-4 text-[#1877f2] dark:text-[#4599ff]" />
+              <span>Bảng điều khiển chuyên nghiệp</span>
+            </button>
+          )}
 
           <button
             onClick={() => {

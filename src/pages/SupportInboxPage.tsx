@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, RotateCcw, ShieldAlert } from 'lucide-react';
+import { Loader2, RotateCcw, ShieldAlert, HelpCircle, Search, X, RefreshCw } from 'lucide-react';
 import { Header } from '../components/layout/header-bar';
 import { SidebarLeft } from '../components/layout/SidebarLeft';
 import { SidebarRight } from '../components/layout/SidebarRight';
@@ -7,9 +7,7 @@ import { ChatUser } from '../components/chat/chat-box';
 import { reportService, SubmittedReport } from '../services/reportService';
 import { postService } from '../services/postService';
 import { useToast } from '../context/ToastContext';
-import { SupportInboxHeader } from '../components/support-inbox/SupportInboxHeader';
 import {
-  SupportInboxFilters,
   SupportInboxFilterStatus,
 } from '../components/support-inbox/SupportInboxFilters';
 import { SupportInboxItem } from '../components/support-inbox/SupportInboxItem';
@@ -157,6 +155,26 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
 
   const isFiltered = statusFilter !== 'ALL' || !!searchQuery.trim();
 
+  const displayedModeratedItems = useMemo(() => {
+    if (!searchQuery.trim()) return moderatedItems;
+    const q = searchQuery.toLowerCase();
+    return moderatedItems.filter(
+      (item) =>
+        item.content?.toLowerCase().includes(q) ||
+        item.moderationReason?.toLowerCase().includes(q) ||
+        item.appealMessage?.toLowerCase().includes(q) ||
+        item.postId?.toLowerCase().includes(q)
+    );
+  }, [moderatedItems, searchQuery]);
+
+  const statusFilterTabs: { id: SupportInboxFilterStatus; label: string; count: number }[] = [
+    { id: 'ALL', label: 'Tất cả', count: statusCounts.ALL },
+    { id: 'PENDING', label: 'Đang chờ', count: statusCounts.PENDING },
+    { id: 'REVIEWING', label: 'Đang xem xét', count: statusCounts.REVIEWING },
+    { id: 'RESOLVED', label: 'Đã xử lý', count: statusCounts.RESOLVED },
+    { id: 'DISMISSED', label: 'Không vi phạm', count: statusCounts.DISMISSED },
+  ];
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
       <Header
@@ -180,57 +198,105 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
         />
 
         <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
-          <SupportInboxHeader
-            reports={reports}
-            loading={loading || moderatedLoading}
-            onRefresh={() => {
-              loadReports();
-              loadModeratedPosts();
-            }}
-          />
+          {/* Main Top Option Pills & Right Search + Reload */}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => setInboxTab('reports')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  inboxTab === 'reports'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Báo cáo bạn đã gửi</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  inboxTab === 'reports' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+                }`}>
+                  {reports.length}
+                </span>
+              </button>
 
-          {/* Navigation Sub-Tabs */}
-          <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#242526] p-1.5 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setInboxTab('reports')}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
-                inboxTab === 'reports'
-                  ? 'bg-blue-50 dark:bg-blue-950/40 text-[#1877f2] dark:text-[#4599ff] border border-blue-100 dark:border-blue-900/40 shadow-xs'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
-              }`}
-            >
-              <span>Báo cáo bạn đã gửi</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-[#3a3b3c] font-black">
-                {reports.length}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInboxTab('appeals')}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
-                inboxTab === 'appeals'
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 shadow-xs'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
-              }`}
-            >
-              <span>Bài viết bị kiểm duyệt</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-[#3a3b3c] font-black">
-                {moderatedItems.length}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setInboxTab('appeals')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  inboxTab === 'appeals'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <ShieldAlert className="w-4 h-4" />
+                <span>Bài viết bị kiểm duyệt</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  inboxTab === 'appeals' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+                }`}>
+                  {moderatedItems.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Right side: Compact Soft Capsule Search Bar & Reload Button */}
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <div className="relative w-36 sm:w-52">
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm hỗ trợ..."
+                  className="w-full pl-8 pr-7 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  loadReports();
+                  loadModeratedPosts();
+                }}
+                title="Làm mới hộp thư"
+                className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading || moderatedLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
+
+          {/* Sub-status filter chips (if in reports tab) */}
+          {inboxTab === 'reports' && (
+            <div className="mb-4 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {statusFilterTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                    statusFilter === tab.id
+                      ? 'bg-gray-200 dark:bg-[#3a3b3c] text-gray-900 dark:text-white font-bold'
+                      : 'bg-white/60 dark:bg-[#242526]/60 text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-400">
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {inboxTab === 'reports' ? (
             <>
-              <SupportInboxFilters
-                activeStatus={statusFilter}
-                onStatusChange={setStatusFilter}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                counts={statusCounts}
-              />
-
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs text-center">
                   <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
@@ -268,14 +334,16 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
                     Đang tải danh sách bài viết bị kiểm duyệt...
                   </p>
                 </div>
-              ) : moderatedItems.length === 0 ? (
+              ) : displayedModeratedItems.length === 0 ? (
                 <div className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] p-8 text-center text-gray-500 dark:text-[#b0b3b8]">
                   <ShieldAlert className="w-10 h-10 mx-auto text-emerald-500 mb-2 opacity-80" />
                   <p className="font-bold text-sm text-gray-900 dark:text-white">Không có bài viết nào bị xử lý</p>
-                  <p className="text-xs mt-1">Tất cả bài viết của bạn đều tuân thủ đúng tiêu chuẩn cộng đồng.</p>
+                  <p className="text-xs mt-1">
+                    {searchQuery ? 'Không tìm thấy kết quả phù hợp với từ khóa.' : 'Tất cả bài viết của bạn đều tuân thủ đúng tiêu chuẩn cộng đồng.'}
+                  </p>
                 </div>
               ) : (
-                moderatedItems.map((item) => (
+                displayedModeratedItems.map((item) => (
                   <article
                     key={item.postId}
                     className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-white dark:bg-[#242526] p-4 sm:p-5 shadow-xs"

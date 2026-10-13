@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import {
@@ -10,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   HelpCircle,
+  BarChart3,
 } from 'lucide-react';
 
 interface UseSidebarLeftDataProps {
@@ -23,10 +25,11 @@ export const useSidebarLeftData = ({
   onFilterChange,
   onNavigateSettings,
 }: UseSidebarLeftDataProps) => {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
 
-  const isExtendedFilter = ['support', 'settings', 'moderation'].includes(activeFilter);
+  const isExtendedFilter = ['support', 'settings', 'moderation', 'creator-dashboard'].includes(activeFilter);
 
   const [showMore, setShowMore] = useState<boolean>(() => {
     try {
@@ -158,6 +161,23 @@ export const useSidebarLeftData = ({
     },
   ];
 
+  const isProfessional = Boolean(
+    (user as any)?.isProfessionalMode ||
+    localStorage.getItem('kltn_prof_mode_enabled') === 'true'
+  );
+
+  if (isProfessional) {
+    menuItems.splice(5, 0, {
+      id: 'creator-dashboard',
+      label: 'Bảng điều khiển chuyên nghiệp',
+      iconNode: (
+        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+          <BarChart3 className="w-4 h-4" />
+        </div>
+      ),
+    });
+  }
+
   const canModerate = useMemo(() => {
     const allRoles = (user?.roles || []).map((r) => String(r).toUpperCase());
     return allRoles.some(
@@ -189,13 +209,17 @@ export const useSidebarLeftData = ({
     });
   }
 
-  const primaryLimit = canModerate ? 6 : 5;
+  const primaryLimit = (canModerate ? 6 : 5) + (isProfessional ? 1 : 0);
   const primaryItems = menuItems.slice(0, primaryLimit);
   const secondaryItems = menuItems.slice(primaryLimit);
 
   const handleItemClick = (id: string) => {
     if (id === 'settings' && onNavigateSettings) {
       onNavigateSettings();
+      return;
+    }
+    if (id === 'creator-dashboard') {
+      navigate('/profile/creator-dashboard');
       return;
     }
     if (onFilterChange) {
