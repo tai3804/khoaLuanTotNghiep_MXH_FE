@@ -9,16 +9,7 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
-
-// Nhãn nhỏ phía trên bài viết giải thích vì sao bài này được đề xuất (chỉ với bài không phải của bạn bè/người đang theo dõi)
-const REASON_LABELS: Record<string, { vi: string; en: string }> = {
-  popular: { vi: 'Đang được nhiều người quan tâm', en: 'Popular right now' },
-  trending: { vi: 'Đang thịnh hành', en: 'Trending' },
-  interacted: { vi: 'Từ người bạn hay tương tác', en: 'From someone you interact with' },
-  group: { vi: 'Từ nhóm bạn tham gia', en: 'From a group you joined' },
-};
-
+import { AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
 import { SystemAnnouncementBanner } from '../components/common/SystemAnnouncementBanner';
 
 interface HomePageProps {
@@ -152,55 +143,6 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Create Post Action Box */}
           <CreatePostBox onPostCreated={onPostCreated} />
 
-          {/* Feed Filter Sub-Bar */}
-          <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm p-1.5 mb-4 border border-gray-200 dark:border-[#393a3b] flex items-center justify-between text-xs font-semibold select-none">
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={() => setFeedCategory('all')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                  feedCategory === 'all'
-                    ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff]'
-                    : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{t('feed.all') || 'Tất cả'}</span>
-              </button>
-
-              <button
-                onClick={() => setFeedCategory('recent')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                  feedCategory === 'recent'
-                    ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff]'
-                    : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>{t('feed.recent') || 'Mới nhất'}</span>
-              </button>
-
-              <button
-                onClick={() => setFeedCategory('popular')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                  feedCategory === 'popular'
-                    ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff]'
-                    : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/50'
-                }`}
-              >
-                <Flame className="w-3.5 h-3.5 text-orange-500" />
-                <span>{t('feed.popular') || 'Nổi bật'}</span>
-              </button>
-            </div>
-
-            <button
-              onClick={() => fetchFeed(false)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-gray-500 dark:text-[#b0b3b8] transition cursor-pointer"
-              title="Làm mới bảng tin"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
           {/* Backend Error Banner if any */}
           {backendError && (
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-xl p-3.5 mb-4 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200 shadow-sm">
@@ -243,27 +185,14 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           ) : (
             <>
-              {posts.map((post) => {
-                const label = post.relevanceReason ? REASON_LABELS[post.relevanceReason] : undefined;
-                return (
-                  <React.Fragment key={post.id}>
-                    {label && (
-                      <div
-                        data-testid="feed-reason"
-                        className="flex items-center gap-1.5 px-1 pb-1 -mb-2 text-[11px] font-semibold text-gray-500 dark:text-[#b0b3b8] select-none"
-                      >
-                        <Sparkles className="w-3 h-3 text-[#2d88ff]" />
-                        <span>{language === 'en' ? label.en : label.vi}</span>
-                      </div>
-                    )}
-                    <PostCard
-                      post={post}
-                      onDeletePost={onDeletePost}
-                      onViewProfile={onViewProfile}
-                    />
-                  </React.Fragment>
-                );
-              })}
+              {posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onDeletePost={onDeletePost}
+                  onViewProfile={onViewProfile}
+                />
+              ))}
 
               {/* Sentinel trigger element for infinite scrolling */}
               <div ref={observerRef} className="h-4 w-full pointer-events-none" />

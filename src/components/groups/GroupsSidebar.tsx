@@ -3,6 +3,7 @@ import { Users, Plus, Globe, Lock } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { GroupAvatar } from '../common/GroupAvatar';
 
 interface GroupsSidebarProps {
   onCreateGroupClick: () => void;
@@ -72,15 +73,13 @@ export const GroupsSidebar: React.FC<GroupsSidebarProps> = ({ onCreateGroupClick
                 onClick={() => navigate(`/groups/${g.id}`)}
                 className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition group"
               >
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
-                  {typeof g.coverUrl === 'string' && g.coverUrl.trim() && !g.coverUrl.includes('images.unsplash.com/photo-1522071820081') ? (
-                    <img src={g.coverUrl} alt={g.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                      <Users className="w-5 h-5" />
-                    </div>
-                  )}
-                </div>
+                <GroupAvatar
+                  src={g.coverUrl}
+                  name={g.name}
+                  size="md"
+                  shape="squircle"
+                  className="group-hover:scale-105 transition-transform"
+                />
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb] truncate group-hover:text-[#1877f2] transition">
                     {g.name}

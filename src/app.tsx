@@ -28,6 +28,7 @@ const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then((m) =>
 const ModeratorPage = lazy(() => import('./pages/ModeratorPage').then((m) => ({ default: m.ModeratorPage })));
 const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage').then((m) => ({ default: m.SupportInboxPage })));
 const SavedPage = lazy(() => import('./pages/SavedPage').then((m) => ({ default: m.SavedPage })));
+const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 
 // Tab của bảng tin -> cách xếp hạng ở máy chủ: Tất cả = độ liên quan, Mới nhất = thời gian, Nổi bật = tốc độ tương tác
 const FEED_MODE_BY_CATEGORY: Record<'all' | 'recent' | 'popular', FeedMode> = {
@@ -579,6 +580,34 @@ export const App: React.FC = () => {
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateAuth={() => navigate('/auth')}
               onViewProfile={handleViewProfile}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/posts/:postId"
+          element={
+            <PostDetailPage
+              activeNavTab="home"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/post/:postId"
+          element={
+            <PostDetailPage
+              activeNavTab="home"
+              setActiveNavTab={handleTabChange}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
               activeChatUser={activeChatUser}
               setActiveChatUser={setActiveChatUser}
             />

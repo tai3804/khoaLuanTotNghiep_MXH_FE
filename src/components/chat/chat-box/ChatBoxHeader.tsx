@@ -2,6 +2,7 @@ import React from 'react';
 import { Phone, Video, Minus, X, Users, Info, Sparkles } from 'lucide-react';
 import { ChatUser } from './types';
 import { UserAvatar } from '../../common/UserAvatar';
+import { GroupAvatar } from '../../common/GroupAvatar';
 import { useCall } from '../../../context/CallContext';
 
 interface ChatBoxHeaderProps {
@@ -52,9 +53,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
       <div className="flex items-center space-x-2.5 cursor-pointer min-w-0" onClick={onMinimize}>
         <div className="relative shrink-0">
           {friend.isGroup ? (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-              <Users className="w-4 h-4" />
-            </div>
+            <GroupAvatar name={friend.name} size="sm" shape="circle" className="shadow-xs" />
           ) : (
             <>
               <UserAvatar src={friend.avatar} alt={friend.name} size="sm" />

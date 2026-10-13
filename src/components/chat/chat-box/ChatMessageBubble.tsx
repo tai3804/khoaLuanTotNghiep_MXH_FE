@@ -4,6 +4,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { Message } from './useChatBoxData';
 import { ChatFileAttachment } from './ChatFileAttachment';
 import { ChatInlineEditor } from './ChatInlineEditor';
+import { ChatSharedPostCard } from './ChatSharedPostCard';
 
 interface ChatMessageBubbleProps {
   msg: Message;
@@ -13,6 +14,51 @@ interface ChatMessageBubbleProps {
   onRecall: (messageId: string) => Promise<void>;
   onDeleteForMe: (messageId: string) => Promise<void>;
 }
+
+const POST_URL_REGEX = /(?:https?:\/\/[^\s/]+)?\/posts?\/([a-zA-Z0-9_-]+)/;
+
+const renderMessageContent = (text: string, isMe: boolean) => {
+  const postMatch = text ? text.match(POST_URL_REGEX) : null;
+  const sharedPostId = postMatch ? postMatch[1] : null;
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text ? text.split(urlRegex) : [];
+
+  const isSolelyPostUrl = postMatch && (text.trim() === postMatch[0] || (postMatch.index === 0 && text.trim().length === postMatch[0].length));
+
+  return (
+    <div className="space-y-1.5">
+      {!isSolelyPostUrl && (
+        <div className="whitespace-pre-wrap">
+          {parts.map((part, i) => {
+            if (part.match(urlRegex)) {
+              return (
+                <a
+                  key={i}
+                  href={part}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className={`underline font-medium break-all hover:opacity-80 transition ${
+                    isMe ? 'text-white' : 'text-[#1877f2] dark:text-[#4599ff]'
+                  }`}
+                >
+                  {part}
+                </a>
+              );
+            }
+            return <span key={i}>{part}</span>;
+          })}
+        </div>
+      )}
+
+      {/* Embedded Rich Card Preview for Shared Post */}
+      {sharedPostId && (
+        <ChatSharedPostCard postId={sharedPostId} isMe={isMe} />
+      )}
+    </div>
+  );
+};
 
 const isMediaExtension = (url: string) => {
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url);
@@ -145,7 +191,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
             />
           </div>
         ) : (
-          /* Standard Text Message */
+          /* Standard Text Message / Shared Post Card */
           <div
             className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs break-words break-all ${
               isMe
@@ -153,7 +199,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
             }`}
           >
-            {msg.text}
+            {renderMessageContent(msg.text, isMe)}
           </div>
         )}
 

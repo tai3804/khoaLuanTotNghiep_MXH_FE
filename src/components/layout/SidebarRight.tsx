@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus, Users } from 'lucide-react';
 import { ChatUser } from '../../components/chat/chat-box';
 import { UserAvatar } from '../common/UserAvatar';
+import { GroupAvatar } from '../common/GroupAvatar';
 import { userService } from '../../services/api';
 import { chatService } from '../../services/chatService';
 import { websocketService } from '../../services/websocket';
@@ -296,9 +297,12 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
                 onClick={() => onSelectChatUser && onSelectChatUser(group)}
                 className="flex items-center space-x-3 px-2 py-1.5 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 cursor-pointer transition group"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                  <Users className="w-4 h-4" />
-                </div>
+                <GroupAvatar
+                  name={group.name}
+                  size="sm"
+                  shape="circle"
+                  className="shadow-xs shrink-0"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-gray-900 dark:text-[#e4e6eb] truncate">
                     {group.name}

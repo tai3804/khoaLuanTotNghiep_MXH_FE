@@ -23,6 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
+import { GroupAvatar } from '../../common/GroupAvatar';
 import { AlertTriangle } from 'lucide-react';
 import { ReportModal } from '../../report/ReportModal';
 import { PostTaggedUsers } from './PostTaggedUsers';
@@ -173,14 +174,15 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
             <div className="relative w-11 h-11 shrink-0">
               <div
                 onClick={() => navigate(`/groups/${post.groupId}`)}
-                className="w-10 h-10 rounded-xl overflow-hidden bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center cursor-pointer border border-gray-200 dark:border-[#393a3b] hover:opacity-90 transition shadow-xs"
+                className="cursor-pointer hover:opacity-90 transition"
                 title={groupName}
               >
-                {groupCover ? (
-                  <img src={groupCover} alt={groupName} className="w-full h-full object-cover" />
-                ) : (
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                )}
+                <GroupAvatar
+                  src={groupCover}
+                  name={groupName}
+                  size="md"
+                  shape="squircle"
+                />
               </div>
               <div
                 onClick={(e) => {

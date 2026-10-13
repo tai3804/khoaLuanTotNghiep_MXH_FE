@@ -3,6 +3,7 @@ import { Users2, Plus, Globe, Lock, ArrowRight, Check, Clock, Search, RefreshCw,
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { GroupAvatar } from '../common/GroupAvatar';
 
 interface GroupsDiscoverProps {
   onCreateGroupClick: () => void;
@@ -190,7 +191,7 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
                   className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition overflow-hidden cursor-pointer flex flex-col group select-none"
                 >
                   {/* Cover Image Frame */}
-                  <div className="h-36 w-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#2a2b2d] dark:to-[#1e1f20] relative overflow-hidden flex items-center justify-center">
+                  <div className="h-36 w-full relative overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-[#1a1b1c]">
                     {hasCover ? (
                       <img
                         src={group.coverUrl}
@@ -198,8 +199,13 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                       />
                     ) : (
-                      <div className="flex items-center justify-center text-gray-400 dark:text-gray-500">
-                        <Users2 className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#2a2b2d] dark:to-[#1a1b1d] group-hover:scale-105 transition duration-300">
+                        <GroupAvatar
+                          name={group.name}
+                          size="xl"
+                          shape="squircle"
+                          className="shadow-lg ring-4 ring-white/30 dark:ring-white/10"
+                        />
                       </div>
                     )}
                     <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1">
