@@ -78,11 +78,19 @@ export const fetchAuthorProfile = async (userId: string) => {
 export const getStoredCurrentUserId = (): string => {
   try {
     const token = store.getState().auth.accessToken;
-    if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-      const sub = payload.sub || payload.userId || payload.id;
-      if (sub) return String(sub).toLowerCase().trim();
-    }
+      const payloadStr = token.split('.')[1];
+      if (payloadStr) {
+        const base64 = payloadStr.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        const sub = payload.sub || payload.userId || payload.id;
+        if (sub) return String(sub).toLowerCase().trim();
+      }
     const raw = localStorage.getItem('user');
     if (raw) {
       const u = JSON.parse(raw);

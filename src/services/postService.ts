@@ -982,8 +982,8 @@ export const postService = {
     try {
       const res = await api.get('/posts/scheduled/me', { params: { page, size } });
       const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      const totalElements = res.data?.data?.totalElements ?? raw.length;
-      const totalPages = res.data?.data?.totalPages ?? 1;
+      const totalElements = Number(res.data?.totalElements ?? res.data?.data?.totalElements ?? (Array.isArray(raw) ? raw.length : 0));
+      const totalPages = Number(res.data?.totalPages ?? res.data?.data?.totalPages ?? 1);
       return {
         content: Array.isArray(raw) ? raw.map(normalizePost) : [],
         totalElements,
