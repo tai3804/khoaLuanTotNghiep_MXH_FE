@@ -37,20 +37,13 @@ export const ChatPopupContainer: React.FC<ChatPopupContainerProps> = ({
   const visibleChats = activeChatUsers.slice(0, maxChats);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50">
-      {visibleChats.map((friend, index) => {
+    <div className="pointer-events-none fixed bottom-0 right-3 sm:right-4 z-50 flex flex-row-reverse items-end gap-2.5 max-w-[calc(100vw-1.5rem)]">
+      {visibleChats.map((friend) => {
         const id = String(friend.userId || friend.id || friend.conversationId);
-        const isMobile = window.innerWidth < 768;
-        const baseOffset = isMobile ? 8 : 16;
-        const boxWidth = isMobile ? 320 : 340;
-        const gap = 14;
-        const offsetRight = baseOffset + index * (boxWidth + gap);
-
         return (
-          <div key={id} className="pointer-events-auto">
+          <div key={id} className="pointer-events-auto shrink-0">
             <ChatBox
               friend={friend}
-              offsetRight={offsetRight}
               onClose={() => onCloseChat(id)}
               onNavigateProfile={onNavigateProfile}
             />

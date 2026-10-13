@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Bot, Send, X, Minimize2, Maximize2, Copy, Check, Lightbulb, PenTool, Hash, GraduationCap, Trash2 } from 'lucide-react';
+import { Sparkles, Send, X, Minimize2, Maximize2, Copy, Check, Lightbulb, PenTool, Hash, GraduationCap, Trash2 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -66,15 +66,13 @@ export const AiSocialChatWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      const history = messages
-        .filter((m) => m.id !== 'welcome' && !m.id.startsWith('ai-err'))
-        .slice(-8)
-        .map((m) => ({
-          sender: m.sender as 'user' | 'ai',
-          text: m.text,
-        }));
+      const historyPayload = messages.slice(-10).map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
 
-      const reply = await aiService.chatWithAi(text, history);
+      const reply = await aiService.chatWithAiAssistant(text, historyPayload);
+
       const aiMsg: Message = {
         id: 'ai-' + Date.now(),
         sender: 'ai',
@@ -114,7 +112,7 @@ export const AiSocialChatWidget: React.FC = () => {
 
   return (
     <>
-      {/* Compact Floating Toggle Button on Bottom-Left */}
+      {/* Sleek Floating Meta AI Trigger Button on Bottom-Left */}
       {!isOpen && (
         <button
           type="button"
@@ -122,53 +120,47 @@ export const AiSocialChatWidget: React.FC = () => {
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          className="fixed bottom-20 md:bottom-6 left-6 z-40 flex items-center justify-center w-12 h-12 bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white rounded-full shadow-2xl hover:scale-110 hover:shadow-indigo-500/50 active:scale-95 transition-all duration-200 cursor-pointer group"
-          title="Trợ lý AI KLTN"
+          className="fixed bottom-20 md:bottom-6 left-6 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#0866ff] via-[#1877f2] to-[#00b2ff] text-white shadow-xl hover:shadow-blue-500/35 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group border border-white/20 dark:border-white/10"
+          title="Trợ lý AI"
+          aria-label="Mở Trợ lý AI"
         >
-          <div className="relative flex items-center justify-center">
-            <Bot className="w-6 h-6 transition-transform group-hover:rotate-12" />
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
-            </span>
-          </div>
-          <Sparkles className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 text-amber-300 animate-pulse" />
+          <Sparkles className="w-5 h-5 text-white transition-transform group-hover:rotate-12 group-hover:scale-110" />
         </button>
       )}
 
-      {/* Floating Chat Modal on Bottom-Left */}
+      {/* Floating Meta AI Chat Modal on Bottom-Left */}
       {isOpen && (
         <div
-          className={`fixed left-4 md:left-6 z-50 transition-all duration-200 flex flex-col bg-white dark:bg-[#1e1f20] border border-gray-200 dark:border-[#383a3d] shadow-2xl rounded-2xl overflow-hidden ${
+          className={`fixed left-4 md:left-6 z-50 transition-all duration-200 flex flex-col bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-2xl overflow-hidden ${
             isMinimized
               ? 'bottom-20 md:bottom-6 w-72 h-14'
               : 'bottom-20 md:bottom-6 w-[350px] sm:w-[390px] h-[520px] max-h-[82vh]'
           }`}
         >
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-between shadow-sm shrink-0">
+          <div className="px-3.5 py-2.5 bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] text-gray-900 dark:text-[#e4e6eb] flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                <Bot className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0866ff] to-[#00c6ff] flex items-center justify-center text-white shadow-xs">
+                <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="font-bold text-xs flex items-center gap-1.5 leading-tight">
-                  <span>Trợ lý AI KLTN</span>
-                  <span className="px-1.5 py-0.2 bg-emerald-500/80 text-[10px] rounded-full font-semibold uppercase tracking-wider">
-                    Online
+                <h4 className="font-bold text-xs flex items-center gap-1.5 leading-tight text-gray-900 dark:text-[#e4e6eb]">
+                  <span>Trợ lý AI</span>
+                  <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[9px] rounded-full font-bold">
+                    Meta AI
                   </span>
                 </h4>
-                <p className="text-[10px] text-blue-100 opacity-90">Sáng tạo & Hỗ trợ thông minh</p>
+                <p className="text-[10px] text-gray-500 dark:text-[#b0b3b8]">Sáng tạo nội dung & Trợ giúp</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-1 text-white/80">
+            <div className="flex items-center space-x-1 text-gray-500 dark:text-[#b0b3b8]">
               {!isMinimized && (
                 <button
                   type="button"
                   onClick={handleClearChat}
-                  title="Xóa lịch sử chat"
-                  className="p-1.5 hover:bg-white/20 hover:text-white rounded-lg transition cursor-pointer"
+                  title="Làm mới cuộc trò chuyện"
+                  className="w-7 h-7 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] flex items-center justify-center transition cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -177,7 +169,7 @@ export const AiSocialChatWidget: React.FC = () => {
                 type="button"
                 onClick={() => setIsMinimized(!isMinimized)}
                 title={isMinimized ? 'Phóng to' : 'Thu nhỏ'}
-                className="p-1.5 hover:bg-white/20 hover:text-white rounded-lg transition cursor-pointer"
+                className="w-7 h-7 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] flex items-center justify-center transition cursor-pointer"
               >
                 {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
               </button>
@@ -185,7 +177,7 @@ export const AiSocialChatWidget: React.FC = () => {
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Đóng"
-                className="p-1.5 hover:bg-white/20 hover:text-white rounded-lg transition cursor-pointer"
+                className="w-7 h-7 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] flex items-center justify-center transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -196,7 +188,7 @@ export const AiSocialChatWidget: React.FC = () => {
           {!isMinimized && (
             <>
               {/* Message History */}
-              <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs bg-gray-50/50 dark:bg-[#18191a]/40">
+              <div className="flex-1 p-3.5 overflow-y-auto space-y-3 text-xs bg-[#f0f2f5]/60 dark:bg-[#18191a]">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -204,7 +196,7 @@ export const AiSocialChatWidget: React.FC = () => {
                   >
                     <div className="flex items-end gap-1.5 max-w-[85%]">
                       {msg.sender === 'ai' && (
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 mb-1">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0866ff] to-[#00c6ff] text-white flex items-center justify-center shrink-0 mb-1 shadow-2xs">
                           <Sparkles className="w-3 h-3" />
                         </div>
                       )}
@@ -212,7 +204,7 @@ export const AiSocialChatWidget: React.FC = () => {
                         className={`p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
                           msg.sender === 'user'
                             ? 'bg-[#1877f2] text-white rounded-br-xs'
-                            : 'bg-white dark:bg-[#28292a] text-gray-800 dark:text-[#e4e6eb] border border-gray-200/80 dark:border-[#383a3d] shadow-xs rounded-bl-xs'
+                            : 'bg-white dark:bg-[#242526] text-gray-800 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#393a3b] shadow-xs rounded-bl-xs'
                         }`}
                       >
                         {msg.text.split('\n').map((line, lineIdx, arr) => {
@@ -221,7 +213,7 @@ export const AiSocialChatWidget: React.FC = () => {
                             <React.Fragment key={lineIdx}>
                               {parts.map((part, pIdx) => {
                                 if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-                                  return <strong key={pIdx} className="font-semibold text-indigo-900 dark:text-indigo-300">{part.slice(2, -2)}</strong>;
+                                  return <strong key={pIdx} className="font-semibold text-blue-600 dark:text-blue-400">{part.slice(2, -2)}</strong>;
                                 }
                                 if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
                                   return <em key={pIdx} className="italic text-gray-700 dark:text-gray-300">{part.slice(1, -1)}</em>;
@@ -265,8 +257,8 @@ export const AiSocialChatWidget: React.FC = () => {
 
                 {loading && (
                   <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 text-xs py-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-3 h-3 text-indigo-500 animate-spin" />
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0866ff] to-[#00c6ff] text-white flex items-center justify-center shrink-0">
+                      <Sparkles className="w-3 h-3 animate-spin" />
                     </div>
                     <span className="italic">AI đang suy nghĩ và soạn câu trả lời...</span>
                   </div>
@@ -275,14 +267,14 @@ export const AiSocialChatWidget: React.FC = () => {
               </div>
 
               {/* Quick Prompts */}
-              <div className="px-3 py-2 bg-white dark:bg-[#1e1f20] border-t border-gray-100 dark:border-[#2d2e30] flex gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="px-3 py-2 bg-white dark:bg-[#242526] border-t border-gray-100 dark:border-[#393a3b] flex gap-1.5 overflow-x-auto no-scrollbar">
                 {QUICK_PROMPTS.map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSend(item.prompt)}
                     disabled={loading}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-[#2a2b2c] hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-full text-[11px] font-medium whitespace-nowrap border border-gray-200/60 dark:border-gray-700 transition cursor-pointer shrink-0 disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-[#3a3b3c] hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-[#e4e6eb] hover:text-[#1877f2] dark:hover:text-[#4599ff] rounded-full text-[11px] font-medium border border-transparent transition cursor-pointer shrink-0 disabled:opacity-50"
                   >
                     {item.icon}
                     <span>{item.label}</span>
@@ -296,7 +288,7 @@ export const AiSocialChatWidget: React.FC = () => {
                   e.preventDefault();
                   handleSend();
                 }}
-                className="p-3 bg-white dark:bg-[#1e1f20] border-t border-gray-200 dark:border-[#383a3d] flex items-center space-x-2 shrink-0"
+                className="p-3 bg-white dark:bg-[#242526] border-t border-gray-200 dark:border-[#393a3b] flex items-center space-x-2 shrink-0"
               >
                 <input
                   ref={inputRef}
@@ -305,12 +297,13 @@ export const AiSocialChatWidget: React.FC = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="Hỏi AI hoặc yêu cầu viết nội dung..."
                   disabled={loading}
-                  className="flex-1 bg-gray-100 dark:bg-[#2a2b2c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full px-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button
                   type="submit"
                   disabled={!inputMessage.trim() || loading}
-                  className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:opacity-95 disabled:opacity-40 transition shadow-sm cursor-pointer shrink-0"
+                  className="p-2 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full transition shadow-sm cursor-pointer shrink-0 disabled:opacity-40"
+                  title="Gửi tin nhắn"
                 >
                   <Send className="w-4 h-4" />
                 </button>

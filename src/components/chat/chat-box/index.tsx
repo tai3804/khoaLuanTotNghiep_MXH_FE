@@ -112,12 +112,13 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
   };
 
   const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
+  const positionClass = offsetRight !== undefined ? 'fixed bottom-0 z-50' : 'relative z-50';
 
   return (
     <>
       <div
         style={customStyle}
-        className={`fixed bottom-0 ${offsetRight === undefined ? 'right-4 md:right-16' : ''} z-50 w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200`}
+        className={`${positionClass} w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200 shrink-0`}
       >
         <ChatBoxHeader
           friend={effectiveFriend}
