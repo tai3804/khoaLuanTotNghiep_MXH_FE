@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Header } from '../components/layout/header-bar';
 import { GroupsDiscover } from '../components/groups/GroupsDiscover';
-import { ChatBox, ChatUser } from '../components/chat/chat-box';
+import { ChatUser } from '../components/chat/chat-box';
 import { CreateCommunityGroupModal } from '../components/groups/CreateCommunityGroupModal';
 
 interface GroupsPageProps {
@@ -40,13 +40,6 @@ export const GroupsPage: React.FC<GroupsPageProps> = (props) => {
           <GroupsDiscover onCreateGroupClick={() => setShowCreateModal(true)} />
         </main>
       </div>
-
-      {props.activeChatUser && (
-        <ChatBox
-          friend={props.activeChatUser}
-          onClose={() => props.setActiveChatUser(null)}
-        />
-      )}
 
       {showCreateModal && (
         <CreateCommunityGroupModal

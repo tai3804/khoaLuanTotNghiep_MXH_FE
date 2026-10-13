@@ -9,6 +9,7 @@ import { userService } from '../../services/api';
 import { chatService } from '../../services/chatService';
 import { websocketService } from '../../services/websocket';
 import { CreateGroupModal } from '../chat/CreateGroupModal';
+import { formatMessageSnippet } from '../../utils/formatMessageSnippet';
 
 interface SidebarRightProps {
   onSelectChatUser?: (user: ChatUser) => void;
@@ -309,7 +310,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
                   </div>
                   {group.lastMessageContent && (
                     <div className="text-[11px] text-gray-400 dark:text-[#b0b3b8] truncate">
-                      {group.lastMessageContent}
+                      {formatMessageSnippet(group.lastMessageContent)}
                     </div>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { userService } from '../../../services/userService';
+import { mentionNameToIdCache } from '../RichContentRenderer';
 
 export interface MentionCandidate {
   id: string;
@@ -137,6 +138,10 @@ export const useMentionSuggestions = ({
     (candidate: MentionCandidate) => {
       if (mentionStartIndex === null) return;
       const name = candidate.name || candidate.fullName || 'Người dùng';
+      const targetId = candidate.userId || candidate.id;
+      if (targetId && name) {
+        mentionNameToIdCache[name.toLowerCase()] = String(targetId);
+      }
       // Format clean mention without UUID. If multi-word, wrap in brackets @[Name], otherwise @Name
       const mentionText = name.includes(' ') ? `@[${name}] ` : `@${name} `;
       onMentionSelected(candidate, mentionText);

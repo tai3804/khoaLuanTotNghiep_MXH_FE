@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Header } from '../components/layout/header-bar';
 import { ProfileView } from '../components/profile/ProfileView';
-import { ChatBox, ChatUser } from '../components/chat/chat-box';
+import { ChatUser } from '../components/chat/chat-box';
 
 interface ProfilePageProps {
   userId?: string | null;
@@ -53,12 +53,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </main>
       </div>
 
-      {activeChatUser && (
-        <ChatBox
-          friend={activeChatUser}
-          onClose={() => setActiveChatUser?.(null)}
-        />
-      )}
     </div>
   );
 };

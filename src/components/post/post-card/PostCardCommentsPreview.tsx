@@ -5,6 +5,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { aiService } from '../../../services/aiService';
 import { TopFanBadge } from '../common/TopFanBadge';
 import { TimeAgo } from '../../common/TimeAgo';
+import { RichContentRenderer } from '../../common/RichContentRenderer';
 
 interface PostCardCommentsPreviewProps {
   displayedComments: Comment[];
@@ -117,9 +118,12 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                         </h5>
                         {comment.isTopFan && <TopFanBadge size="sm" />}
                       </div>
-                      <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
-                        {comment.content}
-                      </p>
+                      <div className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
+                        <RichContentRenderer
+                          content={comment.content}
+                          onMentionClick={onViewProfile}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center space-x-3 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">
                       <button type="button" className="hover:underline hover:text-[#2d88ff] cursor-pointer">
@@ -173,9 +177,12 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                               </h6>
                               {firstReply.isTopFan && <TopFanBadge size="sm" />}
                             </div>
-                            <p className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
-                              {firstReply.content}
-                            </p>
+                            <div className="text-xs text-gray-800 dark:text-[#e4e6eb] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
+                              <RichContentRenderer
+                                content={firstReply.content}
+                                onMentionClick={onViewProfile}
+                              />
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2.5 text-[10px] text-gray-500 dark:text-[#b0b3b8] mt-0.5 ml-2 font-semibold">
                             <button type="button" className="hover:underline hover:text-[#2d88ff] cursor-pointer">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/header-bar';
-import { ChatBox, ChatUser } from '../components/chat/chat-box';
+import { ChatUser } from '../components/chat/chat-box';
 import { PostCard } from '../components/post/post-card';
 import { userService, postService } from '../services/api';
 import { groupService, GroupResponse } from '../services/groupService';
@@ -74,18 +74,38 @@ export const SearchPage: React.FC<SearchPageProps> = ({
 
   useEffect(() => {
     const fetchResults = async () => {
-      if (!query.trim()) return;
+      const trimmed = query.trim();
+      if (!trimmed) return;
+      const isHashtag = trimmed.startsWith('#');
+      if (isHashtag) {
+        setActiveFilter('posts');
+      }
       setLoading(true);
       try {
-        const [usersRes, postsRes, groupsRes] = await Promise.all([
-          userService.searchUsers(query.trim()).catch(() => []),
-          postService.searchPosts ? postService.searchPosts(query.trim()).catch(() => []) : Promise.resolve([]),
-          groupService.searchGroups(query.trim()).catch(() => []),
+        const [usersRes, postsRes, hashtagPostsRes, groupsRes] = await Promise.all([
+          !isHashtag ? userService.searchUsers(trimmed).catch(() => []) : Promise.resolve([]),
+          postService.searchPosts ? postService.searchPosts(trimmed).catch(() => []) : Promise.resolve([]),
+          isHashtag && postService.getPostsByHashtag
+            ? postService.getPostsByHashtag(trimmed).catch(() => ({ posts: [] }))
+            : Promise.resolve({ posts: [] }),
+          !isHashtag ? groupService.searchGroups(trimmed).catch(() => []) : Promise.resolve([]),
         ]);
 
         const userList = Array.isArray(usersRes) ? usersRes : [];
         setUsers(userList);
-        setPosts(Array.isArray(postsRes) ? postsRes : []);
+
+        const hashtagPosts = Array.isArray((hashtagPostsRes as any)?.posts) ? (hashtagPostsRes as any).posts : [];
+        const regularPosts = Array.isArray(postsRes) ? postsRes : [];
+        const combined = [...hashtagPosts, ...regularPosts];
+        const seen = new Set<string>();
+        const dedupedPosts: Post[] = [];
+        for (const p of combined) {
+          if (p?.id && !seen.has(String(p.id))) {
+            seen.add(String(p.id));
+            dedupedPosts.push(p);
+          }
+        }
+        setPosts(dedupedPosts);
         setGroups(Array.isArray(groupsRes) ? groupsRes : []);
 
         // Load connection status for search results
@@ -635,6 +655,21 @@ export const SearchPage: React.FC<SearchPageProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
+              {query.trim().startsWith('#') && (
+                <div className="bg-white dark:bg-[#242526] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-[#1877f2] dark:text-[#2d88ff]">
+                      <Hash className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">{query.trim()}</h3>
+                      <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                        {posts.length > 0 ? `${posts.length} bài viết gắn thẻ này` : 'Chưa có bài viết nào gắn thẻ này'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {activeFilter === 'all' && (
                 <>
                   {renderUsers()}

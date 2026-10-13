@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '../components/layout/header-bar';
-import { ChatBox, ChatUser } from '../components/chat/chat-box';
+import { ChatUser } from '../components/chat/chat-box';
 import { GroupBanner } from '../components/groups/GroupBanner';
 import { GroupDiscussionTab } from '../components/groups/GroupDiscussionTab';
 import { GroupMembersTab } from '../components/groups/GroupMembersTab';
@@ -221,14 +221,6 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
           )}
         </main>
       </div>
-
-      {/* Floating ChatBox popup if active */}
-      {props.activeChatUser && (
-        <ChatBox
-          friend={props.activeChatUser}
-          onClose={() => props.setActiveChatUser(null)}
-        />
-      )}
 
       {/* Invite Modal */}
       {showInviteModal && group && (
