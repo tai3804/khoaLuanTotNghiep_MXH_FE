@@ -78,6 +78,7 @@ export const fetchAuthorProfile = async (userId: string) => {
 export const getStoredCurrentUserId = (): string => {
   try {
     const token = store.getState().auth.accessToken;
+    if (token) {
       const payloadStr = token.split('.')[1];
       if (payloadStr) {
         const base64 = payloadStr.replace(/-/g, '+').replace(/_/g, '/');
@@ -91,6 +92,7 @@ export const getStoredCurrentUserId = (): string => {
         const sub = payload.sub || payload.userId || payload.id;
         if (sub) return String(sub).toLowerCase().trim();
       }
+    }
     const raw = localStorage.getItem('user');
     if (raw) {
       const u = JSON.parse(raw);

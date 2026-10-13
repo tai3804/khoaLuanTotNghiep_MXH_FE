@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
+import { ChatUser } from './components/chat/chat-box';
+import { ChatPopupContainer } from './components/chat/ChatPopupContainer';
+import { useAuth } from './context/AuthContext';
+import { useLanguage } from './context/LanguageContext';
+import { useSystemConfig } from './context/SystemConfigContext';
+import { MaintenanceScreen } from './components/common/MaintenanceScreen';
+import { postService } from './services/api';
+import { Post, FeedMode } from './types';
+import { Home, Tv, Users, UsersRound } from 'lucide-react';
+import { CallManager } from './components/call/CallManager';
+import { HostLiveStudioModal } from './components/live-studio';
+import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
+import { HashtagFeedModal } from './components/post/hashtag';
+
 // Các trang còn lại được tách thành file riêng và chỉ tải khi người dùng thực sự vào trang đó
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const CreatorDashboardPage = lazy(() => import('./pages/CreatorDashboardPage').then((m) => ({ default: m.CreatorDashboardPage })));

@@ -1,5 +1,6 @@
 export type Theme = 'light' | 'dark';
 export type Language = 'vi' | 'en';
+export type FeedMode = 'relevance' | 'recent' | 'trending';
 
 export interface User {
   id: string;
