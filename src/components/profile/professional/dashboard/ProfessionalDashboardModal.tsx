@@ -4,7 +4,6 @@ import { DashboardHeader } from './DashboardHeader';
 import { OverviewKpiCards } from './OverviewKpiCards';
 import { PerformanceChart } from './PerformanceChart';
 import { TopPostsList } from './TopPostsList';
-import { CreatorTipsCard } from './CreatorTipsCard';
 import { useProfessionalDashboardData } from './useProfessionalDashboardData';
 import { ProfileVisitorsList } from '../visitors/ProfileVisitorsList';
 import { AudienceDemographicsTab } from '../demographics/AudienceDemographicsTab';
@@ -116,9 +115,6 @@ export const ProfessionalDashboardModal: React.FC<ProfessionalDashboardModalProp
                   posts={analytics?.topPosts || []}
                   onViewInsights={(postId) => setSelectedPostInsightId(postId)}
                 />
-
-                {/* 4. Creator Optimization Tips */}
-                <CreatorTipsCard />
               </>
             )}
 

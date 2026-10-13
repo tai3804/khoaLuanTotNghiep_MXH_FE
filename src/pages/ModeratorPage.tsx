@@ -27,6 +27,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Header } from '../components/layout/header-bar';
+import { SidebarLeft } from '../components/layout/SidebarLeft';
+import { SidebarRight } from '../components/layout/SidebarRight';
 import { ChatUser } from '../components/chat/chat-box';
 import { moderationService, ModerationAction, ModerationLog, ModerationReport } from '../services/moderationService';
 import { postService } from '../services/postService';
@@ -38,6 +40,8 @@ import { Post } from '../types';
 interface ModeratorPageProps {
   activeNavTab: string;
   setActiveNavTab: (tab: string) => void;
+  activeSidebarFilter?: string;
+  setActiveSidebarFilter?: (filter: string) => void;
   onNavigateSettings: () => void;
   onNavigateProfile: (uid?: string) => void;
   onNavigateAuth: () => void;
@@ -317,7 +321,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
 
   if (!canModerate) {
     return (
-      <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb]">
+      <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
         <Header
           activeTab={props.activeNavTab}
           onTabChange={props.setActiveNavTab}
@@ -326,35 +330,47 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           onNavigateAuth={props.onNavigateAuth}
           onSelectChatUser={props.setActiveChatUser}
         />
-        <main className="mx-auto flex min-h-[75vh] max-w-lg items-center justify-center px-4 pt-16">
-          <div className="w-full rounded-3xl border border-gray-200/80 bg-white/80 p-8 text-center shadow-xl backdrop-blur-xl dark:border-[#393a3b] dark:bg-[#242526]/90">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 shadow-inner dark:bg-rose-950/50">
-              <ShieldAlert className="h-9 w-9" />
+        <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+          <SidebarLeft
+            activeFilter={props.activeSidebarFilter || 'moderation'}
+            onFilterChange={(f) => {
+              if (props.setActiveSidebarFilter) props.setActiveSidebarFilter(f);
+              props.setActiveNavTab(f);
+            }}
+            onNavigateProfile={() => props.onNavigateProfile()}
+            onNavigateSettings={props.onNavigateSettings}
+          />
+          <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-8 min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+            <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] p-8 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 dark:bg-rose-950/50">
+                <ShieldAlert className="h-8 w-8" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb]">
+                Khu vực Kiểm duyệt viên
+              </h1>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500 dark:text-[#b0b3b8]">
+                Tài khoản hiện tại chưa được cấp quyền <span className="font-semibold text-rose-500">Moderator</span>{' '}
+                hoặc <span className="font-semibold text-blue-500">Admin</span>. Vui lòng đăng nhập với tài khoản hợp lệ.
+              </p>
+              {!isAuthenticated && (
+                <button
+                  onClick={openLoginModal}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95 cursor-pointer"
+                >
+                  <span>Đăng nhập tài khoản Moderator</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
-              Khu vực Kiểm duyệt viên
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-              Tài khoản hiện tại chưa được cấp quyền <span className="font-semibold text-rose-500">Moderator</span>{' '}
-              hoặc <span className="font-semibold text-blue-500">Admin</span>. Vui lòng đăng nhập với tài khoản hợp lệ.
-            </p>
-            {!isAuthenticated && (
-              <button
-                onClick={openLoginModal}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-all hover:opacity-95 hover:shadow-blue-500/35 active:scale-[0.98]"
-              >
-                <span>Đăng nhập tài khoản Moderator</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </main>
+          </main>
+          <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] dark:bg-[#121314] text-gray-900 dark:text-[#e4e6eb] antialiased">
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
       <Header
         activeTab={props.activeNavTab}
         onTabChange={props.setActiveNavTab}
@@ -364,186 +380,189 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         onSelectChatUser={props.setActiveChatUser}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pt-20 pb-16">
-        {/* Hero Header */}
-        <div className="relative mb-8 overflow-hidden rounded-3xl border border-gray-200/80 bg-gradient-to-br from-white via-blue-50/20 to-indigo-50/30 p-6 shadow-sm backdrop-blur-md dark:border-[#2f3032] dark:from-[#1e1f21] dark:via-[#1a1b1d] dark:to-[#161719] sm:p-8">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-rose-500/10 blur-3xl" />
+      <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+        <SidebarLeft
+          activeFilter={props.activeSidebarFilter || 'moderation'}
+          onFilterChange={(f) => {
+            if (props.setActiveSidebarFilter) props.setActiveSidebarFilter(f);
+            props.setActiveNavTab(f);
+          }}
+          onNavigateProfile={() => props.onNavigateProfile()}
+          onNavigateSettings={props.onNavigateSettings}
+        />
 
-          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-black tracking-wider text-blue-600 uppercase dark:bg-blue-500/20 dark:text-blue-400">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  KLTN Safety Center
-                </span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-                  Kiểm duyệt bài viết trực tuyến
-                </span>
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+          {/* Header Card */}
+          <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm p-4 sm:p-5 mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    KLTN Safety Center
+                  </span>
+                  <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                    Trực tuyến
+                  </span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-[#e4e6eb]">
+                  Trung tâm kiểm duyệt bài viết
+                </h1>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                  Xem trực tiếp nội dung bài viết bị báo cáo, tác giả bài đăng và thực hiện các quyết định gỡ bỏ hoặc hoàn tác khôi phục bài viết.
+                </p>
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-                Trung tâm kiểm duyệt bài viết
-              </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                Xem trực tiếp nội dung bài viết bị báo cáo, tác giả bài đăng và thực hiện các quyết định gỡ bỏ hoặc hoàn tác khôi phục bài viết.
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={load}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 dark:border-[#393a3b] bg-gray-100 dark:bg-[#3a3b3c] px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] shadow-xs transition hover:bg-gray-200 dark:hover:bg-[#4e4f50] active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-rose-500' : ''}`} />
+                  <span>Làm mới</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Metric Cards */}
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              icon={<Clock3 className="h-5 w-5 text-amber-500" />}
+              label="Bài viết chờ duyệt"
+              sub="Chờ kiểm duyệt viên xử lý"
+              value={pending.length}
+            />
+            <StatCard
+              icon={<Sparkles className="h-5 w-5 text-purple-500" />}
+              label="AI tự động gắn cờ"
+              sub="Độ nghi vấn vi phạm cao"
+              value={aiFlagged.length}
+            />
+            <StatCard
+              icon={<History className="h-5 w-5 text-blue-500" />}
+              label="Đã xử lý & Ghi log"
+              sub="Có thể hoàn tác bất kỳ lúc nào"
+              value={logs.length}
+            />
+            <StatCard
+              icon={<Shield className="h-5 w-5 text-emerald-500" />}
+              label="Tổng lượt báo cáo"
+              sub="Theo dõi an toàn cộng đồng"
+              value={postReports.length}
+            />
+          </div>
+
+          {/* Tab & Filter Bar */}
+          <div className="mb-4 flex flex-col gap-3 border-b border-gray-200/80 pb-3 dark:border-[#393a3b] md:flex-row md:items-center md:justify-between">
+            <div className="flex rounded-xl bg-gray-100 p-1 dark:bg-[#242526] border border-gray-200/60 dark:border-[#393a3b]">
+              <TabButton
+                active={tab === 'queue'}
+                onClick={() => setTab('queue')}
+                label="Hàng chờ báo cáo bài viết"
+                count={pending.length}
+              />
+              <TabButton
+                active={tab === 'ai'}
+                onClick={() => setTab('ai')}
+                label="AI gắn cờ nghi vấn"
+                count={aiFlagged.length}
+              />
+              <TabButton
+                active={tab === 'history'}
+                onClick={() => setTab('history')}
+                label="Nhật ký & Hoàn tác"
+                count={logs.length}
+              />
+            </div>
+
+            {tab !== 'history' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px] flex-1 sm:w-64">
+                  <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Tìm theo nội dung, tác giả, ID..."
+                    className="w-full rounded-xl border border-gray-200 bg-white py-2 pr-3 pl-8 text-xs text-gray-900 transition focus:border-rose-500 focus:ring-1 focus:ring-rose-500 focus:outline-none dark:border-[#393a3b] dark:bg-[#242526] dark:text-gray-100"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute top-1/2 right-2.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Reason Filter */}
+                <div className="relative">
+                  <select
+                    value={reasonFilter}
+                    onChange={(e) => setReasonFilter(e.target.value)}
+                    className="appearance-none rounded-xl border border-gray-200 bg-white py-2 pr-8 pl-3 text-xs font-semibold text-gray-700 shadow-2xs transition focus:border-rose-500 focus:outline-none dark:border-[#393a3b] dark:bg-[#242526] dark:text-gray-200"
+                  >
+                    <option value="ALL">Mọi loại vi phạm</option>
+                    <option value="SPAM">Spam / Rác</option>
+                    <option value="HATE_SPEECH">Ngôn từ thù ghét</option>
+                    <option value="HARASSMENT">Quấy rối / Đe dọa</option>
+                    <option value="VIOLENCE">Bạo lực</option>
+                    <option value="INAPPROPRIATE_CONTENT">Nội dung nhạy cảm</option>
+                    <option value="FALSE_INFORMATION">Thông tin sai lệch</option>
+                    <option value="COPYRIGHT">Vi phạm bản quyền</option>
+                    <option value="OTHER">Khác</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Content Body */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+              <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-[#b0b3b8]">
+                Đang tải danh sách bài viết bị báo cáo...
               </p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={load}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white/90 px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 disabled:opacity-50 dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-200 dark:hover:bg-[#303134]"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-500' : ''}`} />
-                <span>Làm mới</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Metric Cards */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            icon={<Clock3 className="h-6 w-6 text-amber-500" />}
-            label="Bài viết chờ duyệt"
-            sub="Chờ kiểm duyệt viên xử lý"
-            value={pending.length}
-            accentColor="border-amber-500/30 dark:border-amber-500/20"
-            bgGlow="from-amber-500/10 to-transparent"
-          />
-          <StatCard
-            icon={<Sparkles className="h-6 w-6 text-purple-500" />}
-            label="AI tự động gắn cờ"
-            sub="Độ nghi vấn vi phạm cao"
-            value={aiFlagged.length}
-            accentColor="border-purple-500/30 dark:border-purple-500/20"
-            bgGlow="from-purple-500/10 to-transparent"
-          />
-          <StatCard
-            icon={<History className="h-6 w-6 text-blue-500" />}
-            label="Đã xử lý & Ghi log"
-            sub="Có thể hoàn tác bất kỳ lúc nào"
-            value={logs.length}
-            accentColor="border-blue-500/30 dark:border-blue-500/20"
-            bgGlow="from-blue-500/10 to-transparent"
-          />
-          <StatCard
-            icon={<Shield className="h-6 w-6 text-emerald-500" />}
-            label="Tổng lượt báo cáo"
-            sub="Theo dõi an toàn cộng đồng"
-            value={postReports.length}
-            accentColor="border-emerald-500/30 dark:border-emerald-500/20"
-            bgGlow="from-emerald-500/10 to-transparent"
-          />
-        </div>
-
-        {/* Tab & Filter Bar */}
-        <div className="mb-6 flex flex-col gap-4 border-b border-gray-200/80 pb-4 dark:border-[#2f3032] md:flex-row md:items-center md:justify-between">
-          <div className="flex rounded-2xl bg-gray-200/60 p-1 backdrop-blur-sm dark:bg-[#1f2022]">
-            <TabButton
-              active={tab === 'queue'}
-              onClick={() => setTab('queue')}
-              label="Hàng chờ báo cáo bài viết"
-              count={pending.length}
+          ) : tab === 'history' ? (
+            <AuditLogList
+              logs={logs}
+              reports={reports}
+              postsMap={postsMap}
+              loadingPostsMap={loadingPostsMap}
+              processingId={processingId}
+              onUndo={(reportId, targetId) => handleProcessAction(reportId, 'RESTORE_POST', 'Hoàn tác quyết định', targetId)}
             />
-            <TabButton
-              active={tab === 'ai'}
-              onClick={() => setTab('ai')}
-              label="AI gắn cờ nghi vấn"
-              count={aiFlagged.length}
+          ) : (
+            <PostReportList
+              reports={displayedReports}
+              postsMap={postsMap}
+              loadingPostsMap={loadingPostsMap}
+              processingId={processingId}
+              onSelect={(report) => {
+                setSelected(report);
+                setNote('');
+              }}
+              onProcess={(report, action, customNote) => handleProcessAction(report.reportId, action, customNote, report.targetId)}
+              empty={
+                searchQuery || reasonFilter !== 'ALL'
+                  ? 'Không tìm thấy bài viết nào khớp với bộ lọc tìm kiếm.'
+                  : tab === 'ai'
+                    ? 'Tuyệt vời! Hiện tại không có bài viết nào bị AI cảnh báo.'
+                    : 'Sạch bóng! Toàn bộ bài viết bị báo cáo đã được kiểm duyệt xong.'
+              }
             />
-            <TabButton
-              active={tab === 'history'}
-              onClick={() => setTab('history')}
-              label="Nhật ký & Hoàn tác"
-              count={logs.length}
-            />
-          </div>
-
-          {tab !== 'history' && (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-[220px] flex-1 sm:w-72">
-                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm theo nội dung, tác giả, ID..."
-                  className="w-full rounded-xl border border-gray-200 bg-white py-2 pr-3 pl-9 text-xs font-semibold text-gray-900 transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-100"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Reason Filter */}
-              <div className="relative">
-                <select
-                  value={reasonFilter}
-                  onChange={(e) => setReasonFilter(e.target.value)}
-                  className="appearance-none rounded-xl border border-gray-200 bg-white py-2 pr-8 pl-3 text-xs font-semibold text-gray-700 shadow-sm transition focus:border-blue-500 focus:outline-none dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-200"
-                >
-                  <option value="ALL">Mọi loại vi phạm</option>
-                  <option value="SPAM">Spam / Rác</option>
-                  <option value="HATE_SPEECH">Ngôn từ thù ghét</option>
-                  <option value="HARASSMENT">Quấy rối / Đe dọa</option>
-                  <option value="VIOLENCE">Bạo lực</option>
-                  <option value="INAPPROPRIATE_CONTENT">Nội dung nhạy cảm</option>
-                  <option value="FALSE_INFORMATION">Thông tin sai lệch</option>
-                  <option value="COPYRIGHT">Vi phạm bản quyền</option>
-                  <option value="OTHER">Khác</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-              </div>
-            </div>
           )}
-        </div>
+        </main>
 
-        {/* Content Body */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-28 text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-            <p className="mt-4 text-sm font-semibold text-gray-500 dark:text-gray-400">
-              Đang tải danh sách bài viết bị báo cáo...
-            </p>
-          </div>
-        ) : tab === 'history' ? (
-          <AuditLogList
-            logs={logs}
-            reports={reports}
-            postsMap={postsMap}
-            loadingPostsMap={loadingPostsMap}
-            processingId={processingId}
-            onUndo={(reportId, targetId) => handleProcessAction(reportId, 'RESTORE_POST', 'Hoàn tác quyết định', targetId)}
-          />
-        ) : (
-          <PostReportList
-            reports={displayedReports}
-            postsMap={postsMap}
-            loadingPostsMap={loadingPostsMap}
-            processingId={processingId}
-            onSelect={(report) => {
-              setSelected(report);
-              setNote('');
-            }}
-            onProcess={(report, action, customNote) => handleProcessAction(report.reportId, action, customNote, report.targetId)}
-            empty={
-              searchQuery || reasonFilter !== 'ALL'
-                ? 'Không tìm thấy bài viết nào khớp với bộ lọc tìm kiếm.'
-                : tab === 'ai'
-                  ? 'Tuyệt vời! Hiện tại không có bài viết nào bị AI cảnh báo.'
-                  : 'Sạch bóng! Toàn bộ bài viết bị báo cáo đã được kiểm duyệt xong.'
-            }
-          />
-        )}
-      </main>
+        <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
+      </div>
 
       {/* Detailed Modal for In-depth Notes & Action */}
       {selected && (
@@ -754,22 +773,19 @@ const StatCard: React.FC<{
   label: string;
   sub: string;
   value: number;
-  accentColor: string;
-  bgGlow: string;
-}> = ({ icon, label, sub, value, accentColor, bgGlow }) => (
-  <div
-    className={`relative overflow-hidden rounded-3xl border ${accentColor} bg-white/90 p-5 shadow-sm backdrop-blur-md transition-all hover:shadow-md dark:bg-[#1a1b1d]`}
-  >
-    <div className={`absolute -top-12 -right-12 h-28 w-28 rounded-full bg-gradient-to-br ${bgGlow} blur-2xl`} />
+  accentColor?: string;
+  bgGlow?: string;
+}> = ({ icon, label, sub, value }) => (
+  <div className="rounded-2xl border border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] p-4 shadow-xs transition hover:shadow-sm">
     <div className="flex items-center justify-between">
-      <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-3 shadow-inner dark:border-[#2f3032] dark:bg-[#242526]">
+      <div className="rounded-xl bg-gray-100 dark:bg-[#3a3b3c] p-2.5">
         {icon}
       </div>
-      <span className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{value}</span>
+      <span className="text-2xl font-bold text-gray-900 dark:text-[#e4e6eb]">{value}</span>
     </div>
-    <div className="mt-4">
-      <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{label}</h3>
-      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{sub}</p>
+    <div className="mt-3">
+      <h3 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb]">{label}</h3>
+      <p className="mt-0.5 text-[11px] text-gray-500 dark:text-[#b0b3b8]">{sub}</p>
     </div>
   </div>
 );
@@ -782,18 +798,18 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, label, count }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+    className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
       active
-        ? 'bg-white text-blue-600 shadow-sm dark:bg-[#2d2e30] dark:text-white'
-        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+        ? 'bg-white text-rose-600 shadow-xs dark:bg-[#3a3b3c] dark:text-white'
+        : 'text-gray-600 hover:text-gray-900 dark:text-[#b0b3b8] dark:hover:text-white'
     }`}
   >
     <span>{label}</span>
     <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
         active
-          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-200'
-          : 'bg-gray-300/50 text-gray-600 dark:bg-[#343538] dark:text-gray-400'
+          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+          : 'bg-gray-200 dark:bg-[#242526] text-gray-600 dark:text-[#b0b3b8]'
       }`}
     >
       {count}

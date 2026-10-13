@@ -1,7 +1,7 @@
 import React from 'react';
 import { Users, Check } from 'lucide-react';
 import { useFriendsData } from './useFriendsData';
-import { FriendsSidebarNav } from './FriendsSidebarNav';
+import { FriendsTopNav } from './FriendsTopNav';
 import { FriendsOverviewTab } from './FriendsOverviewTab';
 import { FriendsRequestsTab } from './FriendsRequestsTab';
 import { FriendsSuggestionsTab } from './FriendsSuggestionsTab';
@@ -63,8 +63,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
   }
 
   return (
-    <div className="w-full flex flex-col md:flex-row min-h-[calc(100vh-3.5rem)] bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-150">
-      <FriendsSidebarNav
+    <div className="w-full transition-colors duration-150">
+      <FriendsTopNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         searchTerm={searchTerm}
@@ -79,7 +79,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         onRefresh={() => loadAllData(false)}
       />
 
-      <main className="flex-1 md:ml-[300px] xl:ml-[340px] p-4 sm:p-6 min-h-[calc(100vh-3.5rem)] transition-all duration-150">
+      <div className="w-full transition-all duration-150">
         {actionMessage && (
           <div className="mb-5 p-3.5 bg-emerald-600 text-white rounded-xl shadow-lg flex items-center space-x-2 text-sm font-semibold animate-fade-in">
             <Check className="w-5 h-5" />
@@ -151,7 +151,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
             onViewProfile={onViewProfile}
           />
         )}
-      </main>
+      </div>
     </div>
   );
 };

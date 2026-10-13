@@ -1,12 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { useAuth, rolesFromToken } from '../../../context/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import {
+  Home,
   Users,
   Bookmark,
-  Clock,
-  Store,
-  Film,
   Tv,
   Users2,
   Settings,
@@ -27,16 +25,89 @@ export const useSidebarLeftData = ({
 }: UseSidebarLeftDataProps) => {
   const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
-  const [showMore, setShowMore] = useState(false);
 
-  // Full Facebook menu items
+  const isExtendedFilter = ['support', 'settings', 'moderation'].includes(activeFilter);
+
+  const [showMore, setShowMore] = useState<boolean>(() => {
+    try {
+      if (isExtendedFilter) return true;
+      const saved = localStorage.getItem('kltn_sidebar_left_show_more');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return isExtendedFilter;
+  });
+
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('kltn_sidebar_left_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Auto expand if active filter is an extended item
+  useEffect(() => {
+    if (isExtendedFilter && !showMore) {
+      setShowMore(true);
+      try {
+        localStorage.setItem('kltn_sidebar_left_show_more', 'true');
+      } catch {}
+    }
+  }, [activeFilter, isExtendedFilter]);
+
+  // Sync across tabs/components
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const collapsedVal = localStorage.getItem('kltn_sidebar_left_collapsed') === 'true';
+        setIsCollapsed(collapsedVal);
+        const showMoreVal = localStorage.getItem('kltn_sidebar_left_show_more') === 'true';
+        setShowMore(showMoreVal || isExtendedFilter);
+      } catch {}
+    };
+    window.addEventListener('sidebar_state_changed', handleStorage);
+    return () => window.removeEventListener('sidebar_state_changed', handleStorage);
+  }, [isExtendedFilter]);
+
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('kltn_sidebar_left_collapsed', String(next));
+        window.dispatchEvent(new Event('sidebar_state_changed'));
+      } catch {}
+      return next;
+    });
+  };
+
+  const toggleShowMore = () => {
+    setShowMore((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('kltn_sidebar_left_show_more', String(next));
+        window.dispatchEvent(new Event('sidebar_state_changed'));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Full Facebook menu items with unified w-8 h-8 rounded-full icons
   const menuItems = [
+    {
+      id: 'home',
+      label: t('nav.home') || 'Trang chủ',
+      iconNode: (
+        <div className="w-8 h-8 rounded-full bg-[#1877f2] flex items-center justify-center text-white shadow-sm">
+          <Home className="w-4 h-4" />
+        </div>
+      ),
+    },
     {
       id: 'friends',
       label: t('friends') || 'Bạn bè',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-[#1877f2] flex items-center justify-center text-white shadow-sm">
-          <Users className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+          <Users className="w-4 h-4" />
         </div>
       ),
     },
@@ -44,35 +115,8 @@ export const useSidebarLeftData = ({
       id: 'groups',
       label: 'Nhóm',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
-          <Users2 className="w-5 h-5" />
-        </div>
-      ),
-    },
-    {
-      id: 'support',
-      label: 'Hộp thư hỗ trợ',
-      iconNode: (
-        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white shadow-sm">
-          <HelpCircle className="w-5 h-5" />
-        </div>
-      ),
-    },
-    {
-      id: 'memories',
-      label: t('memories') || 'Kỷ niệm',
-      iconNode: (
-        <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white shadow-sm">
-          <Clock className="w-5 h-5" />
-        </div>
-      ),
-    },
-    {
-      id: 'saved',
-      label: t('saved') || 'Đã lưu',
-      iconNode: (
-        <div className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-white shadow-sm">
-          <Bookmark className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+          <Users2 className="w-4 h-4" />
         </div>
       ),
     },
@@ -80,26 +124,26 @@ export const useSidebarLeftData = ({
       id: 'watch',
       label: 'Video',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
-          <Tv className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+          <Tv className="w-4 h-4" />
         </div>
       ),
     },
     {
-      id: 'marketplace',
-      label: 'Marketplace',
+      id: 'saved',
+      label: t('saved') || 'Đã lưu',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-sky-500 flex items-center justify-center text-white shadow-sm">
-          <Store className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+          <Bookmark className="w-4 h-4" />
         </div>
       ),
     },
     {
-      id: 'reels',
-      label: 'Thước phim',
+      id: 'support',
+      label: 'Hộp thư hỗ trợ',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-sm">
-          <Film className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+          <HelpCircle className="w-4 h-4" />
         </div>
       ),
     },
@@ -107,8 +151,8 @@ export const useSidebarLeftData = ({
       id: 'settings',
       label: t('settings') || 'Cài đặt & quyền riêng tư',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-gray-500 dark:bg-[#4e4f50] flex items-center justify-center text-white shadow-sm">
-          <Settings className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-gray-500 dark:bg-[#4e4f50] flex items-center justify-center text-white shadow-sm">
+          <Settings className="w-4 h-4" />
         </div>
       ),
     },
@@ -126,18 +170,20 @@ export const useSidebarLeftData = ({
   }, [user]);
 
   if (canModerate) {
-    menuItems.splice(2, 0, {
+    menuItems.splice(3, 0, {
       id: 'moderation',
       label: 'Trung tâm kiểm duyệt',
       iconNode: (
-        <div className="w-9 h-9 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-sm">
-          <ShieldCheck className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-sm">
+          <ShieldCheck className="w-4 h-4" />
         </div>
       ),
     });
   }
 
-  const displayedItems = showMore ? menuItems : menuItems.slice(0, canModerate ? 6 : 5);
+  const primaryLimit = canModerate ? 6 : 5;
+  const primaryItems = menuItems.slice(0, primaryLimit);
+  const secondaryItems = menuItems.slice(primaryLimit);
 
   const handleItemClick = (id: string) => {
     if (id === 'settings' && onNavigateSettings) {
@@ -153,8 +199,11 @@ export const useSidebarLeftData = ({
     user,
     isAuthenticated,
     showMore,
-    setShowMore,
-    displayedItems,
+    isCollapsed,
+    toggleCollapse,
+    toggleShowMore,
+    primaryItems,
+    secondaryItems,
     handleItemClick,
   };
 };

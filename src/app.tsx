@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { CreatorDashboardPage } from './pages/CreatorDashboardPage';
 import { FriendsPage } from './pages/FriendsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuthPage } from './pages/AuthPage';
@@ -20,7 +21,7 @@ import { useSystemConfig } from './context/SystemConfigContext';
 import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { postService } from './services/api';
 import { Post } from './types';
-import { Home, Tv, Store, Users } from 'lucide-react';
+import { Home, Tv, Users, UsersRound } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
 import { HostLiveStudioModal } from './components/live-studio';
 import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
@@ -93,6 +94,17 @@ export const App: React.FC = () => {
   else if (path.startsWith('/saved')) activeNavTab = 'saved';
   else if (path.startsWith('/moderation') || path.startsWith('/admin')) activeNavTab = 'moderation';
   else if (path.startsWith('/support-inbox')) activeNavTab = 'support';
+
+  useEffect(() => {
+    if (path === '/') setActiveSidebarFilter('home');
+    else if (path.startsWith('/friends')) setActiveSidebarFilter('friends');
+    else if (path.startsWith('/groups')) setActiveSidebarFilter('groups');
+    else if (path.startsWith('/watch')) setActiveSidebarFilter('watch');
+    else if (path.startsWith('/saved')) setActiveSidebarFilter('saved');
+    else if (path.startsWith('/support-inbox')) setActiveSidebarFilter('support');
+    else if (path.startsWith('/moderation') || path.startsWith('/admin')) setActiveSidebarFilter('moderation');
+    else if (path.startsWith('/settings')) setActiveSidebarFilter('settings');
+  }, [path]);
 
   const fetchFeed = async (isBackground = false) => {
     if (!isBackground) {
@@ -335,6 +347,8 @@ export const App: React.FC = () => {
             <FriendsPage
               activeNavTab="friends"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -349,6 +363,8 @@ export const App: React.FC = () => {
             <ProfilePage
               activeNavTab="profile"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -358,11 +374,21 @@ export const App: React.FC = () => {
           }
         />
         <Route
+          path="/profile/creator-dashboard"
+          element={<CreatorDashboardPage />}
+        />
+        <Route
+          path="/creator/dashboard"
+          element={<CreatorDashboardPage />}
+        />
+        <Route
           path="/profile/:userId"
           element={
             <ProfilePage
               activeNavTab="profile"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -429,6 +455,8 @@ export const App: React.FC = () => {
             <GroupsPage
               activeNavTab="groups"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -443,6 +471,8 @@ export const App: React.FC = () => {
             <GroupDetailPage
               activeNavTab="groups"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -457,6 +487,8 @@ export const App: React.FC = () => {
             <ModeratorPage
               activeNavTab="moderation"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -471,6 +503,8 @@ export const App: React.FC = () => {
             <ModeratorPage
               activeNavTab="moderation"
               setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
               onNavigateSettings={() => navigate('/settings/profile')}
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
@@ -481,7 +515,19 @@ export const App: React.FC = () => {
         />
         <Route
           path="/support-inbox"
-          element={<SupportInboxPage activeNavTab="support" setActiveNavTab={handleTabChange} onNavigateSettings={() => navigate('/settings/profile')} onNavigateProfile={(uid) => handleViewProfile(uid)} onNavigateAuth={() => navigate('/auth')} activeChatUser={activeChatUser} setActiveChatUser={setActiveChatUser} />}
+          element={
+            <SupportInboxPage
+              activeNavTab="support"
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateProfile={(uid) => handleViewProfile(uid)}
+              onNavigateAuth={() => navigate('/auth')}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
         />
         <Route
           path="/saved"
@@ -502,37 +548,41 @@ export const App: React.FC = () => {
       </Routes>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 h-14 flex items-center justify-around md:hidden z-40 shadow-lg">
+      <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-[#242526] border-t border-gray-200 dark:border-[#393a3b] h-14 flex items-center justify-around md:hidden z-40 shadow-lg">
         <button
           onClick={() => handleTabChange('home')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'home' ? 'text-blue-600' : 'text-gray-400'
-            }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${
+            activeNavTab === 'home' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
+          }`}
         >
           <Home className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Trang chủ</span>
         </button>
         <button
           onClick={() => handleTabChange('watch')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'watch' ? 'text-blue-600' : 'text-gray-400'
-            }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${
+            activeNavTab === 'watch' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
+          }`}
         >
           <Tv className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Watch</span>
+          <span className="text-[10px] font-semibold">Video</span>
         </button>
         <button
-          onClick={() => handleTabChange('marketplace')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'marketplace' ? 'text-blue-600' : 'text-gray-400'
-            }`}
+          onClick={() => handleTabChange('friends')}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${
+            activeNavTab === 'friends' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
+          }`}
         >
-          <Store className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Chợ</span>
+          <Users className="w-5 h-5" />
+          <span className="text-[10px] font-semibold">Bạn bè</span>
         </button>
         <button
           onClick={() => handleTabChange('groups')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${activeNavTab === 'groups' ? 'text-blue-600' : 'text-gray-400'
-            }`}
+          className={`flex flex-col items-center justify-center space-y-0.5 ${
+            activeNavTab === 'groups' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
+          }`}
         >
-          <Users className="w-5 h-5" />
+          <UsersRound className="w-5 h-5" />
           <span className="text-[10px] font-semibold">Nhóm</span>
         </button>
       </nav>

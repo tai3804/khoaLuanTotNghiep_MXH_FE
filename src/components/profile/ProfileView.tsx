@@ -1,7 +1,6 @@
 import React from 'react';
-import { MediaGalleryModal } from './MediaGalleryModal';
 import { EditProfileModal } from './EditProfileModal';
-import { ProfileManagementModal } from './ProfileManagementModal';
+import { ArchiveModal } from './archive';
 import { useNavigate } from 'react-router-dom';
 import { ChatUser } from '../chat/chat-box';
 
@@ -14,6 +13,7 @@ import {
   ProfilePhotosTab,
 } from './view';
 import { ProfessionalModeModal, ProfessionalDashboardModal } from './professional';
+import { ImageCropperModal } from '../common/image-cropper';
 import { userService } from '../../services/userService';
 
 interface ProfileViewProps {
@@ -29,7 +29,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onViewProfile,
 }) => {
   const navigate = useNavigate();
-  const [showManagementModal, setShowManagementModal] = React.useState(false);
+  const [showArchiveModal, setShowArchiveModal] = React.useState(false);
   const [showProfessionalModal, setShowProfessionalModal] = React.useState(false);
   const [showProfessionalDashboard, setShowProfessionalDashboard] = React.useState(false);
   const [archivedPostIds, setArchivedPostIds] = React.useState<string[]>([]);
@@ -51,8 +51,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setCoverError,
     showEditModal,
     setShowEditModal,
-    showMediaGalleryModal,
-    setShowMediaGalleryModal,
     selectedHobbies,
     isOwnProfile,
     targetUserId,
@@ -63,6 +61,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     avatarUrl,
     coverUrl,
     allPostPhotos,
+    selectedCropFile,
+    cropMode,
+    handleCropComplete,
+    handleCropClose,
     handleAvatarFileSelect,
     handleCoverFileSelect,
     handleSaveBio,
@@ -93,7 +95,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const publishedPosts = posts.filter((post) => !archivedPostIds.includes(post.id));
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] pb-12">
+    <div className="w-full space-y-4 pb-8">
       {/* Profile Banner, Header Info, Stats, Actions & Tab Navigation */}
       <ProfileHeaderBanner
         isOwnProfile={isOwnProfile}
@@ -116,8 +118,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onAvatarFileSelect={handleAvatarFileSelect}
         onCoverFileSelect={handleCoverFileSelect}
         onShowEditModal={() => setShowEditModal(true)}
-        onShowManagement={() => setShowManagementModal(true)}
-        onShowMediaGallery={() => setShowMediaGalleryModal(true)}
+        onShowArchive={() => setShowArchiveModal(true)}
         onOpenProfessionalDashboard={() => setShowProfessionalDashboard(true)}
         onOpenProfessionalModeModal={() => setShowProfessionalModal(true)}
         onAddFriend={handleAddFriendProfile}
@@ -130,7 +131,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       />
 
       {/* Main Content Body */}
-      <div className="max-w-6xl mx-auto px-4 mt-4">
+      <div className="w-full">
         {/* Tab: Posts */}
         {activeTab === 'posts' && (
           <ProfilePostsTab
@@ -183,13 +184,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         )}
       </div>
 
-      {/* Media Gallery Modal */}
-      <MediaGalleryModal
-        userId={targetUserId || ''}
-        isOpen={showMediaGalleryModal}
-        onClose={() => setShowMediaGalleryModal(false)}
-      />
-
       {/* Edit Profile Modal */}
       <EditProfileModal
         isOpen={showEditModal}
@@ -200,16 +194,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           setCoverError(false);
         }}
       />
-      {isOwnProfile && <ProfileManagementModal
-        isOpen={showManagementModal}
-        onClose={() => setShowManagementModal(false)}
-        posts={posts}
-        userId={targetUserId || currentUser?.id || 'me'}
-        onEditProfile={() => setShowEditModal(true)}
-        onOpenMedia={() => setShowMediaGalleryModal(true)}
-        onOpenPrivacy={() => navigate('/settings/privacy')}
-        onArchiveChange={setArchivedPostIds}
-      />}
+      {/* Archive Modal (Kho lưu trữ bài viết & Dung lượng phương tiện) */}
+      {isOwnProfile && (
+        <ArchiveModal
+          isOpen={showArchiveModal}
+          onClose={() => setShowArchiveModal(false)}
+          userId={targetUserId || currentUser?.id || 'me'}
+          onPostRestored={(restoredPost) => {
+            if (restoredPost) {
+              setArchivedPostIds((prev) => prev.filter((id) => id !== restoredPost.id));
+              if (profileData.posts) {
+                // If not already in posts list, add it
+                if (!profileData.posts.some((p) => p.id === restoredPost.id)) {
+                  profileData.handlePostCreated(restoredPost);
+                }
+              }
+            }
+          }}
+        />
+      )}
 
       {/* Professional Mode Modal (Bật / Tắt / Chọn Category) */}
       {isOwnProfile && (
@@ -218,6 +221,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           onClose={() => setShowProfessionalModal(false)}
           isCurrentlyEnabled={Boolean(profile?.isProfessionalMode)}
           currentCategory={profile?.creatorCategory}
+          fullName={fullName}
+          avatarUrl={avatarUrl}
+          followerCount={profile?.followerCount}
           onSuccess={(updated) => {
             if (setProfile && updated) {
               setProfile((prev: any) => ({
@@ -243,6 +249,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           followerCount={profile?.followerCount}
         />
       )}
+
+      {/* Image Cropper Modal (Facebook / TikTok Style) */}
+      <ImageCropperModal
+        isOpen={Boolean(selectedCropFile && cropMode)}
+        imageFile={selectedCropFile}
+        mode={cropMode || 'avatar'}
+        onCropComplete={handleCropComplete}
+        onClose={handleCropClose}
+      />
     </div>
   );
 };

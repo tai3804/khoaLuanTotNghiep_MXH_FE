@@ -87,9 +87,41 @@ export const useEditProfileForm = ({
     return age;
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
+  const [cropMode, setCropMode] = useState<'avatar' | 'cover' | null>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('avatar');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('cover');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedFile: File) => {
+    if (cropMode === 'avatar') {
+      await performAvatarUpload(croppedFile);
+    } else if (cropMode === 'cover') {
+      await performCoverUpload(croppedFile);
+    }
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const handleCropClose = () => {
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const performAvatarUpload = async (file: File) => {
     setUploadingAvatar(true);
     toast.showInfo('Đang tải ảnh đại diện lên...');
     try {
@@ -102,13 +134,10 @@ export const useEditProfileForm = ({
       toast.showError('Tải ảnh đại diện thất bại: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingAvatar(false);
-      if (e.target) e.target.value = '';
     }
   };
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const performCoverUpload = async (file: File) => {
     setUploadingCover(true);
     toast.showInfo('Đang tải ảnh bìa lên...');
     try {
@@ -122,7 +151,6 @@ export const useEditProfileForm = ({
       toast.showError('Tải ảnh bìa thất bại: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingCover(false);
-      if (e.target) e.target.value = '';
     }
   };
 
@@ -168,6 +196,7 @@ export const useEditProfileForm = ({
         fullName: fullNewName,
         avatar: avatarUrl.trim() || currentUser?.avatar || '',
         bio: bio.trim(),
+        coverUrl: coverUrl.trim() || undefined,
       });
       refreshUserProfile?.();
 
@@ -214,6 +243,10 @@ export const useEditProfileForm = ({
     uploadingAvatar,
     uploadingCover,
     isSaving,
+    selectedCropFile,
+    cropMode,
+    handleCropComplete,
+    handleCropClose,
     handleAvatarUpload,
     handleCoverUpload,
     toggleHobby,

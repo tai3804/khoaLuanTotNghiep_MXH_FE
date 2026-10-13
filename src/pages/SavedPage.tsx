@@ -176,13 +176,13 @@ export const SavedPage: React.FC<SavedPageProps> = ({
           onNavigateSettings={onNavigateSettings}
         />
 
-        <main className="flex-1 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           {/* Header Banner Card */}
           <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm p-4 sm:p-5 mb-4 border border-gray-200 dark:border-[#393a3b] space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-600/20 shrink-0">
-                  <Bookmark className="w-6 h-6 fill-white" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-[#1877f2] dark:text-[#4599ff] shrink-0 border border-blue-100 dark:border-blue-900/30">
+                  <Bookmark className="w-5 h-5 fill-[#1877f2] dark:fill-[#4599ff]" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb] leading-tight">
@@ -195,7 +195,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
               </div>
 
               {!loading && (
-                <div className="px-3 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-full text-xs font-semibold shrink-0">
+                <div className="px-3 py-1 bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] rounded-full text-xs font-semibold shrink-0">
                   {posts.length} bài viết
                 </div>
               )}
@@ -208,8 +208,8 @@ export const SavedPage: React.FC<SavedPageProps> = ({
                 onClick={() => setMediaFilter('all')}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
                   mediaFilter === 'all'
-                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/20'
-                    : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-200 dark:hover:bg-[#4e4f50]'
+                    ? 'bg-[#1877f2] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -220,8 +220,8 @@ export const SavedPage: React.FC<SavedPageProps> = ({
                 onClick={() => setMediaFilter('image')}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
                   mediaFilter === 'image'
-                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/20'
-                    : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-200 dark:hover:bg-[#4e4f50]'
+                    ? 'bg-[#1877f2] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
                 }`}
               >
                 <Image className="w-3.5 h-3.5" />
@@ -232,8 +232,8 @@ export const SavedPage: React.FC<SavedPageProps> = ({
                 onClick={() => setMediaFilter('video')}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
                   mediaFilter === 'video'
-                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/20'
-                    : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-200 dark:hover:bg-[#4e4f50]'
+                    ? 'bg-[#1877f2] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
@@ -244,13 +244,13 @@ export const SavedPage: React.FC<SavedPageProps> = ({
 
           {/* Body Content */}
           {loading && posts.length === 0 ? (
-            <div className="flex justify-center items-center py-20 bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            <div className="flex justify-center items-center py-20 bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs">
+              <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
             </div>
           ) : filteredPosts.length === 0 ? (
-            <div className="bg-white dark:bg-[#242526] rounded-2xl p-10 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-4">
-              <div className="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mx-auto">
-                <FileQuestion className="w-8 h-8" />
+            <div className="bg-white dark:bg-[#242526] rounded-2xl p-10 text-center border border-gray-200 dark:border-[#393a3b] shadow-xs space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-[#1877f2] flex items-center justify-center mx-auto">
+                <FileQuestion className="w-7 h-7" />
               </div>
               <div className="space-y-1">
                 <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">
@@ -267,7 +267,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveNavTab('home')}
-                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-[#1877f2] hover:bg-blue-600 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
                 >
                   <Compass className="w-4 h-4" />
                   <span>Khám phá bảng tin ngay</span>
@@ -283,7 +283,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
               )}
             </div>
           ) : (
-            <>
+            <div className="space-y-4">
               {filteredPosts.map((post) => (
                 <PostCard
                   key={post.id}
@@ -297,7 +297,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
 
               {loadingMore && (
                 <div className="flex items-center justify-center py-6 space-x-2.5 text-gray-500 dark:text-[#b0b3b8] bg-white/40 dark:bg-[#242526]/40 rounded-xl my-3">
-                  <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                  <Loader2 className="w-5 h-5 animate-spin text-[#1877f2]" />
                   <span className="text-xs font-semibold">Đang tải thêm bài viết đã lưu...</span>
                 </div>
               )}
@@ -312,7 +312,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
                   </p>
                 </div>
               )}
-            </>
+            </div>
           )}
         </main>
 

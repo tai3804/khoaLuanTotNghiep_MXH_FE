@@ -11,6 +11,7 @@ import {
   useEditProfileForm,
   AVAILABLE_HOBBIES,
 } from './edit-modal';
+import { ImageCropperModal } from '../common/image-cropper';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -91,6 +92,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           {/* Modal Footer Controls */}
           <EditModalFooter onClose={onClose} isSaving={form.isSaving} />
         </form>
+
+        {/* Image Cropper Modal (Facebook / TikTok Style) */}
+        <ImageCropperModal
+          isOpen={Boolean(form.selectedCropFile && form.cropMode)}
+          imageFile={form.selectedCropFile}
+          mode={form.cropMode || 'avatar'}
+          onCropComplete={form.handleCropComplete}
+          onClose={form.handleCropClose}
+        />
       </div>
     </div>
   );

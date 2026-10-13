@@ -30,6 +30,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onPostUpdated,
 }) => {
   const data = usePostCardData({ post, onDeletePost });
+  const currentPost = data.currentPost || post;
   
   const [originalPost, setOriginalPost] = useState<Post | null>(post.sharedPost || null);
   const [loadingOriginalPost, setLoadingOriginalPost] = useState<boolean>(!post.sharedPost && Boolean(post.originalPostId));
@@ -89,8 +90,6 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   if (data.isDeleted || data.isHidden) return null;
-
-  const currentPost = data.currentPost || post;
 
   return (
     <div id={`post-${currentPost.id}`} className="bg-white dark:bg-[#242526] rounded-xl shadow-sm mb-4 border border-gray-200 dark:border-[#393a3b] transition-colors overflow-visible">

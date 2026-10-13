@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ProfilePhotosTabProps {
   allPostPhotos: string[];
@@ -9,10 +10,13 @@ export const ProfilePhotosTab: React.FC<ProfilePhotosTabProps> = ({
   allPostPhotos,
   fullName,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+
   return (
-    <div className="bg-white dark:bg-[#242526] rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-[#393a3b] max-w-5xl mx-auto">
-      <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb] pb-3 border-b border-gray-100 dark:border-[#393a3b] mb-6">
-        Ảnh của {fullName}
+    <div className="bg-white dark:bg-[#242526] rounded-2xl p-6 shadow-xs border border-gray-200 dark:border-[#393a3b] max-w-5xl mx-auto">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb] pb-3 border-b border-gray-100 dark:border-[#393a3b] mb-6">
+        {isEn ? `Photos of ${fullName}` : `Ảnh của ${fullName}`}
       </h2>
       {allPostPhotos.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -28,7 +32,7 @@ export const ProfilePhotosTab: React.FC<ProfilePhotosTabProps> = ({
         </div>
       ) : (
         <div className="text-center py-16 text-sm text-gray-400 dark:text-[#8a8d91]">
-          Chưa có ảnh nào được đăng tải.
+          {isEn ? 'No photos posted yet.' : 'Chưa có ảnh nào được đăng tải.'}
         </div>
       )}
     </div>

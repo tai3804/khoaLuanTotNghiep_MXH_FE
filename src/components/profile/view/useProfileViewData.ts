@@ -41,7 +41,7 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
   const [bioInput, setBioInput] = useState('');
   const [coverError, setCoverError] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showMediaGalleryModal, setShowMediaGalleryModal] = useState(false);
+  const [userMediaPhotos, setUserMediaPhotos] = useState<string[]>([]);
   const [friendRequested, setFriendRequested] = useState(false);
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([
     '🎧 Nghe nhạc',
@@ -101,6 +101,7 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
         if (isMounted && userProf) {
           setProfile(userProf);
           setBioInput(userProf.bio || '');
+          setCoverError(false);
         }
 
         const postOwnerId = userProf?.userId || userProf?.id || (isOwnProfileInitial ? currentUser?.id : userId);
@@ -129,6 +130,16 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
             ? await userService.getFriends()
             : await userService.getUserFriends(postOwnerId);
           if (isMounted) setFriends(Array.isArray(fList) ? fList : []);
+        } catch {}
+
+        try {
+          const gallery = await mediaService.getUserMediaGallery(postOwnerId || 'me', 0, 50);
+          if (isMounted && gallery && Array.isArray(gallery.content)) {
+            const galleryPhotos = gallery.content
+              .filter((m) => (m.mediaType === 'IMAGE' || !m.mediaType) && m.fileUrl)
+              .map((m) => m.fileUrl);
+            setUserMediaPhotos(galleryPhotos);
+          }
         } catch {}
       } catch (e) {
         console.error('Error loading profile:', e);
@@ -167,85 +178,120 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     };
   }, [userId, isOwnProfileInitial, currentUser?.id]);
 
-  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
+  const [cropMode, setCropMode] = useState<'avatar' | 'cover' | null>(null);
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('avatar');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCoverFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('cover');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedFile: File) => {
+    if (cropMode === 'avatar') {
+      await performAvatarUpload(croppedFile);
+    } else if (cropMode === 'cover') {
+      await performCoverUpload(croppedFile);
+    }
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const handleCropClose = () => {
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const performAvatarUpload = async (file: File) => {
     toast.showInfo('Đang tải ảnh đại diện lên...');
     try {
       const uploaded = await mediaService.uploadMedia(file, 'avatars');
-      let myProf = profile;
-      if (!myProf || !myProf.firstName) {
+      const newAvatarUrl = uploaded.fileUrl || (uploaded as any);
+
+      setProfile((prev: any) => ({
+        ...(prev || {}),
+        avatarUrl: newAvatarUrl,
+      }));
+      setUserMediaPhotos((prev) => [newAvatarUrl, ...prev.filter((u) => u !== newAvatarUrl)]);
+
+      let updated: any = null;
+      try {
+        updated = await userService.updateAvatar(newAvatarUrl);
+      } catch (e) {
+        console.warn('updateAvatar failed, falling back to updateMyProfile:', e);
         try {
-          myProf = await userService.getMyProfile();
+          updated = await userService.updateMyProfile({ avatarUrl: newAvatarUrl });
         } catch {}
       }
-      const names = (myProf?.fullName || currentUser?.fullName || 'User User').split(' ');
-      const fn = myProf?.firstName || names.slice(1).join(' ') || 'User';
-      const ln = myProf?.lastName || names[0] || 'User';
 
-      const updated = await userService.updateMyProfile({
-        firstName: fn,
-        lastName: ln,
-        middleName: myProf?.middleName || undefined,
-        bio: myProf?.bio || undefined,
-        avatarUrl: uploaded.fileUrl,
-        coverUrl: myProf?.coverUrl || undefined,
-        location: myProf?.location || undefined,
-        website: myProf?.website || undefined,
-        gender: myProf?.gender || 'MALE',
-        dateOfBirth: myProf?.dateOfBirth ? (typeof myProf.dateOfBirth === 'string' ? myProf.dateOfBirth.split('T')[0] : undefined) : undefined,
-      });
+      const finalAvatarUrl = updated?.avatarUrl || newAvatarUrl;
+      setProfile((prev: any) => ({
+        ...(prev || {}),
+        ...(updated || {}),
+        avatarUrl: finalAvatarUrl,
+      }));
 
-      setProfile(updated);
       if (updateUser) {
-        updateUser({ avatar: uploaded.fileUrl });
+        updateUser({ avatar: finalAvatarUrl });
       }
       if (refreshUserProfile) refreshUserProfile();
+      
+      window.dispatchEvent(new CustomEvent('user_avatar_changed', { detail: { avatarUrl: finalAvatarUrl } }));
       toast.showSuccess('Cập nhật ảnh đại diện thành công!');
     } catch (err: any) {
       toast.showError('Tải ảnh đại diện thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      if (e.target) e.target.value = '';
     }
   };
 
-  const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const performCoverUpload = async (file: File) => {
     toast.showInfo('Đang tải ảnh bìa lên...');
     try {
       const uploaded = await mediaService.uploadMedia(file, 'covers');
-      let myProf = profile;
-      if (!myProf || !myProf.firstName) {
+      const newCoverUrl = uploaded.fileUrl || (uploaded as any);
+
+      // Optimistically update the cover immediately so the UI reflects it without delay
+      setCoverError(false);
+      setProfile((prev: any) => ({
+        ...(prev || {}),
+        coverUrl: newCoverUrl,
+      }));
+      setUserMediaPhotos((prev) => [newCoverUrl, ...prev.filter((u) => u !== newCoverUrl)]);
+
+      let updated: any = null;
+      try {
+        updated = await userService.updateCover(newCoverUrl);
+      } catch (e) {
+        console.warn('updateCover failed, falling back to updateMyProfile:', e);
         try {
-          myProf = await userService.getMyProfile();
+          updated = await userService.updateMyProfile({ coverUrl: newCoverUrl });
         } catch {}
       }
-      const names = (myProf?.fullName || currentUser?.fullName || 'User User').split(' ');
-      const fn = myProf?.firstName || names.slice(1).join(' ') || 'User';
-      const ln = myProf?.lastName || names[0] || 'User';
 
-      const updated = await userService.updateMyProfile({
-        firstName: fn,
-        lastName: ln,
-        middleName: myProf?.middleName || undefined,
-        bio: myProf?.bio || undefined,
-        avatarUrl: myProf?.avatarUrl || undefined,
-        coverUrl: uploaded.fileUrl,
-        location: myProf?.location || undefined,
-        website: myProf?.website || undefined,
-        gender: myProf?.gender || 'MALE',
-        dateOfBirth: myProf?.dateOfBirth ? (typeof myProf.dateOfBirth === 'string' ? myProf.dateOfBirth.split('T')[0] : undefined) : undefined,
-      });
-
-      setProfile(updated);
+      const finalCoverUrl = updated?.coverUrl || newCoverUrl;
+      setProfile((prev: any) => ({
+        ...(prev || {}),
+        ...(updated || {}),
+        coverUrl: finalCoverUrl,
+      }));
       setCoverError(false);
+
+      if (updateUser) {
+        updateUser({ coverUrl: finalCoverUrl } as any);
+      }
       if (refreshUserProfile) refreshUserProfile();
       toast.showSuccess('Cập nhật ảnh bìa thành công!');
     } catch (err: any) {
       toast.showError('Tải ảnh bìa thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      if (e.target) e.target.value = '';
     }
   };
 
@@ -430,12 +476,34 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
   // Never use the viewer's avatar as a fallback on somebody else's profile.
   // That made profiles without an avatar appear to own the current user's photo.
   const avatarUrl = profile?.avatarUrl || (profile as any)?.avatar || (isOwnProfile ? currentUser?.avatar : '') || '';
-  const coverUrl = profile?.coverUrl || '';
+  const coverUrl =
+    profile?.coverUrl ||
+    (profile as any)?.cover ||
+    (profile as any)?.coverPhoto ||
+    (profile as any)?.coverImage ||
+    (isOwnProfile ? (currentUser as any)?.coverUrl || (currentUser as any)?.cover : '') ||
+    '';
+
+  useEffect(() => {
+    setCoverError(false);
+  }, [coverUrl]);
 
   const allPostPhotos: string[] = [];
+  const addedSet = new Set<string>();
+
+  const addPhoto = (url?: string) => {
+    if (url && typeof url === 'string' && url.trim().length > 0 && !addedSet.has(url)) {
+      addedSet.add(url);
+      allPostPhotos.push(url);
+    }
+  };
+
+  if (coverUrl) addPhoto(coverUrl);
+  if (avatarUrl) addPhoto(avatarUrl);
+  userMediaPhotos.forEach((url) => addPhoto(url));
   posts.forEach((p) => {
     if (p.mediaUrls && p.mediaUrls.length > 0) {
-      p.mediaUrls.forEach((m) => allPostPhotos.push(m));
+      p.mediaUrls.forEach((m) => addPhoto(m));
     }
   });
 
@@ -459,8 +527,6 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     setCoverError,
     showEditModal,
     setShowEditModal,
-    showMediaGalleryModal,
-    setShowMediaGalleryModal,
     selectedHobbies,
     isOwnProfile,
     targetUserId,
@@ -471,6 +537,10 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     avatarUrl,
     coverUrl,
     allPostPhotos,
+    selectedCropFile,
+    cropMode,
+    handleCropComplete,
+    handleCropClose,
     handleAvatarFileSelect,
     handleCoverFileSelect,
     handleSaveBio,

@@ -5,6 +5,7 @@ import { PostCard } from '../../../components/post/post-card';
 import { ProfileIntroBox } from './ProfileIntroBox';
 import { ProfilePhotosBox } from './ProfilePhotosBox';
 import { ProfileFriendsBox } from './ProfileFriendsBox';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ProfilePostsTabProps {
   isOwnProfile: boolean;
@@ -45,6 +46,9 @@ export const ProfilePostsTab: React.FC<ProfilePostsTabProps> = ({
   handlePostCreated,
   handlePostDeleted,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left Column: Intro Box, Photos Box, Friends Box */}
@@ -79,15 +83,15 @@ export const ProfilePostsTab: React.FC<ProfilePostsTabProps> = ({
           <CreatePostBox onPostCreated={handlePostCreated} />
         )}
 
-        <div className="bg-white dark:bg-[#242526] rounded-2xl p-3 px-4 shadow-sm border border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
-          <h3 className="font-extrabold text-sm text-gray-900 dark:text-[#e4e6eb]">
-            Bài viết ({posts.length})
+        <div className="bg-white dark:bg-[#242526] rounded-2xl p-3 px-4 shadow-xs border border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
+          <h3 className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb]">
+            {isEn ? `Posts (${posts.length})` : `Bài viết (${posts.length})`}
           </h3>
         </div>
 
         {loading ? (
           <div className="text-center py-12 text-sm text-gray-400 dark:text-[#8a8d91] animate-pulse">
-            Đang tải bài viết...
+            {isEn ? 'Loading posts...' : 'Đang tải bài viết...'}
           </div>
         ) : posts.length > 0 ? (
           posts.map((p) => (
@@ -98,14 +102,14 @@ export const ProfilePostsTab: React.FC<ProfilePostsTabProps> = ({
             />
           ))
         ) : (
-          <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center shadow-sm border border-gray-200 dark:border-[#393a3b]">
+          <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center shadow-xs border border-gray-200 dark:border-[#393a3b]">
             <p className="font-bold text-base text-gray-800 dark:text-[#e4e6eb]">
-              Chưa có bài viết nào
+              {isEn ? 'No posts yet' : 'Chưa có bài viết nào'}
             </p>
             <p className="text-xs text-gray-400 dark:text-[#8a8d91] mt-1">
               {isOwnProfile
-                ? 'Hãy chia sẻ khoảnh khắc đầu tiên của bạn lên trang cá nhân!'
-                : 'Người dùng này chưa đăng bài viết nào.'}
+                ? (isEn ? 'Share your first moment on your profile!' : 'Hãy chia sẻ khoảnh khắc đầu tiên của bạn lên trang cá nhân!')
+                : (isEn ? 'This user hasn’t posted anything yet.' : 'Người dùng này chưa đăng bài viết nào.')}
             </p>
           </div>
         )}

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '../components/layout/header-bar';
+import { SidebarLeft } from '../components/layout/SidebarLeft';
+import { SidebarRight } from '../components/layout/SidebarRight';
 import { ChatUser } from '../components/chat/chat-box';
 import { GroupBanner } from '../components/groups/GroupBanner';
 import { GroupDiscussionTab } from '../components/groups/GroupDiscussionTab';
@@ -15,6 +17,8 @@ import { useToast } from '../context/ToastContext';
 interface GroupDetailPageProps {
   activeNavTab: string;
   setActiveNavTab: (tab: string) => void;
+  activeSidebarFilter?: string;
+  setActiveSidebarFilter?: (filter: string) => void;
   onNavigateSettings: () => void;
   onNavigateProfile: (uid?: string) => void;
   onNavigateAuth: () => void;
@@ -85,92 +89,191 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
+      <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
         <Header 
           activeTab={props.activeNavTab} 
-          onTabChange={props.setActiveNavTab} 
+          onTabChange={(tab) => {
+            props.setActiveNavTab(tab);
+            if (tab === 'friends') props.setActiveSidebarFilter?.('friends');
+            if (tab === 'groups') props.setActiveSidebarFilter?.('groups');
+          }}
           onNavigateSettings={props.onNavigateSettings}
           onNavigateProfile={props.onNavigateProfile}
           onNavigateAuth={props.onNavigateAuth}
           onSelectChatUser={props.setActiveChatUser}
         />
-        <div className="flex-1 pt-14 flex flex-col items-center">
-          {/* Skeleton Banner */}
-          <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] rounded-b-xl shadow mb-4">
-            <Skeleton className="w-full h-[350px] rounded-t-none rounded-b-none" />
-            <div className="px-8 pb-4 pt-4 flex flex-col md:flex-row justify-between items-end md:items-center relative">
-              <div className="flex-1 pb-4">
-                <Skeleton variant="text" width="60%" height="2rem" className="mb-2" />
-                <Skeleton variant="text" width="40%" height="1rem" />
+        <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+          <SidebarLeft
+            activeFilter={props.activeSidebarFilter || 'groups'}
+            onFilterChange={(filter) => {
+              props.setActiveSidebarFilter?.(filter);
+              if (filter === 'friends') {
+                props.setActiveNavTab('friends');
+              } else if (filter === 'groups') {
+                props.setActiveNavTab('groups');
+              } else if (filter === 'watch') {
+                props.setActiveNavTab('watch');
+              } else if (filter === 'saved') {
+                props.setActiveNavTab('saved');
+              } else if (filter === 'moderation') {
+                props.setActiveNavTab('moderation');
+              } else if (filter === 'support') {
+                props.setActiveNavTab('support');
+              } else {
+                props.setActiveNavTab('home');
+              }
+            }}
+            onNavigateProfile={() => props.onNavigateProfile?.()}
+            onNavigateSettings={props.onNavigateSettings}
+          />
+
+          <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)] space-y-4">
+            {/* Skeleton Banner */}
+            <div className="w-full bg-white dark:bg-[#242526] rounded-2xl shadow-sm overflow-hidden mb-4">
+              <Skeleton className="w-full h-[260px] sm:h-[320px] rounded-none" />
+              <div className="px-6 pb-4 pt-4 flex flex-col md:flex-row justify-between items-end md:items-center relative">
+                <div className="flex-1 pb-4">
+                  <Skeleton variant="text" width="60%" height="2rem" className="mb-2" />
+                  <Skeleton variant="text" width="40%" height="1rem" />
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Skeleton width="120px" height="2.5rem" />
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <Skeleton width="120px" height="2.5rem" />
-                <Skeleton width="120px" height="2.5rem" />
-              </div>
             </div>
-            <div className="px-8 border-t border-gray-200 dark:border-gray-700 flex space-x-4">
-              <Skeleton width="80px" height="3rem" className="rounded-none bg-transparent" />
-              <Skeleton width="80px" height="3rem" className="rounded-none bg-transparent" />
-              <Skeleton width="80px" height="3rem" className="rounded-none bg-transparent" />
+            
+            {/* Main Content Area Skeleton */}
+            <div className="space-y-4">
+              <Skeleton width="100%" height="140px" />
+              <Skeleton width="100%" height="260px" />
             </div>
-          </div>
-          
-          {/* Main Content Area Skeleton */}
-          <div className="flex-1 flex justify-center w-full max-w-[1000px] mx-auto px-4 pb-16 space-x-4">
-            <div className="flex-1 space-y-4">
-              <Skeleton width="100%" height="150px" />
-              <Skeleton width="100%" height="300px" />
-            </div>
-            <div className="w-1/3 hidden md:block space-y-4">
-              <Skeleton width="100%" height="200px" />
-              <Skeleton width="100%" height="250px" />
-            </div>
-          </div>
+          </main>
+
+          <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
         </div>
       </div>
     );
   }
 
   if (!group) {
-    return <div className="flex min-h-screen flex-col bg-[#f0f2f5] dark:bg-[#18191a]"><Header activeTab={props.activeNavTab} onTabChange={props.setActiveNavTab} onNavigateSettings={props.onNavigateSettings} onNavigateProfile={props.onNavigateProfile} onNavigateAuth={props.onNavigateAuth} onSelectChatUser={props.setActiveChatUser} /><main className="flex flex-1 items-center justify-center px-4 pt-14"><div className="max-w-md rounded-2xl bg-white p-7 text-center shadow dark:bg-[#242526]"><h1 className="text-xl font-bold">Không mở được nhóm</h1><p className="mt-2 text-sm text-gray-500 dark:text-gray-300">{loadError || 'Nhóm này không tồn tại hoặc bạn không có quyền truy cập.'}</p><button onClick={() => navigate('/groups')} className="mt-5 rounded-xl bg-[#1877f2] px-4 py-2 text-sm font-bold text-white">Quay lại Nhóm</button></div></main></div>;
+    return (
+      <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
+        <Header
+          activeTab={props.activeNavTab}
+          onTabChange={props.setActiveNavTab}
+          onNavigateSettings={props.onNavigateSettings}
+          onNavigateProfile={props.onNavigateProfile}
+          onNavigateAuth={props.onNavigateAuth}
+          onSelectChatUser={props.setActiveChatUser}
+        />
+        <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+          <SidebarLeft
+            activeFilter={props.activeSidebarFilter || 'groups'}
+            onFilterChange={(filter) => {
+              props.setActiveSidebarFilter?.(filter);
+              if (filter === 'friends') props.setActiveNavTab('friends');
+              else if (filter === 'groups') props.setActiveNavTab('groups');
+              else props.setActiveNavTab('home');
+            }}
+            onNavigateProfile={() => props.onNavigateProfile?.()}
+            onNavigateSettings={props.onNavigateSettings}
+          />
+          <main className="flex flex-1 items-center justify-center px-4 py-16">
+            <div className="max-w-md rounded-2xl bg-white dark:bg-[#242526] p-7 text-center shadow-sm border border-gray-200 dark:border-[#393a3b]">
+              <h1 className="text-xl font-bold">Không mở được nhóm</h1>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">
+                {loadError || 'Nhóm này không tồn tại hoặc bạn không có quyền truy cập.'}
+              </p>
+              <button
+                onClick={() => navigate('/groups')}
+                className="mt-5 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] px-4 py-2 text-xs font-bold text-white shadow-sm transition cursor-pointer"
+              >
+                Quay lại Nhóm
+              </button>
+            </div>
+          </main>
+          <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
       <Header 
         activeTab={props.activeNavTab} 
-        onTabChange={props.setActiveNavTab} 
+        onTabChange={(tab) => {
+          props.setActiveNavTab(tab);
+          if (tab === 'friends') props.setActiveSidebarFilter?.('friends');
+          if (tab === 'groups') props.setActiveSidebarFilter?.('groups');
+        }}
         onNavigateSettings={props.onNavigateSettings}
         onNavigateProfile={props.onNavigateProfile}
         onNavigateAuth={props.onNavigateAuth}
         onSelectChatUser={props.setActiveChatUser}
       />
 
-      <div className="flex-1 pt-14 flex justify-center">
-        <GroupBanner 
-          group={group} 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          members={members}
-          onNavigateProfile={(userId) => props.onNavigateProfile(userId)}
-          onInviteClick={() => setShowInviteModal(true)}
-          onToggleJoin={handleToggleJoin}
-          onLeaveGroup={handleLeaveGroup}
+      <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+        {/* Left Sidebar */}
+        <SidebarLeft
+          activeFilter={props.activeSidebarFilter || 'groups'}
+          onFilterChange={(filter) => {
+            props.setActiveSidebarFilter?.(filter);
+            if (filter === 'friends') {
+              props.setActiveNavTab('friends');
+            } else if (filter === 'groups') {
+              props.setActiveNavTab('groups');
+            } else if (filter === 'watch') {
+              props.setActiveNavTab('watch');
+            } else if (filter === 'saved') {
+              props.setActiveNavTab('saved');
+            } else if (filter === 'moderation') {
+              props.setActiveNavTab('moderation');
+            } else if (filter === 'support') {
+              props.setActiveNavTab('support');
+            } else {
+              props.setActiveNavTab('home');
+            }
+          }}
+          onNavigateProfile={() => props.onNavigateProfile?.()}
+          onNavigateSettings={props.onNavigateSettings}
         />
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex justify-center w-full max-w-[1000px] mx-auto pt-4 px-4 pb-16">
-        {activeTab === 'discussion' && <GroupDiscussionTab group={group} onToggleJoin={handleToggleJoin} />}
-        {activeTab === 'members' && (
-          <GroupMembersTab 
+        {/* Center Main Content Area */}
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)] space-y-4">
+          <GroupBanner 
             group={group} 
-            onInviteClick={() => setShowInviteModal(true)} 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            members={members}
             onNavigateProfile={(userId) => props.onNavigateProfile(userId)}
+            onInviteClick={() => setShowInviteModal(true)}
+            onToggleJoin={handleToggleJoin}
+            onLeaveGroup={handleLeaveGroup}
           />
-        )}
-        {activeTab === 'media' && <GroupMediaTab group={group} />}
-        {activeTab === 'settings' && <GroupSettingsTab group={group} onUpdated={(updated) => { setGroup(updated); loadGroup(updated.id); }} onDeleted={() => navigate('/groups')} />}
+
+          <div className="w-full">
+            {activeTab === 'discussion' && <GroupDiscussionTab group={group} onToggleJoin={handleToggleJoin} />}
+            {activeTab === 'members' && (
+              <GroupMembersTab 
+                group={group} 
+                onInviteClick={() => setShowInviteModal(true)} 
+                onNavigateProfile={(userId) => props.onNavigateProfile(userId)}
+              />
+            )}
+            {activeTab === 'media' && <GroupMediaTab group={group} />}
+            {activeTab === 'settings' && (
+              <GroupSettingsTab
+                group={group}
+                onUpdated={(updated) => { setGroup(updated); loadGroup(updated.id); }}
+                onDeleted={() => navigate('/groups')}
+              />
+            )}
+          </div>
+        </main>
+
+        {/* Right Contacts & Group Chats Sidebar */}
+        <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
       </div>
 
       {/* Invite Modal */}
@@ -185,4 +288,5 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
     </div>
   );
 };
+
 

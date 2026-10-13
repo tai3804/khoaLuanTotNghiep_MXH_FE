@@ -1,17 +1,185 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, FileWarning, Loader2, RotateCcw } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Header } from '../components/layout/header-bar';
+import { SidebarLeft } from '../components/layout/SidebarLeft';
+import { SidebarRight } from '../components/layout/SidebarRight';
 import { ChatUser } from '../components/chat/chat-box';
 import { reportService, SubmittedReport } from '../services/reportService';
 import { useToast } from '../context/ToastContext';
+import { SupportInboxHeader } from '../components/support-inbox/SupportInboxHeader';
+import {
+  SupportInboxFilters,
+  SupportInboxFilterStatus,
+} from '../components/support-inbox/SupportInboxFilters';
+import { SupportInboxItem } from '../components/support-inbox/SupportInboxItem';
+import { SupportInboxEmpty } from '../components/support-inbox/SupportInboxEmpty';
+import { SupportInboxAppealModal } from '../components/support-inbox/SupportInboxAppealModal';
 
-interface Props { activeNavTab: string; setActiveNavTab: (tab: string) => void; onNavigateSettings: () => void; onNavigateProfile: (uid?: string) => void; onNavigateAuth: () => void; activeChatUser: ChatUser | null; setActiveChatUser: (user: ChatUser | null) => void; }
-const labels: Record<string, string> = { PENDING: 'Đang chờ', REVIEWING: 'Đang xem xét', RESOLVED: 'Đã xử lý', DISMISSED: 'Không vi phạm' };
+interface SupportInboxPageProps {
+  activeNavTab: string;
+  setActiveNavTab: (tab: string) => void;
+  activeSidebarFilter?: string;
+  setActiveSidebarFilter?: (filter: string) => void;
+  onNavigateSettings: () => void;
+  onNavigateProfile: (uid?: string) => void;
+  onNavigateAuth: () => void;
+  activeChatUser: ChatUser | null;
+  setActiveChatUser: (user: ChatUser | null) => void;
+}
 
-export const SupportInboxPage: React.FC<Props> = (props) => {
-  const [reports, setReports] = useState<SubmittedReport[]>([]); const [loading, setLoading] = useState(true); const [appealId, setAppealId] = useState<string | null>(null); const [message, setMessage] = useState(''); const toast = useToast();
-  const load = async () => { try { setLoading(true); setReports(await reportService.getMyReports()); } catch { toast.showError('Không tải được Hộp thư hỗ trợ.'); } finally { setLoading(false); } };
-  useEffect(() => { load(); }, []);
-  const appeal = async () => { if (!appealId || !message.trim()) return; try { await reportService.appeal(appealId, message.trim()); toast.showSuccess('Đã gửi yêu cầu xem xét lại.'); setAppealId(null); setMessage(''); load(); } catch { toast.showError('Không thể gửi yêu cầu xem xét lại.'); } };
-  return <div className="min-h-screen bg-[#f0f2f5] text-gray-900 dark:bg-[#18191a] dark:text-[#e4e6eb]"><Header activeTab={props.activeNavTab} onTabChange={props.setActiveNavTab} onNavigateSettings={props.onNavigateSettings} onNavigateProfile={props.onNavigateProfile} onNavigateAuth={props.onNavigateAuth} onSelectChatUser={props.setActiveChatUser} /><main className="mx-auto max-w-3xl px-4 pb-10 pt-20"><p className="text-xs font-bold uppercase tracking-wider text-[#1877f2]">Support Inbox</p><h1 className="mt-1 text-3xl font-extrabold">Báo cáo của bạn</h1><p className="mt-1 text-sm text-gray-500">Theo dõi quyết định kiểm duyệt và yêu cầu xem xét lại khi cần.</p>{loading ? <Loader2 className="mx-auto mt-16 animate-spin text-[#1877f2]" /> : reports.length === 0 ? <div className="mt-6 rounded-2xl bg-white py-16 text-center shadow-sm dark:bg-[#242526]"><CheckCircle2 className="mx-auto mb-3 text-emerald-500" /><b>Bạn chưa gửi báo cáo nào.</b></div> : <div className="mt-6 space-y-3">{reports.map(r => <div key={r.reportId} className="rounded-2xl bg-white p-4 shadow-sm dark:bg-[#242526]"><div className="flex justify-between gap-3"><div><b>{r.targetType} · {r.reason}</b><p className="mt-1 text-sm text-gray-500">{r.description || 'Không có mô tả bổ sung.'}</p></div><span className="h-fit rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">{labels[r.status] || r.status}</span></div><p className="mt-3 text-xs text-gray-400">Gửi lúc {new Date(r.createdAt).toLocaleString('vi-VN')}</p>{(r.status === 'RESOLVED' || r.status === 'DISMISSED') && <button onClick={() => setAppealId(r.reportId)} className="mt-3 flex items-center gap-1 text-sm font-bold text-[#1877f2]"><RotateCcw className="h-4 w-4" />Yêu cầu xem xét lại</button>}</div>)}</div>}{appealId && <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 dark:bg-[#242526]"><h2 className="font-extrabold">Yêu cầu xem xét lại</h2><textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Nêu lý do bạn cần xem xét lại…" className="mt-3 w-full rounded-xl border p-3 text-sm dark:bg-[#3a3b3c]" rows={4} /><div className="mt-3 flex justify-end gap-2"><button onClick={() => setAppealId(null)} className="px-3 py-2 text-sm font-bold">Hủy</button><button disabled={!message.trim()} onClick={appeal} className="rounded-xl bg-[#1877f2] px-3 py-2 text-sm font-bold text-white disabled:opacity-50">Gửi yêu cầu</button></div></div></div>}</main></div>;
+export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
+  activeNavTab,
+  setActiveNavTab,
+  activeSidebarFilter = 'support',
+  setActiveSidebarFilter,
+  onNavigateSettings,
+  onNavigateProfile,
+  onNavigateAuth,
+  activeChatUser,
+  setActiveChatUser,
+}) => {
+  const [reports, setReports] = useState<SubmittedReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<SupportInboxFilterStatus>('ALL');
+  const [appealReportId, setAppealReportId] = useState<string | null>(null);
+
+  const toast = useToast();
+
+  const loadReports = async () => {
+    try {
+      setLoading(true);
+      const data = await reportService.getMyReports();
+      setReports(data);
+    } catch (err) {
+      console.error('Failed to load support inbox reports:', err);
+      toast.showError('Không thể tải danh sách báo cáo hỗ trợ.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
+
+  const handleAppealSubmit = async (reportId: string, message: string) => {
+    try {
+      await reportService.appeal(reportId, message);
+      toast.showSuccess('Đã gửi yêu cầu xem xét lại thành công!');
+      loadReports();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Không thể gửi yêu cầu xem xét lại.';
+      toast.showError(msg);
+      throw err;
+    }
+  };
+
+  const statusCounts = useMemo<Record<SupportInboxFilterStatus, number>>(() => {
+    return {
+      ALL: reports.length,
+      PENDING: reports.filter((r) => r.status === 'PENDING').length,
+      REVIEWING: reports.filter((r) => r.status === 'REVIEWING').length,
+      RESOLVED: reports.filter((r) => r.status === 'RESOLVED').length,
+      DISMISSED: reports.filter((r) => r.status === 'DISMISSED').length,
+    };
+  }, [reports]);
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((report) => {
+      if (statusFilter !== 'ALL' && report.status !== statusFilter) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesReason = report.reason?.toLowerCase().includes(query);
+        const matchesDesc = report.description?.toLowerCase().includes(query);
+        const matchesTargetId = report.targetId?.toLowerCase().includes(query);
+        const matchesReportId = report.reportId?.toLowerCase().includes(query);
+        if (!matchesReason && !matchesDesc && !matchesTargetId && !matchesReportId) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [reports, statusFilter, searchQuery]);
+
+  const isFiltered = statusFilter !== 'ALL' || !!searchQuery.trim();
+
+  return (
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
+      <Header
+        activeTab={activeNavTab}
+        onTabChange={setActiveNavTab}
+        onNavigateSettings={onNavigateSettings}
+        onNavigateProfile={onNavigateProfile}
+        onNavigateAuth={onNavigateAuth}
+        onSelectChatUser={setActiveChatUser}
+      />
+
+      <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
+        <SidebarLeft
+          activeFilter={activeSidebarFilter || 'support'}
+          onFilterChange={(f) => {
+            if (setActiveSidebarFilter) setActiveSidebarFilter(f);
+            setActiveNavTab(f);
+          }}
+          onNavigateProfile={() => onNavigateProfile()}
+          onNavigateSettings={onNavigateSettings}
+        />
+
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+          <SupportInboxHeader
+            reports={reports}
+            loading={loading}
+            onRefresh={loadReports}
+          />
+
+          <SupportInboxFilters
+            activeStatus={statusFilter}
+            onStatusChange={setStatusFilter}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            counts={statusCounts}
+          />
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs">
+              <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
+              <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-[#b0b3b8]">
+                Đang tải danh sách báo cáo của bạn...
+              </p>
+            </div>
+          ) : filteredReports.length === 0 ? (
+            <SupportInboxEmpty
+              isFiltered={isFiltered}
+              onClearFilters={() => {
+                setStatusFilter('ALL');
+                setSearchQuery('');
+              }}
+              onNavigateHome={() => setActiveNavTab('home')}
+            />
+          ) : (
+            <div className="space-y-3">
+              {filteredReports.map((report) => (
+                <SupportInboxItem
+                  key={report.reportId}
+                  report={report}
+                  onOpenAppeal={(id) => setAppealReportId(id)}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+
+        <SidebarRight onSelectChatUser={(u) => setActiveChatUser(u)} />
+      </div>
+
+      <SupportInboxAppealModal
+        reportId={appealReportId}
+        onClose={() => setAppealReportId(null)}
+        onSubmit={handleAppealSubmit}
+      />
+    </div>
+  );
 };

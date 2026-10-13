@@ -134,7 +134,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         />
 
         {/* Center Main Feed Stream */}
-        <main className="flex-1 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           {/* Global System Announcement Banner */}
           <SystemAnnouncementBanner />
 

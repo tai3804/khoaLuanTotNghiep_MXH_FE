@@ -75,7 +75,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             avatar: profile.avatarUrl || prev?.avatar || '',
             bio: profile.bio || prev?.bio || '',
             roles: currentRoles,
-          };
+            coverUrl: profile.coverUrl || (prev as any)?.coverUrl || '',
+          } as any;
           localStorage.setItem('user', JSON.stringify(updated));
           return updated;
         });

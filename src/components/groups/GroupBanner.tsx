@@ -44,7 +44,7 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
 
   return (
-    <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] shadow-sm sm:rounded-b-lg overflow-hidden">
+    <div className="w-full bg-white dark:bg-[#242526] shadow-sm rounded-2xl border border-gray-200 dark:border-[#393a3b] overflow-hidden">
       {/* Cover Photo Frame */}
       {(() => {
         const hasCover = typeof group.coverUrl === 'string' && group.coverUrl.trim() && !group.coverUrl.includes('images.unsplash.com/photo-1522071820081');

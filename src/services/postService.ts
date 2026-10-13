@@ -417,6 +417,29 @@ export const postService = {
     return normalized;
   },
 
+  getUserArchivedPosts: async (userId: string, page = 0, size = 20): Promise<Post[]> => {
+    if (!userId || userId === 'me') {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.id) userId = parsed.id;
+        } catch {}
+      }
+    }
+    try {
+      const res = await api.get(`/posts/user/${userId}/archived`, { params: { page, size } });
+      const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data?.data : []) || res.data?.result || [];
+      if (Array.isArray(raw)) {
+        return raw.map(normalizePost);
+      }
+      return [];
+    } catch (e) {
+      console.warn('Failed to fetch user archived posts from backend:', e);
+      return [];
+    }
+  },
+
   updatePostPrivacy: async (postId: string, privacy: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string): Promise<Post> => {
     const res = await api.patch(`/posts/${postId}/privacy`, null, { params: { privacy } });
     const postData = res.data?.data || res.data;

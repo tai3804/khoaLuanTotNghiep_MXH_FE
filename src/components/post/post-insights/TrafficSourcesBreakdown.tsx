@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Feed, Link, User } from 'lucide-react';
+import { Compass, Rss, Link, User } from 'lucide-react';
 
 interface TrafficSourcesBreakdownProps {
   sources?: Record<string, number>;
@@ -14,7 +14,7 @@ export const TrafficSourcesBreakdown: React.FC<TrafficSourcesBreakdownProps> = (
   },
 }) => {
   const sourceIcons: Record<string, any> = {
-    'Bảng tin người theo dõi': Feed,
+    'Bảng tin người theo dõi': Rss,
     'Trang cá nhân': User,
     'Khám phá / Đề xuất': Compass,
     'Chia sẻ & Liên kết': Link,

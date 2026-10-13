@@ -71,40 +71,78 @@ export const useProfileSettingsForm = () => {
     fetchProfile();
   }, []);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selectedCropFile, setSelectedCropFile] = useState<File | null>(null);
+  const [cropMode, setCropMode] = useState<'avatar' | 'cover' | null>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('avatar');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedCropFile(file);
+    setCropMode('cover');
+    if (e.target) e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedFile: File) => {
+    if (cropMode === 'avatar') {
+      await performAvatarUpload(croppedFile);
+    } else if (cropMode === 'cover') {
+      await performCoverUpload(croppedFile);
+    }
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const handleCropClose = () => {
+    setSelectedCropFile(null);
+    setCropMode(null);
+  };
+
+  const performAvatarUpload = async (file: File) => {
     setUploadingAvatar(true);
     try {
       const media = await mediaService.uploadMedia(file, 'avatars');
       if (media && media.fileUrl) {
         setAvatarUrl(media.fileUrl);
-        toast.showSuccess('Đã tải ảnh đại diện lên thành công!');
+        try {
+          await userService.updateAvatar(media.fileUrl);
+          updateUser?.({ avatar: media.fileUrl });
+          refreshUserProfile?.();
+          window.dispatchEvent(new CustomEvent('user_avatar_changed', { detail: { avatarUrl: media.fileUrl } }));
+        } catch {}
+        toast.showSuccess('Đã cập nhật ảnh đại diện thành công!');
       }
     } catch (err: any) {
       toast.showError('Không thể tải ảnh đại diện lên: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingAvatar(false);
-      if (e.target) e.target.value = '';
     }
   };
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const performCoverUpload = async (file: File) => {
     setUploadingCover(true);
     try {
       const media = await mediaService.uploadMedia(file, 'covers');
       if (media && media.fileUrl) {
         setCoverUrl(media.fileUrl);
         setCoverError(false);
-        toast.showSuccess('Đã tải ảnh bìa lên thành công!');
+        try {
+          await userService.updateCover(media.fileUrl);
+          refreshUserProfile?.();
+        } catch {}
+        toast.showSuccess('Đã cập nhật ảnh bìa thành công!');
       }
     } catch (err: any) {
       toast.showError('Không thể tải ảnh bìa lên: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingCover(false);
-      if (e.target) e.target.value = '';
     }
   };
 
@@ -190,6 +228,10 @@ export const useProfileSettingsForm = () => {
     profileError,
     avatarInputRef,
     coverInputRef,
+    selectedCropFile,
+    cropMode,
+    handleCropComplete,
+    handleCropClose,
     handleAvatarUpload,
     handleCoverUpload,
     handleSaveProfile,

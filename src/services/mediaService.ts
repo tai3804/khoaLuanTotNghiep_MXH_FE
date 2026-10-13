@@ -76,8 +76,8 @@ export const mediaService = {
   /**
    * Fetch paginated list of media files uploaded by user
    */
-  getUserMediaGallery: async (userId: string, page = 0, size = 20): Promise<PagedMediaResponse> => {
-    const res = await api.get(`/media/user/${userId}`, {
+  getUserMediaGallery: async (userId: string = 'me', page = 0, size = 20): Promise<PagedMediaResponse> => {
+    const res = await api.get(`/media/user/${userId || 'me'}`, {
       params: { page, size },
     });
     return res.data?.data || res.data;

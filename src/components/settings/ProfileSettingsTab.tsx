@@ -7,6 +7,7 @@ import {
   PersonalDetailsSection,
   BioContactSection,
 } from './profile-tab';
+import { ImageCropperModal } from '../common/image-cropper';
 
 export const ProfileSettingsTab: React.FC = () => {
   const {
@@ -43,6 +44,10 @@ export const ProfileSettingsTab: React.FC = () => {
     profileError,
     avatarInputRef,
     coverInputRef,
+    selectedCropFile,
+    cropMode,
+    handleCropComplete,
+    handleCropClose,
     handleAvatarUpload,
     handleCoverUpload,
     handleSaveProfile,
@@ -126,6 +131,15 @@ export const ProfileSettingsTab: React.FC = () => {
           </div>
         </form>
       )}
+
+      {/* Image Cropper Modal (Facebook / TikTok Style) */}
+      <ImageCropperModal
+        isOpen={Boolean(selectedCropFile && cropMode)}
+        imageFile={selectedCropFile}
+        mode={cropMode || 'avatar'}
+        onCropComplete={handleCropComplete}
+        onClose={handleCropClose}
+      />
     </div>
   );
 };

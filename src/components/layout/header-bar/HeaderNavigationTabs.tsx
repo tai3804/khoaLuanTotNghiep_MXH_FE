@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Tv, Users, Gamepad2, UsersRound } from 'lucide-react';
+import { Home, Tv, Users, UsersRound } from 'lucide-react';
 
 interface HeaderNavigationTabsProps {
   activeTab: string;
@@ -42,8 +42,6 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
         <Tv className="w-5 h-5 lg:w-6 lg:h-6" />
       </button>
 
-
-
       <button
         onClick={() => onNavClick('friends')}
         className={`relative flex items-center justify-center w-12 md:w-14 lg:w-24 xl:w-28 h-full transition ${
@@ -72,8 +70,6 @@ export const HeaderNavigationTabs: React.FC<HeaderNavigationTabsProps> = ({
       >
         <UsersRound className="w-5 h-5 lg:w-6 lg:h-6" />
       </button>
-
-
     </nav>
   );
 };

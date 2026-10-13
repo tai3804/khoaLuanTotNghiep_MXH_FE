@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ProfileFriendsTabProps {
   friends: any[];
@@ -11,15 +12,18 @@ export const ProfileFriendsTab: React.FC<ProfileFriendsTabProps> = ({
   onViewProfile,
   onSelectChatUser,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+
   return (
-    <div className="bg-white dark:bg-[#242526] rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-[#393a3b] max-w-5xl mx-auto">
+    <div className="bg-white dark:bg-[#242526] rounded-2xl p-6 shadow-xs border border-gray-200 dark:border-[#393a3b] max-w-5xl mx-auto">
       <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-[#393a3b] mb-6">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
-            Bạn bè ({friends.length})
+          <h2 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb]">
+            {isEn ? `Friends (${friends.length})` : `Bạn bè (${friends.length})`}
           </h2>
           <p className="text-xs text-gray-400 dark:text-[#8a8d91]">
-            Tất cả những người bạn đã kết nối trên KLTN Social
+            {isEn ? 'All people connected with this profile' : 'Tất cả những người bạn đã kết nối trên KLTN Social'}
           </p>
         </div>
       </div>
@@ -44,9 +48,9 @@ export const ProfileFriendsTab: React.FC<ProfileFriendsTabProps> = ({
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-900 dark:text-[#e4e6eb] hover:underline">
-                    {friend.name || `${friend.lastName || ''} ${friend.firstName || ''}`.trim() || 'Bạn bè'}
+                    {friend.name || `${friend.lastName || ''} ${friend.firstName || ''}`.trim() || (isEn ? 'Friend' : 'Bạn bè')}
                   </h4>
-                  <p className="text-xs text-gray-400 dark:text-[#8a8d91]">Bạn bè trên KLTN Social</p>
+                  <p className="text-xs text-gray-400 dark:text-[#8a8d91]">{isEn ? 'Friend on KLTN Social' : 'Bạn bè trên KLTN Social'}</p>
                 </div>
               </div>
 
@@ -61,16 +65,16 @@ export const ProfileFriendsTab: React.FC<ProfileFriendsTabProps> = ({
                     });
                   }
                 }}
-                className="bg-blue-50 dark:bg-[#1877f2]/20 text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-100 dark:hover:bg-[#1877f2]/30 text-xs font-bold px-3 py-2 rounded-xl transition"
+                className="bg-blue-50 dark:bg-[#1877f2]/20 text-[#1877f2] dark:text-[#4599ff] hover:bg-blue-100 dark:hover:bg-[#1877f2]/30 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer"
               >
-                Nhắn tin
+                {isEn ? 'Message' : 'Nhắn tin'}
               </button>
             </div>
           ))}
         </div>
       ) : (
         <div className="text-center py-12 text-sm text-gray-400 dark:text-[#8a8d91]">
-          Chưa có người bạn nào trong danh sách.
+          {isEn ? 'No friends in this list yet.' : 'Chưa có người bạn nào trong danh sách.'}
         </div>
       )}
     </div>

@@ -126,6 +126,26 @@ export const userService = {
     return res.data?.data || res.data;
   },
 
+  updateAvatar: async (avatarUrl: string) => {
+    try {
+      const res = await api.patch('/users/profile/avatar', { avatarUrl });
+      return res.data?.data || res.data;
+    } catch {
+      const res = await api.put('/users/profile/me', { avatarUrl });
+      return res.data?.data || res.data;
+    }
+  },
+
+  updateCover: async (coverUrl: string) => {
+    try {
+      const res = await api.patch('/users/profile/cover', { coverUrl });
+      return res.data?.data || res.data;
+    } catch {
+      const res = await api.put('/users/profile/me', { coverUrl });
+      return res.data?.data || res.data;
+    }
+  },
+
   updateProfile: async (data: any) => {
     const res = await api.put('/users/profile/me', data);
     return res.data?.data || res.data;

@@ -85,21 +85,21 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, targe
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 overflow-hidden transition-all duration-200 transform ${
+        className={`relative w-full max-w-md rounded-2xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl p-6 overflow-hidden transition-all duration-200 transform ${
           isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-[#393a3b]">
           <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
             <AlertTriangle className="w-5 h-5" />
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Báo cáo vi phạm</h3>
+            <h3 className="font-bold text-gray-900 dark:text-[#e4e6eb] text-base">Báo cáo vi phạm</h3>
           </div>
           <button
             type="button"
             onClick={handleSmoothClose}
             disabled={isSubmitting}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -126,14 +126,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, targe
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
               Lý do báo cáo <span className="text-rose-500">*</span>
             </label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all cursor-pointer"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-[#393a3b] bg-gray-50 dark:bg-[#18191a] text-xs text-gray-900 dark:text-[#e4e6eb] focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all cursor-pointer"
             >
               <option value="">-- Chọn lý do --</option>
               {REPORT_REASONS.map((r) => (
@@ -145,7 +145,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, targe
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
               Mô tả chi tiết (Tùy chọn)
             </label>
             <textarea
@@ -153,17 +153,17 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, targe
               placeholder="Cung cấp thêm chi tiết để giúp ban quản trị xem xét..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all resize-none"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-[#393a3b] bg-gray-50 dark:bg-[#18191a] text-xs text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all resize-none"
             />
           </div>
 
           {/* Footer actions */}
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100 dark:border-[#393a3b]">
             <button
               type="button"
               onClick={handleSmoothClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition-colors cursor-pointer"
             >
               Hủy
             </button>

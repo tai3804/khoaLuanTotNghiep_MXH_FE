@@ -134,11 +134,11 @@ export const WatchPage: React.FC<WatchPageProps> = ({
           onNavigateSettings={onNavigateSettings}
         />
 
-        <main className="flex-1 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           
-          <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm p-4 mb-4 border border-gray-200 dark:border-[#393a3b] flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#1877f2]">
-              <PlaySquare className="w-6 h-6" />
+          <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm p-4 sm:p-5 mb-4 border border-gray-200 dark:border-[#393a3b] flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 flex items-center justify-center text-[#1877f2] dark:text-[#4599ff]">
+              <PlaySquare className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb]">Watch</h2>
