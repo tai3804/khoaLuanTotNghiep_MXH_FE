@@ -34,53 +34,55 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
     const cleanName = rawName.replace(/^@/, '').trim();
     if (!cleanName) return;
 
-    if (onMentionClick) {
-      onMentionClick(cleanName);
-      return;
-    }
-
     const lowerName = cleanName.toLowerCase();
+    let resolvedId: string | null = null;
 
     // 1. Check in-memory mention map
     if (mentionNameToIdCache[lowerName]) {
-      navigate(`/profile/${mentionNameToIdCache[lowerName]}`);
-      return;
+      resolvedId = mentionNameToIdCache[lowerName];
     }
 
     // 2. Check authorProfileCache
-    try {
-      const matchInAuthorCache = Object.entries(authorProfileCache).find(
-        ([, p]) => p.name && p.name.trim().toLowerCase() === lowerName
-      );
-      if (matchInAuthorCache) {
-        mentionNameToIdCache[lowerName] = matchInAuthorCache[0];
-        navigate(`/profile/${matchInAuthorCache[0]}`);
-        return;
-      }
-    } catch {}
+    if (!resolvedId) {
+      try {
+        const matchInAuthorCache = Object.entries(authorProfileCache).find(
+          ([, p]) => p.name && p.name.trim().toLowerCase() === lowerName
+        );
+        if (matchInAuthorCache) {
+          resolvedId = matchInAuthorCache[0];
+          mentionNameToIdCache[lowerName] = resolvedId;
+        }
+      } catch {}
+    }
 
     // 3. Search platform users for best match
-    try {
-      const searchRes = await userService.searchUsers(cleanName, 1, 5);
-      if (Array.isArray(searchRes) && searchRes.length > 0) {
-        const found =
-          searchRes.find(
-            (u: any) =>
-              (u.fullName && u.fullName.trim().toLowerCase() === lowerName) ||
-              (u.name && u.name.trim().toLowerCase() === lowerName)
-          ) || searchRes[0];
+    if (!resolvedId) {
+      try {
+        const searchRes = await userService.searchUsers(cleanName, 1, 5);
+        if (Array.isArray(searchRes) && searchRes.length > 0) {
+          const found =
+            searchRes.find(
+              (u: any) =>
+                (u.fullName && u.fullName.trim().toLowerCase() === lowerName) ||
+                (u.name && u.name.trim().toLowerCase() === lowerName)
+            ) || searchRes[0];
 
-        const targetId = found.userId || found.id || found.profileId;
-        if (targetId) {
-          mentionNameToIdCache[lowerName] = String(targetId);
-          navigate(`/profile/${targetId}`);
-          return;
+          const targetId = found.userId || found.id || found.profileId;
+          if (targetId) {
+            resolvedId = String(targetId);
+            mentionNameToIdCache[lowerName] = resolvedId;
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
 
-    // 4. Fallback: navigate to search page with user name
-    navigate(`/search?q=${encodeURIComponent(cleanName)}`);
+    // 4. Pass resolved ID to onMentionClick or navigate to profile
+    if (resolvedId) {
+      handleMentionById(resolvedId);
+    } else {
+      // Fallback: search for that user by name
+      navigate(`/search?q=${encodeURIComponent(cleanName)}`);
+    }
   };
 
   const handleHashtag = (tag: string) => {
