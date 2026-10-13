@@ -68,99 +68,90 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
 
   return (
     <div className="w-full space-y-5">
-      {/* Top Professional Control Card */}
-      <div className="bg-white dark:bg-[#242526] rounded-2xl p-3.5 sm:p-4 border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3.5">
-        {/* Row 1: Title, Subtitle & "+ Tạo nhóm mới" Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-full bg-[#1877f2]/10 dark:bg-blue-900/30 flex items-center justify-center text-[#1877f2]">
-              <Users2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-[#e4e6eb] tracking-tight">
-                Nhóm & Cộng đồng
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-                Khám phá, kết nối và chia sẻ bài viết cùng cộng đồng bạn yêu thích
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onCreateGroupClick}
-            className="self-start sm:self-auto bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer text-xs sm:text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tạo nhóm mới</span>
-          </button>
-        </div>
-
-        {/* Row 2: Category Filter Pills & Search Box */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-gray-100 dark:border-[#393a3b]/60">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
+      {/* Groups Navigation Options & Actions */}
+      <div className="mb-4 space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* Navigation Option Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
             <button
               onClick={() => setFilterTab('all')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${filterTab === 'all'
-                  ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] shadow-sm'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60'
-                }`}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                filterTab === 'all'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
             >
               <Compass className="w-4 h-4" />
               <span>Tất cả nhóm</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 dark:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]">
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                filterTab === 'all' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
                 {groups.length}
               </span>
             </button>
 
             <button
               onClick={() => setFilterTab('joined')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${filterTab === 'joined'
-                  ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] shadow-sm'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60'
-                }`}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                filterTab === 'joined'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
             >
               <Users2 className="w-4 h-4" />
-              <span>Nhóm đã tham gia</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 dark:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]">
+              <span>Đã tham gia</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                filterTab === 'joined' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
                 {joinedGroups.length}
               </span>
             </button>
 
             <button
               onClick={() => setFilterTab('managed')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${filterTab === 'managed'
-                  ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] shadow-sm'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60'
-                }`}
+              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                filterTab === 'managed'
+                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+              }`}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>Nhóm bạn quản trị</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 dark:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]">
+              <span>Quản trị</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                filterTab === 'managed' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+              }`}>
                 {managedGroups.length}
               </span>
             </button>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Quick Search */}
-            <div className="relative flex-1 sm:w-60">
-              <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+          {/* Quick Search, Refresh & Create Group Action */}
+          <div className="flex items-center space-x-1.5 shrink-0 self-end sm:self-auto">
+            <div className="relative w-36 sm:w-48">
+              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm kiếm nhóm..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 dark:placeholder-[#b0b3b8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition shadow-2xs"
               />
             </div>
 
-            {/* Refresh Button */}
             <button
               onClick={() => loadGroups(false)}
               title="Làm mới danh sách nhóm"
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+              className="p-1.5 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+
+            <button
+              onClick={onCreateGroupClick}
+              className="bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-3 py-1.5 rounded-xl shadow-2xs transition flex items-center gap-1.5 shrink-0 cursor-pointer text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tạo nhóm</span>
             </button>
           </div>
         </div>

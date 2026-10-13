@@ -101,8 +101,8 @@ export const CreatorDashboardPage: React.FC = () => {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-5 mb-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {[
             { id: 'overview', label: isEn ? 'Performance Overview' : 'Tổng quan hiệu suất', icon: BarChart3 },
             { id: 'demographics', label: isEn ? 'Audience Insights' : 'Phân tích đối tượng', icon: Users },
@@ -115,10 +115,10 @@ export const CreatorDashboardPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 py-3.5 px-4 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer shrink-0 ${
+                className={`flex items-center gap-2 py-2 px-3.5 text-xs sm:text-sm font-semibold rounded-xl transition whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
-                    ? 'text-[#1877f2] dark:text-[#4599ff] border-[#1877f2] dark:border-[#4599ff]'
-                    : 'text-gray-600 dark:text-[#b0b3b8] border-transparent hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
                 }`}
               >
                 <Icon className="w-4 h-4" />

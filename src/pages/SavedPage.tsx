@@ -177,63 +177,49 @@ export const SavedPage: React.FC<SavedPageProps> = ({
         />
 
         <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
-          {/* Header Banner Card */}
-          <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm p-4 sm:p-5 mb-4 border border-gray-200 dark:border-[#393a3b] space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3.5">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-[#1877f2] dark:text-[#4599ff] shrink-0 border border-blue-100 dark:border-blue-900/30">
-                  <Bookmark className="w-5 h-5 fill-[#1877f2] dark:fill-[#4599ff]" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb] leading-tight">
-                    {t('saved') || 'Mục đã lưu'}
-                  </h1>
-                  <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-                    Tất cả các bài viết bạn đã lưu để xem lại sau
-                  </p>
-                </div>
-              </div>
-
-              {!loading && (
-                <div className="px-3 py-1 bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] rounded-full text-xs font-semibold shrink-0">
-                  {posts.length} bài viết
-                </div>
-              )}
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex items-center space-x-2 pt-2 border-t border-gray-100 dark:border-[#393a3b]">
+          {/* Saved Navigation Option Pills */}
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
               <button
                 type="button"
                 onClick={() => setMediaFilter('all')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   mediaFilter === 'all'
-                    ? 'bg-[#1877f2] text-white shadow-xs'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Bookmark className="w-3.5 h-3.5" />
                 <span>Tất cả</span>
+                {!loading && (
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    mediaFilter === 'all' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+                  }`}>
+                    {posts.length}
+                  </span>
+                )}
               </button>
+
               <button
                 type="button"
                 onClick={() => setMediaFilter('image')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   mediaFilter === 'image'
-                    ? 'bg-[#1877f2] text-white shadow-xs'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
                 }`}
               >
                 <Image className="w-3.5 h-3.5" />
                 <span>Có hình ảnh</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setMediaFilter('video')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer flex items-center space-x-1.5 ${
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   mediaFilter === 'video'
-                    ? 'bg-[#1877f2] text-white shadow-xs'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b]'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />

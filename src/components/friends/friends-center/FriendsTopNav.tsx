@@ -40,83 +40,66 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
   ];
 
   return (
-    <div className="bg-white dark:bg-[#242526] rounded-2xl p-3.5 sm:p-4 border border-gray-200 dark:border-[#393a3b] shadow-sm mb-5 space-y-3">
-      {/* Header Row: Title, Search, and Refresh Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-full bg-[#1877f2]/10 dark:bg-blue-900/30 flex items-center justify-center text-[#1877f2]">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-[#e4e6eb] tracking-tight">
-              {t('friends.title') || 'Bạn bè'}
-            </h1>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-              Quản lý danh sách kết nối, lời mời và bạn bè
-            </p>
-          </div>
+    <div className="mb-4 space-y-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        {/* Navigation Option Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setSearchTerm('');
+                }}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.count !== null && tab.count > 0 && (
+                  <span
+                    className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : tab.id === 'requests'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex items-center space-x-2">
-          {/* Quick Search */}
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+        {/* Quick Search & Refresh */}
+        <div className="flex items-center space-x-1.5 shrink-0 self-end sm:self-auto">
+          <div className="relative w-36 sm:w-52">
+            <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('friends.filterPlaceholder') || 'Tìm kiếm theo tên...'}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+              placeholder={t('friends.filterPlaceholder') || 'Tìm kiếm...'}
+              className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 dark:placeholder-[#b0b3b8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition shadow-2xs"
             />
           </div>
-
-          {/* Refresh Button */}
           <button
             onClick={onRefresh}
             title="Làm mới danh sách"
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+            className="p-1.5 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-      </div>
-
-      {/* Navigation Chips Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as any);
-                setSearchTerm('');
-              }}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                isActive
-                  ? 'bg-blue-50 dark:bg-[#3a3b3c] text-[#2d88ff] shadow-sm'
-                  : 'text-gray-600 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c]/60'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count !== null && tab.count > 0 && (
-                <span
-                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                    isActive
-                      ? 'bg-[#1877f2] text-white'
-                      : tab.id === 'requests'
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-200 dark:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { postService } from '../services/api';
-import { FileQuestion, Loader2, CheckCircle2, PlaySquare } from 'lucide-react';
+import { FileQuestion, Loader2, CheckCircle2, PlaySquare, Flame, Clock, RefreshCw } from 'lucide-react';
 
 interface WatchPageProps {
   activeNavTab: string;
@@ -40,6 +40,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [activeWatchTab, setActiveWatchTab] = useState<'for_you' | 'trending' | 'recent'>('for_you');
 
   const fetchWatchFeed = async (isLoadMore = false) => {
     if (isLoadMore) {
@@ -136,14 +137,56 @@ export const WatchPage: React.FC<WatchPageProps> = ({
 
         <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           
-          <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm p-4 sm:p-5 mb-4 border border-gray-200 dark:border-[#393a3b] flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 flex items-center justify-center text-[#1877f2] dark:text-[#4599ff]">
-              <PlaySquare className="w-5 h-5" />
+          {/* Watch Navigation Option Pills */}
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
+              <button
+                type="button"
+                onClick={() => setActiveWatchTab('for_you')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  activeWatchTab === 'for_you'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <PlaySquare className="w-4 h-4" />
+                <span>Dành cho bạn</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveWatchTab('trending')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  activeWatchTab === 'trending'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Flame className="w-4 h-4" />
+                <span>Thịnh hành</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveWatchTab('recent')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  activeWatchTab === 'recent'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>Mới nhất</span>
+              </button>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-[#e4e6eb]">Watch</h2>
-              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">Video mới nhất dành cho bạn</p>
-            </div>
+
+            <button
+              onClick={() => fetchWatchFeed()}
+              title="Làm mới video"
+              className="p-2 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           {loading && posts.length === 0 ? (
