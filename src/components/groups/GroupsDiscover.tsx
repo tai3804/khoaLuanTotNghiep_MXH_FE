@@ -158,13 +158,20 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
           </div>
         </div>
 
-        {/* Row 2: Nút thêm nhóm đem xuống bên dưới */}
-        <div className="flex items-center justify-between pt-0.5">
+        {/* Row 2: Thống kê bên trái, Nút thêm nhóm mới nằm phía bên phải */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium hidden sm:block">
+            {filterTab === 'all'
+              ? `Tất cả cộng đồng (${groups.length})`
+              : filterTab === 'joined'
+              ? `Nhóm bạn đã tham gia (${joinedGroups.length})`
+              : `Nhóm do bạn quản trị (${managedGroups.length})`}
+          </div>
           <button
             onClick={onCreateGroupClick}
-            className="w-full sm:w-auto bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm"
+            className="ml-auto bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm group"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
             <span>Tạo nhóm mới</span>
           </button>
         </div>

@@ -4,6 +4,8 @@ import { Compass, Users2 } from 'lucide-react';
 import { groupService, GroupResponse } from '../../../services/groupService';
 import { GroupAvatar } from '../../common/GroupAvatar';
 
+let cachedJoinedGroups: GroupResponse[] = [];
+
 interface SidebarLeftShortcutsProps {
   isCollapsed?: boolean;
   onFilterChange?: (filter: string) => void;
@@ -14,13 +16,14 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
   onFilterChange,
 }) => {
   const navigate = useNavigate();
-  const [joinedGroups, setJoinedGroups] = useState<GroupResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [joinedGroups, setJoinedGroups] = useState<GroupResponse[]>(cachedJoinedGroups);
+  const [loading, setLoading] = useState<boolean>(cachedJoinedGroups.length === 0);
 
   const fetchJoinedGroups = async () => {
     try {
       const all = await groupService.getGroups();
       const userGroups = all.filter((g) => g.isMember || g.isAdmin);
+      cachedJoinedGroups = userGroups;
       setJoinedGroups(userGroups);
     } catch (err) {
       console.warn('Failed to fetch joined groups for shortcuts:', err);
