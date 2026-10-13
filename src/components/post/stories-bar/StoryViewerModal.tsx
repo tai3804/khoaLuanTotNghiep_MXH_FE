@@ -4,6 +4,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { useAuth } from '../../../context/AuthContext';
 import { storyService, StoryViewerItem } from '../../../services/storyService';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 interface StoryViewerModalProps {
   selectedStory: any | null;
@@ -14,6 +15,7 @@ interface StoryViewerModalProps {
 export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({ selectedStory, onClose, onStoryDeleted }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const stories = useMemo(() => selectedStory?.stories || [], [selectedStory]);
   const [storyIndex, setStoryIndex] = useState(0);
   const [mediaFailed, setMediaFailed] = useState(false);
@@ -91,7 +93,15 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({ selectedStor
   };
 
   const deleteStory = async () => {
-    if (!story?.id || !window.confirm('Xoá tin này? Tin sẽ không thể khôi phục.')) return;
+    if (!story?.id) return;
+    const ok = await confirm({
+      title: 'Xóa tin',
+      message: 'Bạn có chắc chắn muốn xóa tin này? Tin sẽ không thể khôi phục.',
+      confirmText: 'Xóa tin',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await storyService.deleteStory(story.id);

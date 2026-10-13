@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { userService } from '../../../services/api';
 
 export const useFriendsData = () => {
   const { user: currentUser, isAuthenticated, openLoginModal } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('friends');
   const [friends, setFriends] = useState<any[]>([]);
@@ -159,7 +161,14 @@ export const useFriendsData = () => {
 
   // Handle Unfriend
   const handleUnfriend = async (friendId: string, friendName?: string) => {
-    if (!window.confirm(`Bạn có chắc muốn hủy kết bạn với ${friendName || 'người này'}?`)) return;
+    const ok = await confirm({
+      title: 'Hủy kết bạn',
+      message: `Bạn có chắc muốn hủy kết bạn với ${friendName || 'người này'}?`,
+      confirmText: 'Hủy kết bạn',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await userService.unfriend(friendId);
       setFriends((prev) => prev.filter((f) => f.id !== friendId && f.userId !== friendId));

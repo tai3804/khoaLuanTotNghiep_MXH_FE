@@ -10,6 +10,7 @@ import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { CallProvider } from './context/CallContext';
 import { LiveStreamProvider } from './context/LiveStreamContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { SystemConfigProvider } from './context/SystemConfigContext';
 
 import { Provider } from 'react-redux';
@@ -28,13 +29,15 @@ createRoot(document.getElementById('root')!).render(
             <ThemeProvider>
               <LanguageProvider>
                 <ToastProvider>
-                  <NotificationProvider>
-                    <CallProvider>
-                      <LiveStreamProvider>
-                        <App />
-                      </LiveStreamProvider>
-                    </CallProvider>
-                  </NotificationProvider>
+                  <ConfirmProvider>
+                    <NotificationProvider>
+                      <CallProvider>
+                        <LiveStreamProvider>
+                          <App />
+                        </LiveStreamProvider>
+                      </CallProvider>
+                    </NotificationProvider>
+                  </ConfirmProvider>
                 </ToastProvider>
               </LanguageProvider>
             </ThemeProvider>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { mediaService, MediaItem, UserStorageQuota } from '../../../services/mediaService';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 interface UseMediaGalleryProps {
   userId: string;
@@ -8,7 +9,7 @@ interface UseMediaGalleryProps {
 }
 
 const formatBytes = (bytes: number): string => {
-  if (bytes <= 0) return '0 B';
+  if (!bytes || bytes <= 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -17,6 +18,7 @@ const formatBytes = (bytes: number): string => {
 
 export const useMediaGallery = ({ userId, isOpen }: UseMediaGalleryProps) => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [quota, setQuota] = useState<UserStorageQuota | null>(null);
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,14 @@ export const useMediaGallery = ({ userId, isOpen }: UseMediaGalleryProps) => {
   }, [isOpen, userId]);
 
   const handleDelete = async (fileKey: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa file này?')) return;
+    const ok = await confirm({
+      title: 'Xóa tệp media',
+      message: 'Bạn có chắc chắn muốn xóa file này khỏi thư viện?',
+      confirmText: 'Xóa file',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     setDeletingKey(fileKey);
     try {
       await mediaService.deleteMedia(fileKey);

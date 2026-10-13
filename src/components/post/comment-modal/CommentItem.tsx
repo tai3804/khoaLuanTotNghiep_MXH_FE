@@ -5,6 +5,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { TopFanBadge } from '../common/TopFanBadge';
 import { TimeAgo } from '../../common/TimeAgo';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 interface CommentItemProps {
   comment: Comment;
@@ -33,6 +34,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   onUpdate,
   onDelete,
 }) => {
+  const { confirm } = useConfirm();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(c.content);
   const [saving, setSaving] = useState(false);
@@ -63,9 +65,15 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   };
 
   const remove = async (commentId: string) => {
-    if (window.confirm(language === 'en' ? 'Delete this comment?' : 'Bạn có chắc muốn xóa bình luận này?')) {
-      await onDelete(commentId);
-    }
+    const ok = await confirm({
+      title: language === 'en' ? 'Delete Comment' : 'Xóa bình luận',
+      message: language === 'en' ? 'Are you sure you want to delete this comment?' : 'Bạn có chắc muốn xóa bình luận này không?',
+      confirmText: language === 'en' ? 'Delete' : 'Xóa',
+      cancelText: language === 'en' ? 'Cancel' : 'Hủy',
+      type: 'danger',
+    });
+    if (!ok) return;
+    await onDelete(commentId);
   };
 
   const displayName =

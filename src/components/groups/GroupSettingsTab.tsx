@@ -44,7 +44,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({
   } = useGroupSettings({ group, onUpdated, onDeleted });
 
   return (
-    <div className="w-full max-w-3xl space-y-5">
+    <div className="w-full max-w-4xl mx-auto space-y-5">
       {/* Main Settings Card */}
       <section className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm border border-gray-200 dark:border-[#393a3b] p-6 space-y-6">
         <div className="border-b border-gray-100 dark:border-[#393a3b] pb-4">

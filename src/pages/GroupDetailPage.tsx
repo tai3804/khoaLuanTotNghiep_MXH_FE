@@ -14,6 +14,7 @@ import { InviteCommunityMembersModal } from '../components/groups/InviteCommunit
 import { Skeleton } from '../components/common/Skeleton';
 import { CommunityGroupMember, groupService, GroupResponse } from '../services/groupService';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 interface GroupDetailPageProps {
   activeNavTab: string;
@@ -33,6 +34,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState<'discussion' | 'members' | 'media' | 'appeals' | 'management' | 'pending-posts' | 'settings'>('discussion');
 
   const cached = id ? groupDetailsCache[id] : null;
@@ -101,7 +103,14 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
 
   const handleLeaveGroup = async () => {
     if (!group) return;
-    if (!window.confirm('Bạn có chắc muốn rời khỏi nhóm này?')) return;
+    const ok = await confirm({
+      title: 'Rời khỏi nhóm',
+      message: `Bạn có chắc muốn rời khỏi nhóm "${group.name}" không?`,
+      confirmText: 'Rời nhóm',
+      cancelText: 'Ở lại',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await groupService.leaveGroup(group.id);
       delete groupDetailsCache[group.id];

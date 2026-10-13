@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { userService, postService } from '../../../services/api';
 import { mediaService } from '../../../services/mediaService';
 import { Post, UserProfile } from '../../../types';
@@ -14,6 +15,7 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
   const navigate = useNavigate();
   const { user: currentUser, refreshUserProfile, updateUser } = useAuth();
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   const isOwnProfileInitial = !userId || userId === 'me' || Boolean(
     currentUser && (
@@ -435,7 +437,14 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     const fullNameStr = profile
       ? `${profile.lastName || ''} ${profile.firstName || ''}`.trim() || profile.fullName || 'người dùng này'
       : 'người dùng này';
-    if (!window.confirm(`Bạn có chắc muốn hủy kết bạn với ${fullNameStr}?`)) return;
+    const ok = await confirm({
+      title: 'Hủy kết bạn',
+      message: `Bạn có chắc muốn hủy kết bạn với ${fullNameStr}?`,
+      confirmText: 'Hủy kết bạn',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       const resolvedTarget = profile?.userId || profile?.id || targetUserId;
       await userService.unfriend(resolvedTarget);

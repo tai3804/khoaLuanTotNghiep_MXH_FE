@@ -3,6 +3,7 @@ import { Post } from '../../../types';
 import { postService } from '../../../services/postService';
 import { mediaService, UserStorageQuota, MediaItem } from '../../../services/mediaService';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { ArchiveTab } from './types';
 
 interface UseArchiveDataProps {
@@ -15,6 +16,7 @@ const storageKey = (uId: string) => `profile_management_archived_posts_${uId}`;
 
 export const useArchiveData = ({ userId, isOpen, onPostRestored }: UseArchiveDataProps) => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState<ArchiveTab>('archived');
   const [archivedPosts, setArchivedPosts] = useState<Post[]>([]);
   const [activePosts, setActivePosts] = useState<Post[]>([]);
@@ -184,9 +186,14 @@ export const useArchiveData = ({ userId, isOpen, onPostRestored }: UseArchiveDat
 
   // Action: Delete post permanently
   const handleDeletePost = async (postId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài viết này? Hành động này không thể hoàn tác.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Xóa vĩnh viễn bài viết',
+      message: 'Bạn có chắc chắn muốn xóa vĩnh viễn bài viết này? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa vĩnh viễn',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     setDeletingId(postId);
     try {
       await postService.deletePost(postId);
@@ -216,7 +223,14 @@ export const useArchiveData = ({ userId, isOpen, onPostRestored }: UseArchiveDat
   };
 
   const handleDeleteMedia = async (fileKey: string) => {
-    if (!window.confirm('Bạn có chắc muốn xóa tệp này khỏi bộ nhớ đám mây?')) return;
+    const ok = await confirm({
+      title: 'Xóa tệp lưu trữ',
+      message: 'Bạn có chắc muốn xóa tệp này khỏi bộ nhớ đám mây?',
+      confirmText: 'Xóa tệp',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     setDeletingKey(fileKey);
     try {
       await mediaService.deleteMedia(fileKey);

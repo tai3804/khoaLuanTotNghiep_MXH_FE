@@ -4,6 +4,7 @@ import { chatService } from '../../services/chatService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useConfirm } from '../../context/ConfirmContext';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface GroupInfoModalProps {
@@ -25,6 +26,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
 }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const { confirm } = useConfirm();
 
   const [loading, setLoading] = useState(true);
   const [groupDetail, setGroupDetail] = useState<any>(null);
@@ -157,7 +159,14 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   };
 
   const handleLeaveGroup = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn rời khỏi nhóm này không?')) return;
+    const ok = await confirm({
+      title: 'Rời khỏi nhóm trò chuyện',
+      message: 'Bạn có chắc chắn muốn rời khỏi nhóm này không?',
+      confirmText: 'Rời nhóm',
+      cancelText: 'Ở lại',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await chatService.leaveGroup(conversationId);
       toast.showSuccess('Đã rời khỏi nhóm chat.');
@@ -172,7 +181,14 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   };
 
   const handleRemoveMember = async (targetUserId: string, memberName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${memberName}" khỏi nhóm?`)) return;
+    const ok = await confirm({
+      title: 'Xóa thành viên',
+      message: `Bạn có chắc chắn muốn xóa "${memberName}" khỏi nhóm?`,
+      confirmText: 'Xóa thành viên',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await chatService.removeGroupMember(conversationId, targetUserId);
       toast.showSuccess(`Đã xóa ${memberName} khỏi nhóm.`);

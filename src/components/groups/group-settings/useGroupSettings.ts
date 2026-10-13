@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { GroupResponse, groupService } from '../../../services/groupService';
 import { mediaService } from '../../../services/mediaService';
 import { useToast } from '../../../context/ToastContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 interface UseGroupSettingsProps {
   group: GroupResponse;
@@ -20,6 +21,7 @@ export const useGroupSettings = ({ group, onUpdated, onDeleted }: UseGroupSettin
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const { confirm } = useConfirm();
   const canEditSettings = Boolean(group.isAdmin);
 
   useEffect(() => {
@@ -75,7 +77,14 @@ export const useGroupSettings = ({ group, onUpdated, onDeleted }: UseGroupSettin
   };
 
   const handleDeleteGroup = async () => {
-    if (!window.confirm(`Xóa nhóm "${group.name}"? Thao tác này sẽ giải tán nhóm và không thể hoàn tác.`)) return;
+    const ok = await confirm({
+      title: 'Giải tán nhóm',
+      message: `Bạn có chắc muốn xóa nhóm "${group.name}"? Thao tác này sẽ giải tán nhóm và không thể hoàn tác.`,
+      confirmText: 'Giải tán nhóm',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       await groupService.deleteGroup(group.id);
       toast.showSuccess('Đã giải tán nhóm thành công.');

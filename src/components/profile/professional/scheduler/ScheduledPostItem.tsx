@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, Send, Trash2, Loader2, Image, FileText } from 'lucide-react';
 import { Post } from '../../../../types';
+import { useConfirm } from '../../../../context/ConfirmContext';
 
 interface ScheduledPostItemProps {
   post: Post;
@@ -13,6 +14,7 @@ export const ScheduledPostItem: React.FC<ScheduledPostItemProps> = ({
   onPublishNow,
   onDelete,
 }) => {
+  const { confirm } = useConfirm();
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -62,7 +64,14 @@ export const ScheduledPostItem: React.FC<ScheduledPostItemProps> = ({
 
   const handleDelete = async () => {
     if (deleting) return;
-    if (!window.confirm('Bạn có chắc muốn hủy lịch đăng và xóa bài viết này không?')) return;
+    const ok = await confirm({
+      title: 'Hủy lịch đăng',
+      message: 'Bạn có chắc muốn hủy lịch đăng và xóa bài viết này không?',
+      confirmText: 'Xóa bài viết',
+      cancelText: 'Hủy bỏ',
+      type: 'danger',
+    });
+    if (!ok) return;
     try {
       setDeleting(true);
       await onDelete(post.id);
