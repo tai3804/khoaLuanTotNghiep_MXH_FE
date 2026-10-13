@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CornerDownRight, Smile, Send, Sparkles } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
@@ -6,6 +6,8 @@ import { aiService } from '../../../services/aiService';
 import { TopFanBadge } from '../common/TopFanBadge';
 import { TimeAgo } from '../../common/TimeAgo';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
+import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
+import { EmojiPickerPopover } from '../../common/EmojiPickerPopover';
 
 interface PostCardCommentsPreviewProps {
   displayedComments: Comment[];
@@ -17,7 +19,7 @@ interface PostCardCommentsPreviewProps {
   openLoginModal: () => void;
   inlineCommentText: string;
   setInlineCommentText: (text: string) => void;
-  handleInlineCommentSubmit: (e: React.FormEvent) => void;
+  handleInlineCommentSubmit: (e: React.FormEvent, parentCommentId?: string) => void;
   setShowCommentModal: (val: boolean) => void;
   onViewProfile?: (userId: string) => void;
   t: (key: string) => string;
@@ -43,6 +45,80 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [cursorPos, setCursorPos] = useState<number | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string } | null>(null);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isOpen: isMentionOpen,
+    loading: isMentionLoading,
+    candidates: mentionCandidates,
+    selectedIndex: mentionSelectedIndex,
+    selectCandidate: handleSelectMention,
+    handleKeyDown: handleMentionKeyDown,
+  } = useMentionSuggestions({
+    text: inlineCommentText,
+    cursorPosition: cursorPos,
+    onMentionSelected: (_candidate, markdown) => {
+      if (cursorPos === null) {
+        setInlineCommentText(inlineCommentText + markdown);
+        return;
+      }
+      const textBefore = inlineCommentText.slice(0, cursorPos);
+      const textAfter = inlineCommentText.slice(cursorPos);
+      const atIndex = textBefore.lastIndexOf('@');
+      const prefix = atIndex >= 0 ? textBefore.slice(0, atIndex) : textBefore;
+      const newContent = prefix + markdown + textAfter;
+      const newCursor = (prefix + markdown).length;
+      setInlineCommentText(newContent);
+      setCursorPos(newCursor);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(newCursor, newCursor);
+        }
+      }, 10);
+    },
+  });
+
+  const handleSelectEmoji = (emoji: string) => {
+    if (cursorPos !== null && inputRef.current) {
+      const textBefore = inlineCommentText.slice(0, cursorPos);
+      const textAfter = inlineCommentText.slice(cursorPos);
+      const newContent = textBefore + emoji + textAfter;
+      const newCursor = cursorPos + emoji.length;
+      setInlineCommentText(newContent);
+      setCursorPos(newCursor);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(newCursor, newCursor);
+      }, 10);
+    } else {
+      setInlineCommentText((prev) => prev + emoji);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
+    }
+  };
+
+  const handleStartInlineReply = (commentId: string, authorName: string) => {
+    setReplyingTo({ id: commentId, authorName });
+    const mentionTag = authorName.includes(' ') ? `@[${authorName}] ` : `@${authorName} `;
+    if (!inlineCommentText.includes(mentionTag.trim())) {
+      setInlineCommentText(mentionTag);
+    }
+    inputRef.current?.focus();
+  };
+
+  const onFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineCommentText.trim()) return;
+    handleInlineCommentSubmit(e, replyingTo?.id);
+    setReplyingTo(null);
+    setShowEmojiPicker(false);
+  };
 
   const currentUid = String(user?.id || user?.userId || '').toLowerCase().trim();
 
@@ -132,7 +208,7 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                       <span>•</span>
                       <button
                         type="button"
-                        onClick={() => setShowCommentModal(true)}
+                        onClick={() => handleStartInlineReply(comment.id, displayName)}
                         className="hover:underline hover:text-[#2d88ff] flex items-center space-x-1 cursor-pointer"
                       >
                         <CornerDownRight className="w-3 h-3" />
@@ -191,7 +267,7 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
                             <span>•</span>
                             <button
                               type="button"
-                              onClick={() => setShowCommentModal(true)}
+                              onClick={() => handleStartInlineReply(firstReply.parentCommentId || firstReply.id, rName)}
                               className="hover:underline hover:text-[#2d88ff] cursor-pointer"
                             >
                               {language === 'en' ? 'Reply' : 'Phản hồi'}
@@ -263,27 +339,67 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
         </div>
       )}
 
+      {/* Replying banner indicator */}
+      {replyingTo && (
+        <div className="flex items-center justify-between px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[11px] font-semibold rounded-lg">
+          <span>
+            {language === 'en' ? `Replying to ${replyingTo.authorName}` : `Đang phản hồi ${replyingTo.authorName}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            className="hover:underline cursor-pointer font-bold ml-2 text-red-500"
+          >
+            {language === 'en' ? 'Cancel' : 'Hủy'}
+          </button>
+        </div>
+      )}
+
       {/* Inline Quick Comment Input Form */}
-      <form onSubmit={handleInlineCommentSubmit} className="flex items-center space-x-2 pt-1">
+      <form onSubmit={onFormSubmit} className="flex items-center space-x-2 pt-1">
         <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="sm" className="w-8 h-8 rounded-full shrink-0" />
         <div className="flex-1 relative flex items-center">
           <input
+            ref={inputRef}
             type="text"
             value={inlineCommentText}
-            onChange={(e) => setInlineCommentText(e.target.value)}
-            onClick={() => {
+            onChange={(e) => {
+              setInlineCommentText(e.target.value);
+              setCursorPos(e.target.selectionStart);
+            }}
+            onKeyUp={(e) => setCursorPos(e.currentTarget.selectionStart)}
+            onClick={(e) => {
               if (!isAuthenticated) openLoginModal();
+              setCursorPos(e.currentTarget.selectionStart);
+            }}
+            onKeyDown={(e) => {
+              if (handleMentionKeyDown(e)) return;
             }}
             placeholder={
               !isAuthenticated
                 ? language === 'en'
                   ? 'Log in to comment...'
                   : 'Đăng nhập để bình luận...'
-                : t('writeComment') || 'Viết bình luận...'
+                : replyingTo
+                ? language === 'en'
+                  ? `Reply to ${replyingTo.authorName}...`
+                  : `Trả lời ${replyingTo.authorName}...`
+                : t('writeComment') || 'Viết bình luận... (gõ @ để gắn thẻ)'
             }
             className="w-full bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full pl-4 pr-16 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#2d88ff]"
           />
-          <div className="absolute right-2.5 flex items-center space-x-1.5">
+
+          {/* Inline Mention Dropdown for Comments */}
+          <MentionDropdown
+            isOpen={isMentionOpen}
+            loading={isMentionLoading}
+            candidates={mentionCandidates}
+            selectedIndex={mentionSelectedIndex}
+            onSelect={handleSelectMention}
+            className="bottom-full left-0 mb-2"
+          />
+
+          <div className="absolute right-2.5 flex items-center space-x-1">
             <button
               type="button"
               onClick={handleFetchSmartReplies}
@@ -296,13 +412,31 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
             >
               <Sparkles className="w-3.5 h-3.5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setShowCommentModal(true)}
-              className="text-gray-400 hover:text-amber-500 cursor-pointer"
-            >
-              <Smile className="w-4 h-4" />
-            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEmojiPicker((prev) => !prev);
+                }}
+                className={`p-1 rounded-full transition cursor-pointer ${
+                  showEmojiPicker
+                    ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/30'
+                    : 'text-gray-400 hover:text-amber-500'
+                }`}
+                title="Chèn biểu tượng cảm xúc"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+
+              <EmojiPickerPopover
+                isOpen={showEmojiPicker}
+                onClose={() => setShowEmojiPicker(false)}
+                onSelectEmoji={handleSelectEmoji}
+                className="bottom-full right-0 mb-2"
+              />
+            </div>
           </div>
         </div>
         <button

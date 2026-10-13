@@ -359,12 +359,12 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     }
   };
 
-  const handleInlineCommentSubmit = async (e: React.FormEvent) => {
+  const handleInlineCommentSubmit = async (e: React.FormEvent, parentCommentId?: string) => {
     e.preventDefault();
     if (!inlineCommentText.trim()) return;
     const text = inlineCommentText.trim();
     setInlineCommentText('');
-    await submitCommentText(text);
+    await submitCommentText(text, parentCommentId);
   };
 
   const updateComment = async (commentId: string, content: string) => {

@@ -3,6 +3,7 @@ import { Send, Smile } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { CommentAiSuggestions } from './CommentAiSuggestions';
 import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
+import { EmojiPickerPopover } from '../../common/EmojiPickerPopover';
 
 interface CommentFormFooterProps {
   user: any;
@@ -34,6 +35,7 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
   postContent,
 }) => {
   const [cursorPos, setCursorPos] = useState<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const {
     isOpen: isMentionOpen,
@@ -45,15 +47,52 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
   } = useMentionSuggestions({
     text: commentText,
     cursorPosition: cursorPos,
-    onMentionSelected: (candidate, markdown) => {
-      if (cursorPos === null) return;
+    onMentionSelected: (_candidate, markdown) => {
+      if (cursorPos === null) {
+        setCommentText(commentText + markdown);
+        return;
+      }
       const textBefore = commentText.slice(0, cursorPos);
       const textAfter = commentText.slice(cursorPos);
       const atIndex = textBefore.lastIndexOf('@');
-      const newContent = textBefore.slice(0, atIndex) + markdown + textAfter;
+      const prefix = atIndex >= 0 ? textBefore.slice(0, atIndex) : textBefore;
+      const newContent = prefix + markdown + textAfter;
+      const newCursor = (prefix + markdown).length;
       setCommentText(newContent);
+      setCursorPos(newCursor);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(newCursor, newCursor);
+        }
+      }, 10);
     },
   });
+
+  const handleSelectEmoji = (emoji: string) => {
+    if (cursorPos !== null && inputRef.current) {
+      const textBefore = commentText.slice(0, cursorPos);
+      const textAfter = commentText.slice(cursorPos);
+      const newContent = textBefore + emoji + textAfter;
+      const newCursor = cursorPos + emoji.length;
+      setCommentText(newContent);
+      setCursorPos(newCursor);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(newCursor, newCursor);
+      }, 10);
+    } else {
+      setCommentText((prev) => prev + emoji);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
+    }
+  };
+
+  const onFormSubmit = (e: React.FormEvent) => {
+    setShowEmojiPicker(false);
+    handleSubmit(e);
+  };
 
   return (
     <div className="p-3 border-t border-gray-200 dark:border-[#393a3b] bg-white dark:bg-[#242526] shrink-0 space-y-2">
@@ -85,7 +124,7 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+      <form onSubmit={onFormSubmit} className="flex items-center space-x-2">
         <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="sm" className="w-9 h-9 rounded-full shrink-0" />
         <div className="flex-1 relative flex items-center">
           <input
@@ -121,12 +160,30 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
             className="bottom-full left-0 mb-2"
           />
 
-          <button
-            type="button"
-            className="absolute right-3 text-gray-400 hover:text-amber-500 cursor-pointer"
-          >
-            <Smile className="w-4 h-4" />
-          </button>
+          <div className="absolute right-2.5 flex items-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEmojiPicker((prev) => !prev);
+              }}
+              className={`p-1 rounded-full transition cursor-pointer ${
+                showEmojiPicker
+                  ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/30'
+                  : 'text-gray-400 hover:text-amber-500'
+              }`}
+              title="Chèn biểu tượng cảm xúc"
+            >
+              <Smile className="w-4 h-4" />
+            </button>
+
+            <EmojiPickerPopover
+              isOpen={showEmojiPicker}
+              onClose={() => setShowEmojiPicker(false)}
+              onSelectEmoji={handleSelectEmoji}
+              className="bottom-full right-0 mb-2"
+            />
+          </div>
         </div>
         <button
           type="submit"
