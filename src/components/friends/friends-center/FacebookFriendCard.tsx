@@ -17,6 +17,19 @@ export interface FacebookFriendCardProps {
 
 const DEFAULT_AVATAR = '/default-avatar.png';
 
+// Lý do gợi ý từ máy chủ viết sẵn bằng tiếng Việt; khi giao diện tiếng Anh thì dịch các mẫu câu đã biết
+const translateReason = (reason: string, language: string) => {
+  if (language !== 'en') return reason;
+  return reason
+    .replace(/^(\d+) bạn chung$/, '$1 mutual friends')
+    .replace(/^Cùng (\d+) nhóm$/, '$1 groups in common')
+    .replace(/^Đang theo dõi bạn$/, 'Follows you')
+    .replace(/^Bạn đang theo dõi$/, "You're following")
+    .replace(/^Cùng sống tại /, 'Lives in ')
+    .replace(/^Đang hoạt động$/, 'Active now')
+    .replace(/^Thành viên mới$/, 'New member');
+};
+
 const getDisplayAvatar = (avatar: string | undefined) => {
   if (avatar && avatar.trim().length > 5) return avatar;
   return DEFAULT_AVATAR;
@@ -47,6 +60,8 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
       ? (language === 'en' ? 'Sent you a friend request' : 'Đã gửi cho bạn lời mời kết bạn')
       : type === 'friend'
       ? (language === 'en' ? 'Friends on KLTN Social' : 'Bạn bè trên KLTN Social')
+      : Array.isArray(item.reasons) && item.reasons.length > 0
+      ? item.reasons.slice(0, 2).map((r: string) => translateReason(r, language)).join(' · ')
       : item.mutualFriendsCount && item.mutualFriendsCount > 0
       ? (language === 'en' ? `${item.mutualFriendsCount} mutual friends` : `${item.mutualFriendsCount} bạn chung`)
       : (item.bio && item.bio !== 'Gợi ý kết bạn' ? item.bio : t('friends.suggestions'));
@@ -81,7 +96,7 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
           >
             {displayName}
           </h4>
-          <p className="text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
+          <p title={cardSubtitle} className="text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
             {cardSubtitle}
           </p>
         </div>

@@ -1,5 +1,33 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Crown, User as UserIcon } from 'lucide-react';
+
+// Tài khoản demo để đăng nhập nhanh theo từng vai trò khi phát triển / demo
+const demoAccounts = [
+  {
+    role: 'Kiểm duyệt viên',
+    roleBadge: 'MODERATOR',
+    email: 'moderator@kltn.local',
+    pass: 'mod123',
+    icon: <ShieldCheck className="w-4 h-4 text-purple-500" />,
+    style: 'border-purple-200 dark:border-purple-900/60 bg-purple-50/60 dark:bg-purple-950/20 hover:border-purple-500',
+  },
+  {
+    role: 'Quản trị viên',
+    roleBadge: 'ADMIN',
+    email: 'admin',
+    pass: 'admin123',
+    icon: <Crown className="w-4 h-4 text-amber-500" />,
+    style: 'border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/20 hover:border-amber-500',
+  },
+  {
+    role: 'Người dùng',
+    roleBadge: 'USER',
+    email: 'testuser_kltn_01@gmail.com',
+    pass: 'Password123@',
+    icon: <UserIcon className="w-4 h-4 text-blue-500" />,
+    style: 'border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20 hover:border-blue-500',
+  },
+];
 
 interface LoginFormProps {
   email: string;
@@ -10,6 +38,7 @@ interface LoginFormProps {
   setShowPassword: (show: boolean | ((prev: boolean) => boolean)) => void;
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
+  onQuickLogin?: (email: string, pass: string) => void;
   onForgotPassword?: () => void;
 }
 
@@ -22,6 +51,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setShowPassword,
   loading,
   onSubmit,
+  onQuickLogin,
   onForgotPassword,
 }) => {
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +85,44 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     onSubmit(e);
   };
 
+  const handleSelectAccount = (acc: (typeof demoAccounts)[number]) => {
+    setEmail(acc.email);
+    setPassword(acc.pass);
+    onQuickLogin?.(acc.email, acc.pass);
+  };
+
   return (
+    <div className="space-y-4">
+    {/* Quick Role Login */}
+    {onQuickLogin && (
+      <div className="rounded-2xl border border-gray-200/80 bg-gray-50/60 p-3 dark:border-[#383a3d] dark:bg-[#1e1f20]/50">
+        <p className="mb-2 text-xs font-bold text-gray-500 dark:text-gray-400">
+          Đăng nhập nhanh theo vai trò:
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {demoAccounts.map((acc) => (
+            <button
+              key={acc.role}
+              type="button"
+              disabled={loading}
+              onClick={() => handleSelectAccount(acc)}
+              className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 text-center transition-all cursor-pointer hover:shadow-md active:scale-95 disabled:opacity-50 ${acc.style}`}
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-xs dark:bg-[#252628]">
+                {acc.icon}
+              </div>
+              <span className="text-xs font-bold text-gray-800 dark:text-white leading-tight">
+                {acc.role}
+              </span>
+              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+                {acc.roleBadge}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+
     <form
       onSubmit={handleFormSubmit}
       onMouseEnter={syncAutofill}
@@ -144,5 +211,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         )}
       </button>
     </form>
+    </div>
   );
 };

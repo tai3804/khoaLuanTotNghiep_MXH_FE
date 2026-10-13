@@ -1,5 +1,4 @@
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
-
+// Thư viện này khá nặng (~126 KB) và chỉ cần ở lần đăng nhập đầu tiên trên thiết bị, nên được nạp động khi cần
 let fpPromise: Promise<any> | null = null;
 
 /**
@@ -14,7 +13,7 @@ export const getDeviceFingerprint = async (): Promise<string> => {
     }
 
     if (!fpPromise) {
-      fpPromise = FingerprintJS.load();
+      fpPromise = import('@fingerprintjs/fingerprintjs').then((m) => m.default.load());
     }
     const fp = await fpPromise;
     const result = await fp.get();

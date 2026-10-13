@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { groupMetaCache } from '../../../services/api';
+import { TimeAgo } from '../../common/TimeAgo';
 
 interface CommentAuthorSectionProps {
   post: Post;
@@ -115,7 +116,7 @@ export const CommentAuthorSection: React.FC<CommentAuthorSectionProps> = ({
                 {authorName}
               </span>
               <span>•</span>
-              <span>{post.createdAt || 'Vừa xong'}</span>
+              <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
               <span>•</span>
               {renderPrivacyIcon()}
             </div>
@@ -147,7 +148,7 @@ export const CommentAuthorSection: React.FC<CommentAuthorSectionProps> = ({
               {authorName}
             </h4>
             <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-              <span>{post.createdAt || 'Vừa xong'}</span>
+              <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
               <span>•</span>
               {renderPrivacyIcon()}
             </div>

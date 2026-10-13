@@ -67,6 +67,8 @@ export interface Comment {
   authorAvatar?: string;
   content: string;
   createdAt: string;
+  /** Thời điểm bình luận gốc (ISO) để hiển thị "5 phút trước" */
+  createdAtRaw?: string;
   likesCount?: number;
   isLiked?: boolean;
   parentCommentId?: string;
@@ -90,9 +92,15 @@ export interface Post {
   authorAvatar?: string;
   authonAvatar?: string;
   content: string;
+  /** Bản tóm tắt do AI tạo cho bài viết dài (hơn 1000 ký tự); không có với bài ngắn. */
+  summary?: string;
   mediaUrls?: string[];
   mediaList?: PostMediaItem[];
   createdAt: string;
+  /** Thời điểm đăng gốc (ISO) từ máy chủ, dùng để tính "5 phút trước"; createdAt chỉ là chuỗi ngày đã định dạng. */
+  createdAtRaw?: string;
+  /** Lý do bài xuất hiện trong bảng tin xếp hạng: friend, following, group, interacted, popular, trending, own, recent. */
+  relevanceReason?: string;
   likesCount: number;
   commentsCount: number;
   sharesCount: number;
