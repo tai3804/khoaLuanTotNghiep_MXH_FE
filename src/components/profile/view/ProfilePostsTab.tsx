@@ -50,9 +50,9 @@ export const ProfilePostsTab: React.FC<ProfilePostsTabProps> = ({
   const isEn = language === 'en';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      {/* Left Column: Intro Box, Photos Box, Friends Box */}
-      <div className="lg:col-span-5 space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4 xl:gap-5 items-start">
+      {/* Left Column: Intro Box, Photos Box, Friends Box (Fixed 360px-380px) */}
+      <div className="w-full lg:w-[360px] xl:w-[380px] shrink-0 space-y-4">
         <ProfileIntroBox
           isOwnProfile={isOwnProfile}
           profile={profile}
@@ -77,8 +77,8 @@ export const ProfilePostsTab: React.FC<ProfilePostsTabProps> = ({
         />
       </div>
 
-      {/* Right Column: Create Post Box + User Posts */}
-      <div className="lg:col-span-7 space-y-4">
+      {/* Right Column: Create Post Box + User Posts (Wide Feed ~740px-780px) */}
+      <div className="flex-1 min-w-0 w-full space-y-4">
         {isOwnProfile && (
           <CreatePostBox onPostCreated={handlePostCreated} />
         )}
