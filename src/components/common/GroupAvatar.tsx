@@ -1,3 +1,5 @@
-export { GroupAvatar } from './group-avatar/GroupAvatar';
-export type { GroupAvatarProps } from './group-avatar/GroupAvatar';
+import { GroupAvatar, GroupAvatarProps } from './group-avatar/GroupAvatar';
+
+export { GroupAvatar };
+export type { GroupAvatarProps };
 export default GroupAvatar;
