@@ -69,10 +69,10 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
   return (
     <div className="w-full space-y-5">
       {/* Groups Navigation Options & Actions */}
-      <div className="mb-4 space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          {/* Navigation Option Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
+      <div className="mb-4 space-y-3">
+        {/* Row 1: Option Pills & Create Group Action */}
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none min-w-0 flex-1">
             <button
               onClick={() => setFilterTab('all')}
               className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
@@ -125,35 +125,34 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
             </button>
           </div>
 
-          {/* Quick Search, Refresh & Create Group Action */}
-          <div className="flex items-center space-x-1.5 shrink-0 self-end sm:self-auto">
-            <div className="relative w-36 sm:w-48">
-              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm kiếm nhóm..."
-                className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 dark:placeholder-[#b0b3b8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition shadow-2xs"
-              />
-            </div>
+          <button
+            onClick={onCreateGroupClick}
+            className="bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-3.5 py-2 rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0 cursor-pointer text-xs sm:text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tạo nhóm</span>
+          </button>
+        </div>
 
-            <button
-              onClick={() => loadGroups(false)}
-              title="Làm mới danh sách nhóm"
-              className="p-1.5 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={onCreateGroupClick}
-              className="bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-3 py-1.5 rounded-xl shadow-2xs transition flex items-center gap-1.5 shrink-0 cursor-pointer text-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tạo nhóm</span>
-            </button>
+        {/* Row 2: Search Input & Refresh */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm nhóm theo tên hoặc mô tả..."
+              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 dark:placeholder-[#b0b3b8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition shadow-2xs"
+            />
           </div>
+          <button
+            onClick={() => loadGroups(false)}
+            title="Làm mới danh sách nhóm"
+            className="p-2 rounded-xl bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] hover:bg-gray-50 dark:hover:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shadow-2xs shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 

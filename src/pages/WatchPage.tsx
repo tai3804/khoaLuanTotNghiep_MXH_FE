@@ -139,7 +139,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({
           
           {/* Watch Navigation Option Pills */}
           <div className="mb-4 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setActiveWatchTab('for_you')}
