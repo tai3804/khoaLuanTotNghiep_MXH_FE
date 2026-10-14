@@ -27,7 +27,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Header } from '../components/layout/header-bar';
-import { SidebarLeft } from '../components/layout/SidebarLeft';
+import { ModeratorSidebarNav } from '../components/moderation/ModeratorSidebarNav';
 import { SidebarRight } from '../components/layout/SidebarRight';
 import { ChatUser } from '../components/chat/chat-box';
 import { moderationService, ModerationAction, ModerationLog, ModerationReport } from '../services/moderationService';
@@ -586,132 +586,179 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
       />
 
       <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
-        <SidebarLeft
-          activeFilter={props.activeSidebarFilter || 'moderation'}
-          onFilterChange={(f) => {
-            if (props.setActiveSidebarFilter) props.setActiveSidebarFilter(f);
-            props.setActiveNavTab(f);
-          }}
-          onNavigateProfile={() => props.onNavigateProfile()}
-          onNavigateSettings={props.onNavigateSettings}
+        <ModeratorSidebarNav
+          currentTab={tab}
+          onSelectTab={(newTab) => setTab(newTab)}
+          pendingCount={pending.length}
+          aiFlaggedCount={aiFlagged.length}
+          logsCount={logs.length}
+          appealsCount={appeals.length}
+          sourceFilter={sourceFilter}
+          onSourceFilterChange={setSourceFilter}
+          userReportCount={pending.filter((r) => r.source !== 'AI').length}
+          aiReportCount={pending.filter((r) => r.source === 'AI').length}
+          isAdmin={(user?.roles || []).some((r: any) => String(r).toUpperCase().includes('ADMIN'))}
         />
 
-        <main className="flex-1 min-w-0 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
-        {/* Top Search Bar & Reload Button, Options Below */}
-        <div className="mb-3 space-y-2.5">
-          {/* Row 1: Search Bar on Left, Reload Button on Top Right */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="relative flex-1 max-w-xs sm:max-w-sm">
-              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  tab === 'history'
-                    ? 'Tìm nhật ký...'
-                    : tab === 'appeals'
-                      ? 'Tìm kháng nghị...'
-                      : 'Tìm bài vi phạm...'
-                }
-                className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
-              />
-              {searchQuery && (
+        <main className="flex-1 min-w-0 max-w-[960px] xl:max-w-[1040px] 2xl:max-w-[1140px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+          {/* Top Search Bar & Reload Button, with Section Title */}
+          <div className="mb-3 space-y-2.5">
+            {/* Row 1: Section Header on Left/Top, Search Bar + Reload on Right */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div>
+                <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  {tab === 'queue' && (
+                    <>
+                      <Clock3 className="w-5 h-5 text-rose-500 shrink-0" />
+                      <span>Hàng chờ báo cáo</span>
+                      <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                        {pending.length}
+                      </span>
+                    </>
+                  )}
+                  {tab === 'ai' && (
+                    <>
+                      <Sparkles className="w-5 h-5 text-purple-500 shrink-0" />
+                      <span>AI phát hiện vi phạm</span>
+                      <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400">
+                        {aiFlagged.length}
+                      </span>
+                    </>
+                  )}
+                  {tab === 'history' && (
+                    <>
+                      <History className="w-5 h-5 text-blue-500 shrink-0" />
+                      <span>Nhật ký & Hoàn tác</span>
+                      <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-[#3a3b3c] dark:text-[#b0b3b8]">
+                        {logs.length}
+                      </span>
+                    </>
+                  )}
+                  {tab === 'appeals' && (
+                    <>
+                      <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                      <span>Kháng nghị chờ xem xét</span>
+                      <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                        {appeals.length}
+                      </span>
+                    </>
+                  )}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2 justify-end">
+                <div className="relative flex-1 sm:w-64 max-w-xs">
+                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={
+                      tab === 'history'
+                        ? 'Tìm nhật ký...'
+                        : tab === 'appeals'
+                          ? 'Tìm kháng nghị...'
+                          : 'Tìm bài vi phạm...'
+                    }
+                    className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+                      title="Xóa tìm kiếm"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
-                  title="Xóa tìm kiếm"
+                  onClick={load}
+                  disabled={loading}
+                  title="Làm mới dữ liệu kiểm duyệt"
+                  className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
-              )}
+              </div>
             </div>
 
-            <button
-              onClick={load}
-              disabled={loading}
-              title="Làm mới dữ liệu kiểm duyệt"
-              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            {/* Mobile-only Tab Switcher (Options are located in the left sidebar on desktop) */}
+            <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setTab('queue')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  tab === 'queue'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Clock3 className="w-3.5 h-3.5" />
+                <span>Hàng chờ</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  tab === 'queue' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
+                }`}>
+                  {pending.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab('ai')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  tab === 'ai'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI gắn cờ</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  tab === 'ai' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
+                }`}>
+                  {aiFlagged.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab('history')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  tab === 'history'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Nhật ký</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  tab === 'history' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
+                }`}>
+                  {logs.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab('appeals')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                  tab === 'appeals'
+                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Kháng nghị</span>
+                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                  tab === 'appeals' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
+                }`}>
+                  {appeals.length}
+                </span>
+              </button>
+            </div>
           </div>
-
-          {/* Row 2: Option Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setTab('queue')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                tab === 'queue'
-                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-              }`}
-            >
-              <Clock3 className="w-4 h-4" />
-              <span>Hàng chờ báo cáo</span>
-              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                tab === 'queue' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-              }`}>
-                {pending.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTab('ai')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                tab === 'ai'
-                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>AI gắn cờ</span>
-              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                tab === 'ai' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-              }`}>
-                {aiFlagged.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTab('history')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                tab === 'history'
-                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-              }`}
-            >
-              <History className="w-4 h-4" />
-              <span>Nhật ký & Hoàn tác</span>
-              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                tab === 'history' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-              }`}>
-                {logs.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setTab('appeals')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                tab === 'appeals'
-                  ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span>Kháng nghị</span>
-              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                tab === 'appeals' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-              }`}>
-                {appeals.length}
-              </span>
-            </button>
-          </div>
-        </div>
 
         {/* Secondary Filters Bar */}
         <div className="mb-4 space-y-2">
