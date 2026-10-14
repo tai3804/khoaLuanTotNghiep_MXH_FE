@@ -36,7 +36,7 @@ export const GroupsPage: React.FC<GroupsPageProps> = (props) => {
 
       {/* Main Centered Groups Container (Facebook Standard Width matching ProfilePage) */}
       <div className="pt-14 min-h-screen">
-        <main className="w-full max-w-[1120px] xl:max-w-[1180px] 2xl:max-w-[1240px] mx-auto px-2 sm:px-4 lg:px-6 py-4">
+        <main className="w-full min-w-0 max-w-[1120px] xl:max-w-[1180px] 2xl:max-w-[1240px] mx-auto px-2 sm:px-4 lg:px-6 py-4">
           <GroupsDiscover onCreateGroupClick={() => setShowCreateModal(true)} />
         </main>
       </div>

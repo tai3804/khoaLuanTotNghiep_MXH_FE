@@ -596,10 +596,49 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           onNavigateSettings={props.onNavigateSettings}
         />
 
-        <main className="flex-1 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
-          {/* Main Option Pills & Right Search + Reload */}
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1 min-w-0">
+        <main className="flex-1 min-w-0 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+        {/* Top Search Bar & Reload Button, Options Below */}
+        <div className="mb-3 space-y-2.5">
+          {/* Row 1: Search Bar on Left, Reload Button alongside on the same row */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-64 sm:w-80 max-w-[calc(100%-3rem)]">
+              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  tab === 'history'
+                    ? 'Tìm nhật ký...'
+                    : tab === 'appeals'
+                      ? 'Tìm kháng nghị...'
+                      : 'Tìm bài vi phạm...'
+                }
+                className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
+                  title="Xóa tìm kiếm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={load}
+              disabled={loading}
+              title="Làm mới dữ liệu kiểm duyệt"
+              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {/* Row 2: Option Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             <button
               type="button"
               onClick={() => setTab('queue')}
@@ -670,44 +709,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               }`}>
                 {appeals.length}
               </span>
-            </button>
-          </div>
-
-          {/* Right side: Compact Soft Capsule Search Bar & Reload Button */}
-          <div className="flex items-center space-x-1.5 shrink-0">
-            <div className="relative w-36 sm:w-52">
-              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  tab === 'history'
-                    ? 'Tìm nhật ký...'
-                    : tab === 'appeals'
-                      ? 'Tìm kháng nghị...'
-                      : 'Tìm bài vi phạm...'
-                }
-                className="w-full pl-8 pr-7 py-1.5 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
-                  title="Xóa tìm kiếm"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={load}
-              disabled={loading}
-              title="Làm mới dữ liệu kiểm duyệt"
-              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>

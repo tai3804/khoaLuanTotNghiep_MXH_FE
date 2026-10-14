@@ -60,7 +60,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
             }
           }}
           placeholder={t('nav.search') || 'Tìm kiếm...'}
-          className="w-24 xs:w-32 sm:w-40 md:w-44 lg:w-60 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] transition"
+          className="w-20 xs:w-28 sm:w-36 md:w-36 lg:w-56 xl:w-60 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] focus:w-36 sm:focus:w-44 md:focus:w-48 lg:focus:w-64 transition-all duration-200"
         />
 
         {/* Search Dropdown Popover */}
