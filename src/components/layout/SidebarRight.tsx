@@ -92,6 +92,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
               avatar: c.avatarUrl || '/default-avatar.png',
               online: true,
               lastMessageContent: c.lastMessageContent,
+              unreadCount: Number(c.unreadCount || 0),
             }));
           setGroupChats(groups);
         }
@@ -314,6 +315,11 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
                     </div>
                   )}
                 </div>
+                {Number((group as any).unreadCount || 0) > 0 && (
+                  <span className="min-w-5 rounded-full bg-[#1877f2] px-1.5 py-0.5 text-center text-[10px] font-bold text-white shrink-0">
+                    {Number((group as any).unreadCount) > 99 ? '99+' : (group as any).unreadCount}
+                  </span>
+                )}
               </div>
             ))}
           </div>

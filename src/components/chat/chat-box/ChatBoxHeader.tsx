@@ -15,6 +15,7 @@ interface ChatBoxHeaderProps {
   onOpenGroupInfo?: () => void;
   onTriggerSummary?: () => void;
   isSummarizing?: boolean;
+  unreadCount?: number;
 }
 
 export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
@@ -27,6 +28,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   onOpenGroupInfo,
   onTriggerSummary,
   isSummarizing,
+  unreadCount,
 }) => {
   const { startCall, startGroupCall } = useCall();
   const targetUserId = friend.userId || (!friend.isGroup && friend.id !== conversationId ? friend.id : undefined);
@@ -82,10 +84,21 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
           <button
             onClick={onTriggerSummary}
             disabled={isSummarizing}
-            className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full transition cursor-pointer disabled:opacity-50"
-            title="✨ AI Tóm tắt tin nhắn (kèm ảnh)"
+            className={`relative p-1.5 rounded-full transition cursor-pointer disabled:opacity-50 ${
+              unreadCount && unreadCount > 0
+                ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 ring-1 ring-indigo-400/40'
+                : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400'
+            }`}
+            title={
+              unreadCount && unreadCount > 0
+                ? `✨ AI Tóm tắt ${unreadCount} tin nhắn chưa đọc (kèm ảnh)`
+                : '✨ AI Tóm tắt tin nhắn (kèm ảnh)'
+            }
           >
             <Sparkles className={`w-4 h-4 ${isSummarizing ? 'animate-spin' : ''}`} />
+            {unreadCount && unreadCount > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-[#242526] animate-pulse" />
+            ) : null}
           </button>
         )}
         {friend.isGroup ? (

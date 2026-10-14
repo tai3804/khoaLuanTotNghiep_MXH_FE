@@ -8,6 +8,7 @@ interface ChatBoxMinimizedProps {
   onRestore: () => void;
   onClose: () => void;
   offsetRight?: number;
+  unreadCount?: number;
 }
 
 export const ChatBoxMinimized: React.FC<ChatBoxMinimizedProps> = ({
@@ -15,6 +16,7 @@ export const ChatBoxMinimized: React.FC<ChatBoxMinimizedProps> = ({
   onRestore,
   onClose,
   offsetRight,
+  unreadCount,
 }) => {
   const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
   const positionClass = offsetRight !== undefined ? 'fixed bottom-0 z-50' : 'relative z-50';
@@ -31,6 +33,11 @@ export const ChatBoxMinimized: React.FC<ChatBoxMinimizedProps> = ({
         {friend.online && (
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#242526] rounded-full" />
         )}
+        {unreadCount && unreadCount > 0 ? (
+          <span className="absolute -top-1 -right-1 min-w-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-extrabold leading-4 text-center shadow-xs">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        ) : null}
       </div>
 
       <span className="text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] max-w-[120px] truncate">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { chatService, websocketService } from '../../../services/api';
@@ -57,9 +57,21 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const [partnerProfile, setPartnerProfile] = useState<{ userId?: string; name: string; avatar: string } | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((behavior: 'auto' | 'smooth' = 'auto') => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    if (behavior === 'auto') {
+      container.scrollTop = container.scrollHeight;
+    } else {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+  }, []);
   const messagePageRef = useRef(0);
   const prependingMessagesRef = useRef(false);
   const chatFileInputRef = useRef<HTMLInputElement>(null);
@@ -269,9 +281,40 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
 
         messagePageRef.current = 0;
         setHasMoreMessages(true);
-        const rawMsgs = await chatService.getMessages(convId, 0, 20);
+
+        // 1. Detect unread messages count
+        let detectedUnread = Number(friend.unreadCount || 0);
+        if (detectedUnread <= 0 && convId) {
+          try {
+            const convs = await chatService.getConversations();
+            const found = convs.find((c: any) => String(c.conversationId || c.id) === String(convId));
+            if (found && found.unreadCount) {
+              detectedUnread = Number(found.unreadCount);
+            }
+          } catch {}
+        }
+
+        const rawMsgs = await chatService.getMessages(convId, 0, 30);
         if (isMounted && Array.isArray(rawMsgs) && rawMsgs.length > 0) {
           const sorted = [...rawMsgs].reverse();
+
+          // Identify unread messages among loaded messages
+          if (detectedUnread > 0) {
+            const otherMsgs = sorted.filter((m: any) => String(m.senderId) !== String(user?.id));
+            const unreadSublist = otherMsgs.slice(-detectedUnread);
+            if (unreadSublist.length > 0) {
+              const earliest = unreadSublist[0];
+              setFirstUnreadId(String(earliest.messageId || earliest.id));
+              setUnreadCount(unreadSublist.length);
+            } else {
+              setFirstUnreadId(null);
+              setUnreadCount(0);
+            }
+          } else {
+            setFirstUnreadId(null);
+            setUnreadCount(0);
+          }
+
           setMessages(
             sorted.map((m: any) => {
               const sId = String(m.senderId);
@@ -294,6 +337,8 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
           );
         } else if (isMounted) {
           setMessages([]);
+          setFirstUnreadId(null);
+          setUnreadCount(0);
         }
         if (isMounted) {
           const latest = Array.isArray(rawMsgs) ? rawMsgs[0] : null;
@@ -303,9 +348,16 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
         console.error('[ChatBox] Error initializing chat conversation:', err);
         if (isMounted) {
           setMessages([]);
+          setFirstUnreadId(null);
+          setUnreadCount(0);
         }
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setTimeout(() => scrollToBottom('auto'), 20);
+          setTimeout(() => scrollToBottom('auto'), 100);
+          setTimeout(() => scrollToBottom('auto'), 300);
+        }
       }
     };
 
@@ -502,8 +554,16 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
       prependingMessagesRef.current = false;
       return;
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    scrollToBottom('smooth');
+  }, [messages, scrollToBottom]);
+
+  // Auto scroll down when restoring from minimized state
+  useEffect(() => {
+    if (!isMinimized) {
+      setTimeout(() => scrollToBottom('auto'), 20);
+      setTimeout(() => scrollToBottom('auto'), 150);
+    }
+  }, [isMinimized, scrollToBottom]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -562,6 +622,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     reloadGroupDetail: () => conversationId && loadGroupMembers(conversationId),
     messagesEndRef,
     messagesContainerRef,
+    firstUnreadId,
+    unreadCount,
+    setUnreadCount,
+    scrollToBottom,
     loadingOlder,
     hasMoreMessages,
     loadOlderMessages,

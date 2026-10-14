@@ -7,6 +7,8 @@ interface ChatAiSummaryBannerProps {
   loading: boolean;
   onClose: () => void;
   onRefresh?: () => void;
+  isUnreadSummary?: boolean;
+  unreadCount?: number;
 }
 
 export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
@@ -14,6 +16,8 @@ export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
   loading,
   onClose,
   onRefresh,
+  isUnreadSummary,
+  unreadCount,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -22,7 +26,8 @@ export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
 
   const handleCopy = () => {
     if (!summaryData) return;
-    const textToCopy = `✨ [TÓM TẮT CUỘC TRÒ CHUYỆN AI]\n${summaryData.summary}\n\n🖼️ Media: ${summaryData.mediaDescription}\n\n✅ Việc cần làm:\n${summaryData.actionItems.map((item) => `- ${item}`).join('\n')}`;
+    const title = isUnreadSummary ? '✨ [TÓM TẮT TIN NHẮN CHƯA ĐỌC AI]' : '✨ [TÓM TẮT CUỘC TRÒ CHUYỆN AI]';
+    const textToCopy = `${title}\n${summaryData.summary}\n\n🖼️ Media: ${summaryData.mediaDescription}\n\n✅ Việc cần làm:\n${summaryData.actionItems.map((item) => `- ${item}`).join('\n')}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -33,11 +38,20 @@ export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
       {/* Banner Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-white/70 dark:bg-black/20 border-b border-blue-100/60 dark:border-indigo-500/20">
         <div className="flex items-center gap-1.5 font-bold text-indigo-700 dark:text-indigo-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin-slow" />
-          <span>AI Tóm tắt tin nhắn</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin-slow shrink-0" />
+          <span className="truncate">
+            {isUnreadSummary ? 'AI Tóm tắt tin chưa đọc' : 'AI Tóm tắt tin nhắn'}
+          </span>
           {summaryData && (
-            <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
-              {summaryData.messageCount} tin nhắn • {summaryData.imageCount} ảnh
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                isUnreadSummary
+                  ? 'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-900/50'
+                  : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
+              }`}
+            >
+              {isUnreadSummary && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse shrink-0" />}
+              {summaryData.messageCount} tin{summaryData.imageCount > 0 ? ` • ${summaryData.imageCount} ảnh` : ''}
             </span>
           )}
         </div>

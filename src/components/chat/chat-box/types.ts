@@ -8,4 +8,5 @@ export interface ChatUser {
   isGroup?: boolean;
   conversationId?: string;
   lastMessageContent?: string;
+  unreadCount?: number;
 }

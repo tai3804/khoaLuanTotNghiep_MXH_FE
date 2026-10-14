@@ -192,6 +192,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
                   avatar: avatar || '/default-avatar.png',
                   online: c.isOnline || false,
                   lastMessageContent: c.lastMessageContent,
+                  unreadCount: Number(c.unreadCount || 0),
                 } as any;
               })
             );

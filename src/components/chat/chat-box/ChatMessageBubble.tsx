@@ -10,9 +10,11 @@ interface ChatMessageBubbleProps {
   msg: Message;
   isMe: boolean;
   isGroup?: boolean;
+  isUnread?: boolean;
   onEdit: (messageId: string, newContent: string) => Promise<void>;
   onRecall: (messageId: string) => Promise<void>;
   onDeleteForMe: (messageId: string) => Promise<void>;
+  onMediaLoad?: () => void;
 }
 
 const POST_URL_REGEX = /(?:https?:\/\/[^\s/]+)?\/posts?\/([a-zA-Z0-9_-]+)/;
@@ -72,9 +74,11 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   msg,
   isMe,
   isGroup,
+  isUnread,
   onEdit,
   onRecall,
   onDeleteForMe,
+  onMediaLoad,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -185,6 +189,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               src={mediaUrl}
               alt="Ảnh đính kèm"
               onError={() => setImageError(true)}
+              onLoad={onMediaLoad}
               className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
               onClick={() => window.open(mediaUrl, '_blank')}
               title="Bấm để xem ảnh gốc"

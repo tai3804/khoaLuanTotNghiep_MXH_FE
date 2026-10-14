@@ -26,6 +26,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
   const [summaryData, setSummaryData] = useState<SummarizeMessagesResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [isUnreadSummary, setIsUnreadSummary] = useState(false);
 
   const {
     user,
@@ -42,6 +43,9 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     reloadGroupDetail,
     messagesEndRef,
     messagesContainerRef,
+    firstUnreadId,
+    unreadCount,
+    scrollToBottom,
     loadingOlder,
     hasMoreMessages,
     loadOlderMessages,
@@ -60,6 +64,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     userId: partnerProfile?.userId || currentFriend.userId || (!currentFriend.isGroup ? currentFriend.id : undefined),
     name: partnerProfile?.name || currentFriend.name,
     avatar: partnerProfile?.avatar || currentFriend.avatar,
+    unreadCount,
   };
 
   if (isMinimized) {
@@ -69,6 +74,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
         onRestore={() => setIsMinimized(false)}
         onClose={onClose}
         offsetRight={offsetRight}
+        unreadCount={unreadCount}
       />
     );
   }
@@ -81,18 +87,57 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     setShowSummary(true);
     setSummaryLoading(true);
     try {
-      const messageItems: ChatMessageItemDto[] = messages.slice(-30).map((m) => {
-        const isMedia = m.text.startsWith('http://') || m.text.startsWith('https://');
+      // 1. Identify which messages to summarize:
+      // If there are unread messages, prioritize summarizing the unread messages!
+      let targetMessages = messages;
+      let summarizingUnread = false;
+
+      if (firstUnreadId) {
+        const unreadIdx = messages.findIndex((m) => m.id === firstUnreadId);
+        if (unreadIdx >= 0) {
+          // Include unread messages (and up to 3 preceding messages for context if available)
+          const contextStart = Math.max(0, unreadIdx - 3);
+          targetMessages = messages.slice(contextStart);
+          summarizingUnread = true;
+        }
+      } else if (unreadCount > 0) {
+        targetMessages = messages.slice(-Math.min(messages.length, Math.max(unreadCount + 3, 10)));
+        summarizingUnread = true;
+      }
+
+      if (!summarizingUnread) {
+        targetMessages = messages.slice(-30);
+      }
+      setIsUnreadSummary(summarizingUnread);
+
+      // 2. Format message items with accurate text and mediaUrl for images
+      const messageItems: ChatMessageItemDto[] = targetMessages.map((m) => {
+        const isMe = m.senderId === user?.id || m.senderId === 'me';
+        const senderName = isMe ? (user?.fullName || 'Bạn') : (m.senderName || effectiveFriend.name);
+
+        const isUrl = m.text?.startsWith('http://') || m.text?.startsWith('https://');
+        const mediaUrl = m.mediaUrl || (isUrl ? m.text : undefined);
+        const isImage = m.type === 'IMAGE' || (mediaUrl && /\.(jpg|jpeg|png|webp|gif)/i.test(mediaUrl)) || Boolean(m.mediaUrl && !m.type?.includes('FILE'));
+
+        let textContent = m.text;
+        if (isImage) {
+          if (!textContent || textContent.startsWith('http')) {
+            textContent = '[Đã gửi 1 hình ảnh đính kèm]';
+          } else {
+            textContent = `[Hình ảnh: ${textContent}]`;
+          }
+        }
+
         return {
-          senderName: m.senderId === user?.id || m.senderId === 'me' ? (user?.fullName || 'Bạn') : (m.senderName || effectiveFriend.name),
-          text: m.text,
+          senderName,
+          text: textContent,
           time: m.time,
-          mediaUrl: isMedia ? m.text : undefined,
+          mediaUrl: isImage ? mediaUrl : undefined,
         };
       });
 
       const res = await aiService.summarizeMessages({
-        conversationName: effectiveFriend.name,
+        conversationName: `${effectiveFriend.name}${summarizingUnread ? ' (Các tin nhắn chưa đọc)' : ''}`,
         isGroup: effectiveFriend.isGroup,
         messages: messageItems,
       });
@@ -130,6 +175,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           onOpenGroupInfo={currentFriend.isGroup ? () => setShowGroupInfo(true) : undefined}
           onTriggerSummary={handleTriggerSummary}
           isSummarizing={summaryLoading}
+          unreadCount={unreadCount}
         />
 
         {showSummary && (
@@ -138,6 +184,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
             loading={summaryLoading}
             onClose={() => setShowSummary(false)}
             onRefresh={handleTriggerSummary}
+            isUnreadSummary={isUnreadSummary}
+            unreadCount={unreadCount}
           />
         )}
 
@@ -148,12 +196,15 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           user={user}
           messagesEndRef={messagesEndRef}
           messagesContainerRef={messagesContainerRef}
+          firstUnreadId={firstUnreadId}
+          unreadCount={unreadCount}
           loadingOlder={loadingOlder}
           hasMoreMessages={hasMoreMessages}
           onLoadOlder={loadOlderMessages}
           onEditMessage={handleEditMessage}
           onRecallMessage={handleRecallMessage}
           onDeleteForMe={handleDeleteForMe}
+          scrollToBottom={scrollToBottom}
         />
 
         <ChatBoxInputFooter
