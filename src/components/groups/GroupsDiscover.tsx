@@ -71,9 +71,9 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
     <div className="w-full space-y-5">
       {/* Groups Navigation Options & Actions */}
       <div className="mb-4 space-y-3">
-        {/* Row 1: Search Bar on Left, Reload Button alongside on the same row */}
-        <div className="flex items-center gap-2">
-          <div className="relative w-64 sm:w-80 max-w-[calc(100%-3rem)]">
+        {/* Row 1: Search Bar on Left, Reload & Create Group on Top Right */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative flex-1 max-w-xs sm:max-w-sm">
             <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
             <input
               type="text"
@@ -93,13 +93,23 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
             )}
           </div>
 
-          <button
-            onClick={() => loadGroups(false)}
-            title="Làm mới danh sách nhóm"
-            className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              onClick={() => loadGroups(false)}
+              title="Làm mới danh sách nhóm"
+              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+
+            <button
+              onClick={onCreateGroupClick}
+              className="bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm group whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+              <span>Tạo nhóm mới</span>
+            </button>
+          </div>
         </div>
 
         {/* Row 2: Option Pills */}
@@ -156,22 +166,13 @@ export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupCli
           </button>
         </div>
 
-        {/* Row 2: Thống kê bên trái, Nút thêm nhóm mới nằm phía bên phải */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium hidden sm:block">
-            {filterTab === 'all'
-              ? `Tất cả cộng đồng (${groups.length})`
-              : filterTab === 'joined'
-              ? `Nhóm bạn đã tham gia (${joinedGroups.length})`
-              : `Nhóm do bạn quản trị (${managedGroups.length})`}
-          </div>
-          <button
-            onClick={onCreateGroupClick}
-            className="ml-auto bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-4 py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm group"
-          >
-            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
-            <span>Tạo nhóm mới</span>
-          </button>
+        {/* Row 3: Thống kê số lượng nhóm */}
+        <div className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium pt-0.5">
+          {filterTab === 'all'
+            ? `Tất cả cộng đồng (${groups.length})`
+            : filterTab === 'joined'
+            ? `Nhóm bạn đã tham gia (${joinedGroups.length})`
+            : `Nhóm do bạn quản trị (${managedGroups.length})`}
         </div>
       </div>
 

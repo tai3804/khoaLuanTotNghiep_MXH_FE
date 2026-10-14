@@ -37,9 +37,9 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
 
   return (
     <div className="mb-4 space-y-2.5">
-      {/* Row 1: Search Bar on Left, Reload Button alongside on the same row */}
-      <div className="flex items-center gap-2">
-        <div className="relative w-64 sm:w-80 max-w-[calc(100%-3rem)]">
+      {/* Row 1: Search Bar on Left, Reload Button on Top Right */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="relative flex-1 max-w-xs sm:max-w-sm">
           <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
           <input
             type="text"
