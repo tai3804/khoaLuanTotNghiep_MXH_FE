@@ -21,6 +21,8 @@ import {
   ArrowRight,
   Shield,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ThumbsUp,
   MessageSquare,
   Undo2,
@@ -51,60 +53,60 @@ interface ModeratorPageProps {
 
 const reasonConfig: Record<string, { label: string; color: string; bgLight: string; bgDark: string; border: string }> = {
   SPAM: {
-    label: 'Spam & Quảng cáo',
-    color: 'text-amber-500',
-    bgLight: 'bg-amber-50',
-    bgDark: 'dark:bg-amber-950/40',
-    border: 'border-amber-200 dark:border-amber-800/50',
+    label: 'Spam & Rác',
+    color: 'text-amber-700 dark:text-amber-300',
+    bgLight: 'bg-amber-50/80',
+    bgDark: 'dark:bg-amber-950/30',
+    border: 'border-amber-200/60 dark:border-amber-900/40',
   },
   HATE_SPEECH: {
     label: 'Ngôn từ thù ghét',
-    color: 'text-rose-500',
-    bgLight: 'bg-rose-50',
-    bgDark: 'dark:bg-rose-950/40',
-    border: 'border-rose-200 dark:border-rose-800/50',
+    color: 'text-rose-700 dark:text-rose-300',
+    bgLight: 'bg-rose-50/80',
+    bgDark: 'dark:bg-rose-950/30',
+    border: 'border-rose-200/60 dark:border-rose-900/40',
   },
   HARASSMENT: {
     label: 'Quấy rối & Đe dọa',
-    color: 'text-orange-500',
-    bgLight: 'bg-orange-50',
-    bgDark: 'dark:bg-orange-950/40',
-    border: 'border-orange-200 dark:border-orange-800/50',
+    color: 'text-orange-700 dark:text-orange-300',
+    bgLight: 'bg-orange-50/80',
+    bgDark: 'dark:bg-orange-950/30',
+    border: 'border-orange-200/60 dark:border-orange-900/40',
   },
   VIOLENCE: {
-    label: 'Bạo lực nguy hiểm',
-    color: 'text-red-500',
-    bgLight: 'bg-red-50',
-    bgDark: 'dark:bg-red-950/40',
-    border: 'border-red-200 dark:border-red-800/50',
+    label: 'Bạo lực',
+    color: 'text-red-700 dark:text-red-300',
+    bgLight: 'bg-red-50/80',
+    bgDark: 'dark:bg-red-950/30',
+    border: 'border-red-200/60 dark:border-red-900/40',
   },
   INAPPROPRIATE_CONTENT: {
     label: 'Nội dung nhạy cảm',
-    color: 'text-purple-500',
-    bgLight: 'bg-purple-50',
-    bgDark: 'dark:bg-purple-950/40',
-    border: 'border-purple-200 dark:border-purple-800/50',
+    color: 'text-purple-700 dark:text-purple-300',
+    bgLight: 'bg-purple-50/80',
+    bgDark: 'dark:bg-purple-950/30',
+    border: 'border-purple-200/60 dark:border-purple-900/40',
   },
   FALSE_INFORMATION: {
     label: 'Thông tin sai lệch',
-    color: 'text-blue-500',
-    bgLight: 'bg-blue-50',
-    bgDark: 'dark:bg-blue-950/40',
-    border: 'border-blue-200 dark:border-blue-800/50',
+    color: 'text-blue-700 dark:text-blue-300',
+    bgLight: 'bg-blue-50/80',
+    bgDark: 'dark:bg-blue-950/30',
+    border: 'border-blue-200/60 dark:border-blue-900/40',
   },
   COPYRIGHT: {
-    label: 'Vi phạm bản quyền',
-    color: 'text-indigo-500',
-    bgLight: 'bg-indigo-50',
-    bgDark: 'dark:bg-indigo-950/40',
-    border: 'border-indigo-200 dark:border-indigo-800/50',
+    label: 'Bản quyền',
+    color: 'text-indigo-700 dark:text-indigo-300',
+    bgLight: 'bg-indigo-50/80',
+    bgDark: 'dark:bg-indigo-950/30',
+    border: 'border-indigo-200/60 dark:border-indigo-900/40',
   },
   OTHER: {
-    label: 'Vi phạm khác',
-    color: 'text-gray-500',
-    bgLight: 'bg-gray-50',
-    bgDark: 'dark:bg-gray-800/40',
-    border: 'border-gray-200 dark:border-gray-700',
+    label: 'Khác',
+    color: 'text-gray-700 dark:text-gray-300',
+    bgLight: 'bg-gray-100',
+    bgDark: 'dark:bg-[#28292c]',
+    border: 'border-gray-200 dark:border-[#383a3e]',
   },
 };
 
@@ -141,8 +143,7 @@ const aiSeverityStyles: Record<string, { label: string; className: string }> = {
   CRITICAL: { label: 'Nghiêm trọng', className: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' },
 };
 
-// ---- Bộ lọc của trang kiểm duyệt ----
-type ModeratorTab = 'queue' | 'ai' | 'history' | 'appeals';
+type ModeratorTab = 'queue' | 'history' | 'appeals';
 type RangeFilter = 'ALL' | 'TODAY' | '7D' | '30D';
 type SortOrder = 'newest' | 'oldest';
 type SourceFilter = 'ALL' | 'AI' | 'USER';
@@ -169,10 +170,16 @@ const sortOptions = [
 ];
 
 const rangeOptions: { value: RangeFilter; label: string }[] = [
-  { value: 'ALL', label: 'Tất cả' },
+  { value: 'ALL', label: 'Mọi thời gian' },
   { value: 'TODAY', label: 'Hôm nay' },
   { value: '7D', label: '7 ngày qua' },
   { value: '30D', label: '30 ngày qua' },
+];
+
+const actorOptions: { value: ActorFilter; label: string }[] = [
+  { value: 'ALL', label: 'Tất cả người xử lý' },
+  { value: 'HUMAN', label: 'Kiểm duyệt viên' },
+  { value: 'AUTO', label: 'AI / Hệ thống' },
 ];
 
 const withinRange = (iso: string | undefined, range: RangeFilter) => {
@@ -201,7 +208,7 @@ const byDate =
 
 export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
   const { user, isAuthenticated, openLoginModal } = useAuth();
-  const [tab, setTab] = useState<'queue' | 'ai' | 'history' | 'appeals'>('queue');
+  const [tab, setTab] = useState<ModeratorTab>('queue');
 
   // Appeals state
   const [appeals, setAppeals] = useState<any[]>([]);
@@ -211,6 +218,15 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [logs, setLogs] = useState<ModerationLog[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Backend Pagination States (10 items per page)
+  const [queuePage, setQueuePage] = useState(1);
+  const [queueTotalPages, setQueueTotalPages] = useState(1);
+  const [queueTotalElements, setQueueTotalElements] = useState(0);
+
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyTotalElements, setHistoryTotalElements] = useState(0);
 
   // Mapped post content cache
   const [postsMap, setPostsMap] = useState<Record<string, Post | null>>({});
@@ -243,19 +259,86 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
     );
   }, [user]);
 
+  const loadQueue = async (targetPage = queuePage, currentSort = sortOrder) => {
+    try {
+      setLoading(true);
+      const res = await moderationService.getReports({
+        page: targetPage,
+        size: 10,
+        sortBy: 'createdAt',
+        sortDirection: currentSort === 'newest' ? 'DESC' : 'ASC',
+      });
+      setReports(res.items);
+      setQueuePage(res.page);
+      setQueueTotalPages(res.totalPages);
+      setQueueTotalElements(res.totalElements);
+    } catch {
+      toast.showError('Không tải được danh sách báo cáo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHistory = async (targetPage = historyPage, currentSort = sortOrder) => {
+    try {
+      setLoading(true);
+      const res = await moderationService.getLogs({
+        page: targetPage,
+        size: 10,
+        sortBy: 'createdAt',
+        sortDirection: currentSort === 'newest' ? 'DESC' : 'ASC',
+      });
+      setLogs(res.items);
+      setHistoryPage(res.page);
+      setHistoryTotalPages(res.totalPages);
+      setHistoryTotalElements(res.totalElements);
+    } catch {
+      toast.showError('Không tải được nhật ký kiểm duyệt.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const load = async () => {
     try {
       setLoading(true);
-      const [nextReports, nextLogs] = await Promise.all([
-        moderationService.getReports(),
-        moderationService.getLogs(),
+      const sortDir = sortOrder === 'newest' ? 'DESC' : 'ASC';
+      const [reportsRes, logsRes] = await Promise.all([
+        moderationService.getReports({
+          page: queuePage,
+          size: 10,
+          sortBy: 'createdAt',
+          sortDirection: sortDir,
+        }),
+        moderationService.getLogs({
+          page: historyPage,
+          size: 10,
+          sortBy: 'createdAt',
+          sortDirection: sortDir,
+        }),
       ]);
-      setReports(nextReports);
-      setLogs(nextLogs);
+      setReports(reportsRes.items);
+      setQueuePage(reportsRes.page);
+      setQueueTotalPages(reportsRes.totalPages);
+      setQueueTotalElements(reportsRes.totalElements);
+
+      setLogs(logsRes.items);
+      setHistoryPage(logsRes.page);
+      setHistoryTotalPages(logsRes.totalPages);
+      setHistoryTotalElements(logsRes.totalElements);
     } catch {
       toast.showError('Không tải được dữ liệu kiểm duyệt.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSortChange = (newSort: SortOrder) => {
+    setSortOrder(newSort);
+    if (tab === 'queue') {
+      void loadQueue(1, newSort);
+    } else if (tab === 'history') {
+      void loadHistory(1, newSort);
     }
   };
 
@@ -412,11 +495,10 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
 
   // Filtered reports
   const displayedReports = useMemo(() => {
-    const base = tab === 'queue' ? pending : aiFlagged;
-    return base
+    return pending
       .filter((r) => {
         if (reasonFilter !== 'ALL' && r.reason !== reasonFilter) return false;
-        if (tab === 'queue' && sourceFilter !== 'ALL') {
+        if (sourceFilter !== 'ALL') {
           const isAi = r.source === 'AI';
           if (sourceFilter === 'AI' ? !isAi : isAi) return false;
         }
@@ -434,7 +516,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         return true;
       })
       .sort(byDate((r) => r.createdAt, sortOrder));
-  }, [tab, pending, aiFlagged, reasonFilter, sourceFilter, searchQuery, sortOrder, postsMap]);
+  }, [pending, reasonFilter, sourceFilter, searchQuery, sortOrder, postsMap]);
 
   // Số lượt xử lý theo từng hành động (hiển thị trên các chip lọc của tab Nhật ký)
   const logActionCounts = useMemo(() => {
@@ -585,22 +667,21 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         onSelectChatUser={props.setActiveChatUser}
       />
 
-      <div className="flex justify-between pt-14 max-w-[1920px] mx-auto">
-        <ModeratorSidebarNav
-          currentTab={tab}
-          onSelectTab={(newTab) => setTab(newTab)}
-          pendingCount={pending.length}
-          aiFlaggedCount={aiFlagged.length}
-          logsCount={logs.length}
-          appealsCount={appeals.length}
-          sourceFilter={sourceFilter}
-          onSourceFilterChange={setSourceFilter}
-          userReportCount={pending.filter((r) => r.source !== 'AI').length}
-          aiReportCount={pending.filter((r) => r.source === 'AI').length}
-          isAdmin={(user?.roles || []).some((r: any) => String(r).toUpperCase().includes('ADMIN'))}
-        />
+      <ModeratorSidebarNav
+        currentTab={tab}
+        onSelectTab={(newTab) => setTab(newTab)}
+        pendingCount={queueTotalElements}
+        logsCount={historyTotalElements}
+        appealsCount={appeals.length}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={setSourceFilter}
+        userReportCount={reports.filter((r) => r.source !== 'AI').length}
+        aiReportCount={reports.filter((r) => r.source === 'AI').length}
+        isAdmin={(user?.roles || []).some((r: any) => String(r).toUpperCase().includes('ADMIN'))}
+      />
 
-        <main className="flex-1 min-w-0 max-w-[960px] xl:max-w-[1040px] 2xl:max-w-[1140px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+      <div className="pt-14 lg:pl-[260px] xl:pl-[280px] xl:pr-[280px] 2xl:pr-[340px] transition-all min-h-screen">
+        <main className="w-full max-w-[960px] xl:max-w-[1040px] 2xl:max-w-[1140px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           {/* Top Search Bar & Reload Button, with Section Title */}
           <div className="mb-3 space-y-2.5">
             {/* Row 1: Section Header on Left/Top, Search Bar + Reload on Right */}
@@ -612,16 +693,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                       <Clock3 className="w-5 h-5 text-rose-500 shrink-0" />
                       <span>Hàng chờ báo cáo</span>
                       <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
-                        {pending.length}
-                      </span>
-                    </>
-                  )}
-                  {tab === 'ai' && (
-                    <>
-                      <Sparkles className="w-5 h-5 text-purple-500 shrink-0" />
-                      <span>AI phát hiện vi phạm</span>
-                      <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400">
-                        {aiFlagged.length}
+                        {queueTotalElements}
                       </span>
                     </>
                   )}
@@ -630,7 +702,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                       <History className="w-5 h-5 text-blue-500 shrink-0" />
                       <span>Nhật ký & Hoàn tác</span>
                       <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-[#3a3b3c] dark:text-[#b0b3b8]">
-                        {logs.length}
+                        {historyTotalElements}
                       </span>
                     </>
                   )}
@@ -700,25 +772,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
                   tab === 'queue' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
                 }`}>
-                  {pending.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTab('ai')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                  tab === 'ai'
-                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>AI gắn cờ</span>
-                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                  tab === 'ai' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
-                }`}>
-                  {aiFlagged.length}
+                  {queueTotalElements}
                 </span>
               </button>
 
@@ -736,7 +790,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
                   tab === 'history' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c]'
                 }`}>
-                  {logs.length}
+                  {historyTotalElements}
                 </span>
               </button>
 
@@ -762,56 +816,99 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
 
         {/* Secondary Filters Bar */}
         <div className="mb-4 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {tab !== 'appeals' && (
+          {tab === 'queue' && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-white dark:bg-[#242526] border border-gray-200/70 dark:border-[#393a3b] shadow-2xs">
+              {/* Segmented Source Filter */}
+              <div className="flex items-center gap-1 p-0.5 rounded-xl bg-gray-100 dark:bg-[#1a1b1d] overflow-x-auto scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setSourceFilter('ALL')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    sourceFilter === 'ALL'
+                      ? 'bg-white dark:bg-[#2e2f30] text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <span>Tất cả nguồn</span>
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    sourceFilter === 'ALL' ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-gray-200 dark:bg-[#343538] text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {reports.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSourceFilter('USER')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    sourceFilter === 'USER'
+                      ? 'bg-white dark:bg-[#2e2f30] text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <span>Người dùng</span>
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    sourceFilter === 'USER' ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-gray-200 dark:bg-[#343538] text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {reports.filter((r) => r.source !== 'AI').length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSourceFilter('AI')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    sourceFilter === 'AI'
+                      ? 'bg-white dark:bg-[#2e2f30] text-purple-600 dark:text-purple-400 shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-purple-500" />
+                  <span>AI gắn cờ</span>
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    sourceFilter === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' : 'bg-gray-200 dark:bg-[#343538] text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {reports.filter((r) => r.source === 'AI').length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Controls */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 <ToolbarSelect
                   value={reasonFilter}
                   onChange={setReasonFilter}
                   options={reasonOptions}
                   ariaLabel="Lọc theo loại vi phạm"
                 />
-              )}
-              <ToolbarSelect
-                value={sortOrder}
-                onChange={(v) => setSortOrder(v as SortOrder)}
-                options={sortOptions}
-                ariaLabel="Sắp xếp"
-              />
-            </div>
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
-              >
-                Đặt lại bộ lọc
-              </button>
-            )}
-          </div>
-
-          {tab === 'queue' && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <FilterChip active={sourceFilter === 'ALL'} onClick={() => setSourceFilter('ALL')} label="Tất cả nguồn" count={pending.length} />
-              <FilterChip
-                active={sourceFilter === 'USER'}
-                onClick={() => setSourceFilter('USER')}
-                label="Người dùng báo cáo"
-                count={pending.filter((r) => r.source !== 'AI').length}
-              />
-              <FilterChip
-                active={sourceFilter === 'AI'}
-                onClick={() => setSourceFilter('AI')}
-                label="AI gắn cờ"
-                icon={<Sparkles className="h-3 w-3" />}
-                count={pending.filter((r) => r.source === 'AI').length}
-              />
+                <ToolbarSelect
+                  value={sortOrder}
+                  onChange={(v) => handleSortChange(v as SortOrder)}
+                  options={sortOptions}
+                  ariaLabel="Sắp xếp"
+                />
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-2 py-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+                  >
+                    Đặt lại
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
           {tab === 'history' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <FilterChip active={actionFilter === 'ALL'} onClick={() => setActionFilter('ALL')} label="Tất cả hành động" count={logs.length} />
+            <div className="space-y-2 p-2.5 rounded-2xl bg-white dark:bg-[#242526] border border-gray-200/70 dark:border-[#393a3b] shadow-2xs">
+              {/* Row 1: Action Types (Primary Filter) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                <FilterChip
+                  active={actionFilter === 'ALL'}
+                  onClick={() => setActionFilter('ALL')}
+                  label="Tất cả hành động"
+                  count={logs.length}
+                />
                 {Object.keys(actionDetails)
                   .filter((a) => logActionCounts[a])
                   .map((a) => (
@@ -824,24 +921,65 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                     />
                   ))}
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                {rangeOptions.map((o) => (
-                  <FilterChip key={o.value} active={rangeFilter === o.value} onClick={() => setRangeFilter(o.value)} label={o.label} />
-                ))}
-                <FilterChip active={actorFilter === 'ALL'} onClick={() => setActorFilter('ALL')} label="Tất cả người xử lý" />
-                <FilterChip
-                  active={actorFilter === 'AUTO'}
-                  onClick={() => setActorFilter('AUTO')}
-                  label="AI / Hệ thống"
-                  icon={<Sparkles className="h-3 w-3" />}
-                />
-                <FilterChip
-                  active={actorFilter === 'HUMAN'}
-                  onClick={() => setActorFilter('HUMAN')}
-                  label="Kiểm duyệt viên"
-                  icon={<Gavel className="h-3 w-3" />}
+
+              {/* Row 2: Secondary Dropdown Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-gray-100 dark:border-[#343538]">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <ToolbarSelect
+                    value={actorFilter}
+                    onChange={(v) => setActorFilter(v as ActorFilter)}
+                    options={actorOptions}
+                    ariaLabel="Lọc người xử lý"
+                  />
+                  <ToolbarSelect
+                    value={rangeFilter}
+                    onChange={(v) => setRangeFilter(v as RangeFilter)}
+                    options={rangeOptions}
+                    ariaLabel="Lọc thời gian"
+                  />
+                  <ToolbarSelect
+                    value={reasonFilter}
+                    onChange={setReasonFilter}
+                    options={reasonOptions}
+                    ariaLabel="Lọc theo loại vi phạm"
+                  />
+                  <ToolbarSelect
+                    value={sortOrder}
+                    onChange={(v) => handleSortChange(v as SortOrder)}
+                    options={sortOptions}
+                    ariaLabel="Sắp xếp"
+                  />
+                </div>
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+                  >
+                    Đặt lại bộ lọc
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {tab === 'appeals' && (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-white dark:bg-[#242526] border border-gray-200/70 dark:border-[#393a3b] shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <ToolbarSelect
+                  value={sortOrder}
+                  onChange={(v) => handleSortChange(v as SortOrder)}
+                  options={sortOptions}
+                  ariaLabel="Sắp xếp"
                 />
               </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+                >
+                  Đặt lại bộ lọc
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -881,7 +1019,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
           <>
             <ResultSummary
               shown={displayedLogs.length}
-              total={logs.length}
+              total={historyTotalElements || logs.length}
               noun="lượt xử lý"
               hasFilters={hasActiveFilters}
               onReset={resetFilters}
@@ -889,21 +1027,31 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
             {hasActiveFilters && logs.length > 0 && displayedLogs.length === 0 ? (
               <NoMatchState onReset={resetFilters} />
             ) : (
-              <AuditLogList
-                logs={displayedLogs}
-                reports={reports}
-                postsMap={postsMap}
-                loadingPostsMap={loadingPostsMap}
-                processingId={processingId}
-                onUndo={(reportId, targetId) => handleProcessAction(reportId, 'RESTORE_POST', 'Hoàn tác quyết định', targetId)}
-              />
+              <>
+                <AuditLogList
+                  logs={displayedLogs}
+                  reports={reports}
+                  postsMap={postsMap}
+                  loadingPostsMap={loadingPostsMap}
+                  processingId={processingId}
+                  onUndo={(reportId, targetId) => handleProcessAction(reportId, 'RESTORE_POST', 'Hoàn tác quyết định', targetId)}
+                />
+                <PaginationBar
+                  page={historyPage}
+                  totalPages={historyTotalPages}
+                  totalElements={historyTotalElements}
+                  pageSize={10}
+                  loading={loading}
+                  onPageChange={(p) => void loadHistory(p)}
+                />
+              </>
             )}
           </>
         ) : (
           <>
             <ResultSummary
               shown={displayedReports.length}
-              total={tab === 'queue' ? pending.length : aiFlagged.length}
+              total={queueTotalElements || pending.length}
               noun="bài viết"
               hasFilters={hasActiveFilters}
               onReset={resetFilters}
@@ -921,17 +1069,23 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               empty={
                 hasActiveFilters
                   ? 'Không tìm thấy bài viết nào khớp với bộ lọc tìm kiếm.'
-                  : tab === 'ai'
-                    ? 'Tuyệt vời! Hiện tại không có bài viết nào bị AI cảnh báo.'
-                    : 'Sạch bóng! Toàn bộ bài viết bị báo cáo đã được kiểm duyệt xong.'
+                  : 'Sạch bóng! Toàn bộ bài viết bị báo cáo đã được kiểm duyệt xong.'
               }
+            />
+            <PaginationBar
+              page={queuePage}
+              totalPages={queueTotalPages}
+              totalElements={queueTotalElements}
+              pageSize={10}
+              loading={loading}
+              onPageChange={(p) => void loadQueue(p)}
             />
           </>
         )}
         </main>
-
-        <SidebarRight onSelectChatUser={(u) => props.setActiveChatUser(u)} />
       </div>
+
+      <SidebarRight isFixed onSelectChatUser={(u) => props.setActiveChatUser(u)} />
 
       {/* Detailed Modal for In-depth Notes & Action */}
       {selected && (
@@ -1153,42 +1307,40 @@ const AiFlagInfo: React.FC<{ report: ModerationReport }> = ({ report }) => {
   const explanation = report.aiReason || report.description;
 
   return (
-    <div className="mt-3 rounded-2xl border border-purple-200/80 bg-purple-50/70 p-3.5 dark:border-purple-900/40 dark:bg-purple-950/20">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-black text-purple-700 dark:text-purple-300">
-          <Sparkles className="h-3.5 w-3.5" />
-          Phân tích của AI
-        </span>
-        {category && (
-          <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-bold text-gray-700 shadow-2xs dark:bg-[#1a1b1d] dark:text-gray-200">
-            {category}
+    <div className="mt-2 rounded-lg border border-purple-200/50 bg-purple-50/40 p-2.5 dark:border-purple-900/30 dark:bg-purple-950/20">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 dark:text-purple-300">
+            <Sparkles className="h-3 w-3 text-purple-500" />
+            AI phân tích
           </span>
-        )}
+          {category && (
+            <span className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:bg-[#1a1b1d] dark:text-gray-200">
+              {category}
+            </span>
+          )}
+        </div>
         {severity && (
-          <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${severity.className}`}>
+          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${severity.className}`}>
             Mức độ: {severity.label}
           </span>
         )}
       </div>
 
       {percent !== null && (
-        <div className="mt-2.5 flex items-center gap-2.5">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-purple-100 dark:bg-purple-950/60">
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-purple-100 dark:bg-purple-950/60">
             <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, percent)}%` }} />
           </div>
-          <span className="text-xs font-black text-gray-700 dark:text-gray-200">{percent}% nghi vấn</span>
+          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{percent}% nghi vấn</span>
         </div>
       )}
 
       {explanation && (
-        <p className="mt-2.5 text-xs font-medium italic leading-relaxed text-gray-700 dark:text-gray-300">
+        <p className="mt-1 text-[11px] font-medium italic text-gray-600 dark:text-gray-300 line-clamp-2">
           "{explanation}"
         </p>
       )}
-
-      <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-        Bài viết đang được tạm ẩn chờ bạn quyết định: Bỏ qua để hiển thị lại, hoặc Ẩn/Gỡ bài.
-      </p>
     </div>
   );
 };
@@ -1277,7 +1429,7 @@ const ToolbarSelect: React.FC<{
       value={value}
       aria-label={ariaLabel}
       onChange={(e) => onChange(e.target.value)}
-      className="appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pr-8 pl-3 text-xs font-semibold text-gray-700 shadow-sm transition focus:border-blue-500 focus:outline-none dark:border-[#3a3b3c] dark:bg-[#242526] dark:text-gray-200"
+      className="appearance-none rounded-xl border border-gray-200/80 bg-white py-1.5 pr-7 pl-2.5 text-xs font-semibold text-gray-700 shadow-2xs transition focus:border-blue-500 focus:outline-none dark:border-[#3a3b3c] dark:bg-[#1e1f20] dark:text-gray-200 cursor-pointer"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -1373,6 +1525,101 @@ const TabButton: React.FC<{
   </button>
 );
 
+const PaginationBar: React.FC<{
+  page: number;
+  totalPages: number;
+  totalElements: number;
+  pageSize?: number;
+  loading?: boolean;
+  onPageChange: (newPage: number) => void;
+}> = ({ page, totalPages, totalElements, pageSize = 10, loading, onPageChange }) => {
+  if (totalElements === 0) return null;
+
+  const start = Math.max(1, (page - 1) * pageSize + 1);
+  const end = Math.min(page * pageSize, totalElements);
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (page >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', page - 1, page, page + 1, '...', totalPages];
+  };
+
+  const pages = getPageNumbers();
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 shadow-2xs dark:border-[#2d2e30] dark:bg-[#1a1b1d]">
+      <div className="text-xs text-gray-500 dark:text-gray-400">
+        Hiển thị <span className="font-semibold text-gray-900 dark:text-white">{start} - {end}</span> trong tổng số{' '}
+        <span className="font-semibold text-gray-900 dark:text-white">{totalElements}</span> mục
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            onPageChange(page - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          disabled={page <= 1 || loading}
+          className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white dark:border-[#383a3d] dark:bg-[#252628] dark:text-gray-300 dark:hover:bg-[#2c2d30] dark:disabled:hover:bg-[#252628] cursor-pointer"
+          title="Trang trước"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Trước</span>
+        </button>
+
+        {pages.map((p, idx) =>
+          typeof p === 'number' ? (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                if (p !== page) {
+                  onPageChange(p);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              disabled={loading || p === page}
+              className={`h-8 min-w-[32px] rounded-lg px-2 text-xs font-bold transition cursor-pointer ${
+                p === page
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-[#2d2e30]'
+              }`}
+            >
+              {p}
+            </button>
+          ) : (
+            <span key={idx} className="px-1 text-xs text-gray-400">
+              {p}
+            </span>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            onPageChange(page + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          disabled={page >= totalPages || loading}
+          className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white dark:border-[#383a3d] dark:bg-[#252628] dark:text-gray-300 dark:hover:bg-[#2c2d30] dark:disabled:hover:bg-[#252628] cursor-pointer"
+          title="Trang sau"
+        >
+          <span className="hidden sm:inline">Sau</span>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const PostReportList: React.FC<{
   reports: ModerationReport[];
   postsMap: Record<string, Post | null>;
@@ -1384,18 +1631,18 @@ const PostReportList: React.FC<{
 }> = ({ reports, postsMap, loadingPostsMap, processingId, onSelect, onProcess, empty }) => {
   if (reports.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-200/80 bg-white/70 py-20 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
-        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-500 shadow-inner dark:bg-emerald-950/40">
-          <CheckCircle2 className="h-8 w-8" />
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white/70 py-16 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500 shadow-inner dark:bg-emerald-950/40">
+          <CheckCircle2 className="h-6 w-6" />
         </div>
-        <h3 className="mt-4 text-base font-extrabold text-gray-900 dark:text-white">Không có báo cáo nào</h3>
+        <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-white">Không có báo cáo nào</h3>
         <p className="mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{empty}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {reports.map((report) => {
         const rConf = reasonConfig[report.reason] || reasonConfig.OTHER;
         const post = postsMap[report.targetId];
@@ -1405,36 +1652,39 @@ const PostReportList: React.FC<{
         return (
           <div
             key={report.reportId}
-            className="group relative rounded-3xl border border-gray-200/80 bg-white/95 p-5 shadow-2xs backdrop-blur-md transition-all hover:border-blue-400/60 hover:shadow-lg dark:border-[#2f3032] dark:bg-[#1a1b1d] dark:hover:border-blue-500/40"
+            className="group relative rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-gray-300 dark:border-[#2b2c2f] dark:bg-[#1c1d1f] dark:hover:border-[#383a3e]"
           >
-            {/* Top Bar: Reason, Status, Report Date */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-[#28292b]">
-              <div className="flex items-center gap-2">
+            {/* Top Bar: Reason, Status, Report Date, ID */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5 dark:border-[#262729]">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span
-                  className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-black ${rConf.border} ${rConf.bgLight} ${rConf.bgDark} ${rConf.color}`}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${rConf.border} ${rConf.bgLight} ${rConf.bgDark} ${rConf.color}`}
                 >
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <AlertTriangle className="h-3 w-3" />
                   {rConf.label}
                 </span>
 
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-black tracking-wide text-amber-700 uppercase dark:bg-amber-950/60 dark:text-amber-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200/50 bg-amber-50/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700 uppercase dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   {report.status}
                 </span>
 
                 {report.source === 'AI' && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-black tracking-wide text-purple-700 uppercase dark:bg-purple-950/60 dark:text-purple-300">
-                    <Sparkles className="h-3 w-3" />
+                  <span className="inline-flex items-center gap-1 rounded-md border border-purple-200/50 bg-purple-50/80 px-2 py-0.5 text-[10px] font-semibold text-purple-700 uppercase dark:border-purple-900/30 dark:bg-purple-950/30 dark:text-purple-300">
+                    <Sparkles className="h-2.5 w-2.5 text-purple-500" />
                     AI gắn cờ
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+              <div className="flex items-center gap-2 text-[11px] text-gray-400">
                 <span>
-                  {report.source === 'AI' ? 'AI gắn cờ lúc' : 'Báo cáo lúc'}: {new Date(report.createdAt).toLocaleString('vi-VN')}
+                  {report.source === 'AI' ? 'AI cờ:' : 'Báo cáo:'} {new Date(report.createdAt).toLocaleString('vi-VN')}
                 </span>
-                <span>Mã bài: <code className="font-mono text-gray-500 dark:text-gray-400">{report.targetId}</code></span>
+                <span className="hidden sm:inline">•</span>
+                <span className="hidden sm:inline font-mono text-[10px] text-gray-400">
+                  #{report.targetId ? report.targetId.slice(0, 8) : ''}
+                </span>
               </div>
             </div>
 
@@ -1443,54 +1693,54 @@ const PostReportList: React.FC<{
               <AiFlagInfo report={report} />
             ) : (
               report.description && (
-                <div className="mt-3 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
-                  <span className="font-bold text-rose-500 shrink-0">Lý do báo cáo:</span>
-                  <span className="italic font-medium">"{report.description}"</span>
+                <div className="mt-2.5 flex items-start gap-1.5 rounded-lg border border-gray-100 bg-gray-50/70 px-2.5 py-1.5 text-xs text-gray-600 dark:border-[#27282b] dark:bg-[#202123] dark:text-gray-300">
+                  <span className="font-semibold text-rose-500 shrink-0">Lý do báo cáo:</span>
+                  <span className="italic">"{report.description}"</span>
                 </div>
               )
             )}
 
             {/* EMBEDDED REAL POST CONTENT */}
-            <div className="mt-3.5 rounded-2xl border border-gray-200/80 bg-gray-50/90 p-4 transition dark:border-[#323336] dark:bg-[#222325]">
+            <div className="mt-2.5">
               {isLoadingPost ? (
-                <div className="flex items-center justify-center py-6 text-xs text-gray-400">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-500" />
-                  Đang tải nội dung bài viết gốc...
+                <div className="flex items-center justify-center rounded-lg border border-gray-100 bg-gray-50/60 py-3 text-xs text-gray-400 dark:border-[#27282b] dark:bg-[#18191a]">
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-blue-500" />
+                  Đang tải nội dung bài viết...
                 </div>
               ) : post ? (
-                <div className="space-y-3">
+                <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-3 dark:border-[#28292c] dark:bg-[#18191a] space-y-2">
                   {/* Author Row */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2">
                       {post.authorAvatar ? (
                         <img
                           src={post.authorAvatar}
                           alt=""
-                          className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-500/20"
+                          className="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
                         />
                       ) : (
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-xs">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                           {post.authorName?.[0] || 'U'}
                         </div>
                       )}
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-black text-gray-900 dark:text-white">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {post.authorName || 'Người dùng'}
                           </p>
                           {post.isArchived && (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                            <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-semibold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
                               Đang ẩn
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-gray-400">
-                          Đăng lúc: {new Date(post.createdAtRaw || post.createdAt).toLocaleString('vi-VN')}
+                        <p className="text-[10px] text-gray-400">
+                          {new Date(post.createdAtRaw || post.createdAt).toLocaleString('vi-VN')}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <div className="flex items-center gap-2.5 text-[11px] text-gray-400">
                       <span className="flex items-center gap-1">
                         <ThumbsUp className="h-3 w-3" /> {post.likesCount || 0}
                       </span>
@@ -1501,28 +1751,28 @@ const PostReportList: React.FC<{
                   </div>
 
                   {/* Post Text */}
-                  <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap font-medium">
-                    {post.content || <span className="italic text-gray-400">Bài viết không có nội dung văn bản.</span>}
+                  <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-normal line-clamp-3">
+                    {post.content || <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>}
                   </p>
 
                   {/* Media attachments */}
                   {post.mediaUrls && post.mediaUrls.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5 pt-1">
                       {post.mediaUrls.map((url, idx) => (
                         <a
                           key={idx}
                           href={url}
                           target="_blank"
                           rel="noreferrer"
-                          className="group/img relative max-h-36 overflow-hidden rounded-xl shadow-xs ring-1 ring-black/5"
+                          className="group/img relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-black/5"
                         >
                           <img
                             src={url}
                             alt="post media"
-                            className="max-h-36 rounded-xl object-cover transition group-hover/img:scale-105"
+                            className="h-16 w-16 rounded-lg object-cover transition group-hover/img:scale-105"
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover/img:opacity-100">
-                            <ExternalLink className="h-4 w-4 text-white" />
+                            <ExternalLink className="h-3.5 w-3.5 text-white" />
                           </div>
                         </a>
                       ))}
@@ -1530,32 +1780,37 @@ const PostReportList: React.FC<{
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-4 text-xs italic text-gray-400">
-                  <div className="flex items-center gap-1.5">
-                    <FileWarning className="h-4 w-4 text-amber-500" />
-                    <span>Bài viết này đang được bảo vệ hoặc đã bị xóa khỏi cơ sở dữ liệu.</span>
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/70 px-3 py-2 text-xs text-gray-500 dark:border-[#27282b] dark:bg-[#18191a] dark:text-gray-400">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <FileWarning className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span className="truncate">Bài viết không còn khả dụng hoặc đã bị gỡ</span>
                   </div>
+                  <code className="font-mono text-[10px] text-gray-400 shrink-0">
+                    ID: {report.targetId ? report.targetId.slice(0, 12) + '...' : ''}
+                  </code>
                 </div>
               )}
             </div>
 
-            {/* Quick Actions Footer */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Actions Footer - Compact & Muted */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5 dark:border-[#262729]">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => onProcess(report, 'DELETE_POST', 'Gỡ bỏ bài viết vi phạm tiêu chuẩn cộng đồng')}
                   disabled={isProcessing}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs shadow-red-600/20 transition hover:bg-red-700 active:scale-95 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 active:scale-95 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/40 cursor-pointer"
                   title="Gỡ vĩnh viễn bài viết khỏi hệ thống"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  <span>Gỡ bài viết</span>
+                  <span>Gỡ bài</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onProcess(report, 'HIDE_POST', 'Ẩn bài viết khỏi bảng tin')}
                   disabled={isProcessing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 active:scale-95 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-50 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/40 cursor-pointer"
                   title="Ẩn bài viết khỏi bảng tin"
                 >
                   <EyeOff className="h-3.5 w-3.5" />
@@ -1563,20 +1818,22 @@ const PostReportList: React.FC<{
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onProcess(report, 'DISMISS', 'Nội dung hợp lệ, bỏ qua báo cáo')}
                   disabled={isProcessing}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-100 dark:border-[#383a3d] dark:bg-[#252628] dark:text-gray-300 active:scale-95 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-95 disabled:opacity-50 dark:border-[#383a3d] dark:bg-[#252628] dark:text-gray-300 dark:hover:bg-[#2f3134] cursor-pointer"
                   title="Bỏ qua báo cáo nếu bài viết không vi phạm"
                 >
                   <Check className="h-3.5 w-3.5" />
-                  <span>Bỏ qua (Hợp lệ)</span>
+                  <span>Bỏ qua</span>
                 </button>
               </div>
 
               <button
+                type="button"
                 onClick={() => onSelect(report)}
                 disabled={isProcessing}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition hover:bg-blue-700 active:scale-95"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-100 active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40 cursor-pointer"
               >
                 <Gavel className="h-3.5 w-3.5" />
                 <span>Chi tiết & Ghi chú...</span>
@@ -1589,11 +1846,11 @@ const PostReportList: React.FC<{
   );
 };
 
-const toneStyles: Record<string, { bar: string; chip: string }> = {
-  danger: { bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60' },
-  warning: { bar: 'bg-amber-500', chip: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60' },
-  success: { bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60' },
-  neutral: { bar: 'bg-blue-500', chip: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60' },
+const toneStyles: Record<string, { chip: string }> = {
+  danger: { chip: 'border border-rose-200/50 bg-rose-50/80 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-400' },
+  warning: { chip: 'border border-amber-200/50 bg-amber-50/80 text-amber-600 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-300' },
+  success: { chip: 'border border-emerald-200/50 bg-emerald-50/80 text-emerald-600 dark:border-emerald-900/30 dark:bg-emerald-950/30 dark:text-emerald-300' },
+  neutral: { chip: 'border border-blue-200/50 bg-blue-50/80 text-blue-600 dark:border-blue-900/30 dark:bg-blue-950/30 dark:text-blue-400' },
 };
 
 const LogCard: React.FC<{
@@ -1619,147 +1876,136 @@ const LogCard: React.FC<{
   const isLongContent = (post?.content?.length ?? 0) > 180;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-xs transition hover:shadow-md dark:border-[#2f3032] dark:bg-[#1a1b1d]">
-      <div className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} />
-      <div className="p-4 pl-5">
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone.chip}`}>
-              <IconComponent className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-black tracking-wide text-gray-900 uppercase dark:text-white">
-                  {actInfo.label}
-                </span>
-                <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500 dark:bg-[#282a2d] dark:text-gray-400">
-                  {log.targetType}
-                </span>
-                {automated ? (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
-                    <Sparkles className="h-2.5 w-2.5" />
-                    AI / Hệ thống
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-                    <Gavel className="h-2.5 w-2.5" />
-                    Kiểm duyệt viên
-                  </span>
-                )}
-              </div>
-              <p className="mt-0.5 text-[11px] text-gray-400">
-                Xử lý lúc {new Date(log.createdAt).toLocaleString('vi-VN')}
-              </p>
-            </div>
+    <div className="rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-gray-300 dark:border-[#2b2c2f] dark:bg-[#1c1d1f] dark:hover:border-[#383a3e]">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone.chip}`}>
+            <IconComponent className="h-3.5 w-3.5" />
           </div>
-
-          {/* Status Badge or Undo Button */}
-          <div className="flex items-center gap-2">
-            {isAlreadyInQueue ? (
-              <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Đã ở hàng chờ</span>
+          <div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold tracking-wide text-gray-900 uppercase dark:text-white">
+                {actInfo.label}
               </span>
-            ) : isRestored ? (
-              <span className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Đã khôi phục</span>
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-[#282a2d] dark:text-gray-400">
+                {log.targetType}
               </span>
-            ) : canUndo && log.reportId ? (
-              <button
-                onClick={() => onUndo(log.reportId!, log.targetId)}
-                disabled={isProcessing}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-2xs transition hover:border-emerald-400 hover:bg-emerald-100 active:scale-95 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                title="Hoàn tác quyết định và đưa bài viết quay trở lại Hàng chờ xử lý"
-              >
-                {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-                <span>Hoàn tác (Về hàng chờ)</span>
-              </button>
-            ) : null}
+              {automated ? (
+                <span className="inline-flex items-center gap-1 rounded border border-purple-200/50 bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/30 dark:text-purple-300">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  AI / Hệ thống
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded border border-blue-200/50 bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
+                  <Gavel className="h-2.5 w-2.5" />
+                  Kiểm duyệt viên
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[10px] text-gray-400">
+              Xử lý: {new Date(log.createdAt).toLocaleString('vi-VN')}
+            </p>
           </div>
         </div>
 
-        {/* Note & Reason from Moderator */}
-        <div className="mt-3 border-l-2 border-gray-200 pl-3 dark:border-[#3a3b3c]">
-          <span className="text-[10px] font-black tracking-wider text-gray-400 uppercase">Lý do / Ghi chú kiểm duyệt</span>
-          <p className="mt-0.5 text-xs font-semibold text-gray-800 dark:text-gray-200">
-            "{log.note || log.reason || 'Không có ghi chú thêm.'}"
-          </p>
+        {/* Status Badge or Undo Button */}
+        <div className="flex items-center gap-2">
+          {isAlreadyInQueue ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/60 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Đã ở hàng chờ</span>
+            </span>
+          ) : isRestored ? (
+            <span className="inline-flex items-center gap-1 rounded-md border border-blue-200/60 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Đã khôi phục</span>
+            </span>
+          ) : canUndo && log.reportId ? (
+            <button
+              type="button"
+              onClick={() => onUndo(log.reportId!, log.targetId)}
+              disabled={isProcessing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 disabled:opacity-50 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40 cursor-pointer"
+              title="Hoàn tác quyết định và đưa bài viết quay trở lại Hàng chờ xử lý"
+            >
+              {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+              <span>Hoàn tác (Về hàng chờ)</span>
+            </button>
+          ) : null}
         </div>
+      </div>
 
-        {/* Embedded Post Preview Content */}
-        <div className="mt-3 rounded-xl bg-gray-50/80 p-3 dark:bg-[#151617]">
-          {isLoadingPost ? (
-            <div className="flex items-center justify-center py-3 text-xs text-gray-400">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin text-blue-500" />
-              Đang tải nội dung bài viết...
-            </div>
-          ) : post ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2.5">
+      {/* Note & Reason from Moderator */}
+      <div className="mt-2.5 rounded-lg border border-gray-100 bg-gray-50/70 px-2.5 py-1.5 text-xs text-gray-700 dark:border-[#27282b] dark:bg-[#202123] dark:text-gray-300">
+        <span className="font-semibold text-gray-500 dark:text-gray-400">Ghi chú: </span>
+        <span className="italic">"{log.note || log.reason || 'Không có ghi chú thêm.'}"</span>
+      </div>
+
+      {/* Embedded Post Preview Content */}
+      <div className="mt-2">
+        {isLoadingPost ? (
+          <div className="flex items-center justify-center rounded-lg border border-gray-100 bg-gray-50/60 py-2.5 text-xs text-gray-400 dark:border-[#27282b] dark:bg-[#18191a]">
+            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-blue-500" />
+            Đang tải nội dung bài viết...
+          </div>
+        ) : post ? (
+          <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-2.5 dark:border-[#28292c] dark:bg-[#18191a] space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 {post.authorAvatar ? (
-                  <img src={post.authorAvatar} alt="" className="h-7 w-7 rounded-full object-cover ring-2 ring-blue-500/20" />
+                  <img src={post.authorAvatar} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700" />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white shadow-sm">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                     {post.authorName?.[0] || 'U'}
                   </div>
                 )}
-                <div className="min-w-0 leading-tight">
-                  <span className="text-xs font-bold text-gray-900 dark:text-white">{post.authorName || 'Người dùng'}</span>
-                  <span className="ml-1.5 text-[10px] text-gray-400">
-                    đăng lúc {new Date(post.createdAtRaw || post.createdAt).toLocaleString('vi-VN')}
+                <div className="flex items-center gap-1.5 leading-tight">
+                  <span className="text-xs font-semibold text-gray-900 dark:text-white">{post.authorName || 'Người dùng'}</span>
+                  <span className="text-[10px] text-gray-400">
+                    • {new Date(post.createdAtRaw || post.createdAt).toLocaleString('vi-VN')}
                   </span>
                 </div>
               </div>
+              <span className="font-mono text-[10px] text-gray-400">#{post.id.slice(0, 8)}</span>
+            </div>
 
-              <p
-                className={`text-xs leading-relaxed whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200 ${
-                  expanded ? '' : 'line-clamp-3'
-                }`}
+            <p
+              className={`text-xs leading-relaxed whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200 font-normal ${
+                expanded ? '' : 'line-clamp-2'
+              }`}
+            >
+              {post.content || <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>}
+            </p>
+            {isLongContent && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
               >
-                {post.content || <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>}
-              </p>
-              {isLongContent && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded((v) => !v)}
-                  className="text-[11px] font-bold text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  {expanded ? 'Thu gọn' : 'Xem thêm'}
-                </button>
-              )}
+                {expanded ? 'Thu gọn' : 'Xem thêm'}
+              </button>
+            )}
 
-              {post.mediaUrls && post.mediaUrls.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {post.mediaUrls.map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt="Đính kèm"
-                      className="h-16 w-24 rounded-lg object-cover ring-1 ring-black/5 dark:ring-white/10"
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-gray-400">
-                <span className="flex items-center gap-1">
-                  <ThumbsUp className="h-3 w-3" /> {post.likesCount || 0}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" /> {post.commentsCount || 0}
-                </span>
-                <span className="ml-auto font-mono text-[10px]">Mã bài: {post.id}</span>
+            {post.mediaUrls && post.mediaUrls.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {post.mediaUrls.map((url, idx) => (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt="Đính kèm"
+                    className="h-14 w-14 rounded-lg object-cover ring-1 ring-black/5 dark:ring-white/10"
+                  />
+                ))}
               </div>
-            </div>
-          ) : (
-            <div className="text-xs text-gray-400">
-              <span>Mã bài viết: </span>
-              <code className="font-mono text-gray-500 dark:text-gray-400">{log.targetId}</code>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/60 px-2.5 py-1.5 text-xs text-gray-400 dark:border-[#27282b] dark:bg-[#18191a]">
+            <span>Bài viết gốc không còn trong hệ thống</span>
+            <code className="font-mono text-[10px] text-gray-400">Mã bài: {log.targetId}</code>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1775,9 +2021,9 @@ const AuditLogList: React.FC<{
 }> = ({ logs, reports, postsMap, loadingPostsMap, processingId, onUndo }) => {
   if (logs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-200/80 bg-white/70 py-20 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
-        <FileWarning className="h-10 w-10 text-gray-400" />
-        <h3 className="mt-4 text-base font-extrabold text-gray-900 dark:text-white">Chưa có lịch sử xử lý</h3>
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white/70 py-16 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
+        <FileWarning className="h-8 w-8 text-gray-400" />
+        <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-white">Chưa có lịch sử xử lý</h3>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Các quyết định xử lý bài viết, cảnh cáo và gỡ vi phạm sẽ xuất hiện tại đây.
         </p>

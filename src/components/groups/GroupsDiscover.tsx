@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users2, Plus, Globe, Lock, ArrowRight, Check, Clock, Search, RefreshCw, Compass, ShieldCheck } from 'lucide-react';
+import { Users2, Plus, Globe, Lock, ArrowRight, Check, Clock, Search, RefreshCw, Compass, ShieldCheck, X } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

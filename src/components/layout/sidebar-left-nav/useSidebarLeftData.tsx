@@ -27,7 +27,8 @@ export const useSidebarLeftData = ({
 }: UseSidebarLeftDataProps) => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
 
   const isExtendedFilter = ['support', 'settings', 'moderation', 'creator-dashboard'].includes(activeFilter);
 
@@ -58,18 +59,18 @@ export const useSidebarLeftData = ({
     }
   }, [activeFilter, isExtendedFilter]);
 
-  // Sync across tabs/components
+  // Sync across tabs/windows
   useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const collapsedVal = localStorage.getItem('kltn_sidebar_left_collapsed') === 'true';
-        setIsCollapsed(collapsedVal);
-        const showMoreVal = localStorage.getItem('kltn_sidebar_left_show_more') === 'true';
-        setShowMore(showMoreVal || isExtendedFilter);
-      } catch {}
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'kltn_sidebar_left_collapsed' && e.newValue !== null) {
+        setIsCollapsed(e.newValue === 'true');
+      }
+      if (e.key === 'kltn_sidebar_left_show_more' && e.newValue !== null) {
+        setShowMore(e.newValue === 'true' || isExtendedFilter);
+      }
     };
-    window.addEventListener('sidebar_state_changed', handleStorage);
-    return () => window.removeEventListener('sidebar_state_changed', handleStorage);
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [isExtendedFilter]);
 
   const toggleCollapse = () => {
@@ -77,7 +78,6 @@ export const useSidebarLeftData = ({
       const next = !prev;
       try {
         localStorage.setItem('kltn_sidebar_left_collapsed', String(next));
-        window.dispatchEvent(new Event('sidebar_state_changed'));
       } catch {}
       return next;
     });
@@ -88,95 +88,10 @@ export const useSidebarLeftData = ({
       const next = !prev;
       try {
         localStorage.setItem('kltn_sidebar_left_show_more', String(next));
-        window.dispatchEvent(new Event('sidebar_state_changed'));
       } catch {}
       return next;
     });
   };
-
-  // Full Facebook menu items with unified w-8 h-8 rounded-full icons
-  const menuItems = [
-    {
-      id: 'home',
-      label: t('nav.home') || 'Trang chủ',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-[#1877f2] flex items-center justify-center text-white shadow-sm">
-          <Home className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'friends',
-      label: t('friends') || 'Bạn bè',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
-          <Users className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'groups',
-      label: 'Nhóm',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
-          <Users2 className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'watch',
-      label: 'Video',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
-          <Tv className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'saved',
-      label: t('saved') || 'Đã lưu',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm">
-          <Bookmark className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'support',
-      label: 'Hộp thư hỗ trợ',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
-          <HelpCircle className="w-4 h-4" />
-        </div>
-      ),
-    },
-    {
-      id: 'settings',
-      label: t('settings') || 'Cài đặt & quyền riêng tư',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-gray-500 dark:bg-[#4e4f50] flex items-center justify-center text-white shadow-sm">
-          <Settings className="w-4 h-4" />
-        </div>
-      ),
-    },
-  ];
-
-  const isProfessional = Boolean(
-    (user as any)?.isProfessionalMode ||
-    localStorage.getItem('kltn_prof_mode_enabled') === 'true'
-  );
-
-  if (isProfessional) {
-    menuItems.splice(5, 0, {
-      id: 'creator-dashboard',
-      label: 'Bảng điều khiển chuyên nghiệp',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-          <BarChart3 className="w-4 h-4" />
-        </div>
-      ),
-    });
-  }
 
   const canModerate = useMemo(() => {
     const allRoles = (user?.roles || []).map((r) => String(r).toUpperCase());
@@ -189,29 +104,141 @@ export const useSidebarLeftData = ({
     );
   }, [user]);
 
-  if (canModerate) {
-    // Moderator/Admin uses the dedicated moderation work queue. Support Inbox
-    // is reserved for regular users appealing decisions on their own content.
-    const supportIndex = menuItems.findIndex((item) => item.id === 'support');
-    if (supportIndex >= 0) menuItems.splice(supportIndex, 1);
-    menuItems.splice(2, 0, {
-      id: 'moderation',
-      label: 'Trung tâm kiểm duyệt',
-      iconNode: (
-        <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-sm">
-          <ShieldCheck className="w-4 h-4" />
-        </div>
-      ),
-    });
-    menuItems.splice(3, 0, {
-      id: 'moderation-appeals', label: 'Kháng nghị chờ xử lý',
-      iconNode: <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white shadow-sm"><HelpCircle className="w-5 h-5" /></div>,
-    });
-  }
+  const isProfessional = Boolean(
+    (user as any)?.isProfessionalMode ||
+    localStorage.getItem('kltn_prof_mode_enabled') === 'true'
+  );
 
-  const primaryLimit = (canModerate ? 6 : 5) + (isProfessional ? 1 : 0);
-  const primaryItems = menuItems.slice(0, primaryLimit);
-  const secondaryItems = menuItems.slice(primaryLimit);
+  // Core navigation items
+  const homeItem = {
+    id: 'home',
+    label: t('nav.home') || 'Trang chủ',
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-[#1877f2] flex items-center justify-center text-white shadow-sm">
+        <Home className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const watchItem = {
+    id: 'watch',
+    label: 'Video',
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
+        <Tv className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const friendsItem = {
+    id: 'friends',
+    label: t('friends') || 'Bạn bè',
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+        <Users className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const groupsItem = {
+    id: 'groups',
+    label: t('nav.groups') || (isEn ? 'Groups' : 'Nhóm'),
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+        <Users2 className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  // Moderator / Admin special items (placed right below Home)
+  const moderationItem = {
+    id: 'moderation',
+    label: t('sidebar.moderationCenter') || (isEn ? 'Moderation Center' : 'Trung tâm kiểm duyệt'),
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-sm">
+        <ShieldCheck className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const moderationAppealsItem = {
+    id: 'moderation-appeals',
+    label: t('sidebar.pendingAppeals') || (isEn ? 'Pending Appeals' : 'Kháng nghị chờ xử lý'),
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white shadow-sm">
+        <HelpCircle className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  // Creator Dashboard item (placed right below Home / Moderation)
+  const creatorDashboardItem = {
+    id: 'creator-dashboard',
+    label: t('sidebar.professionalDashboard') || (isEn ? 'Professional Dashboard' : 'Bảng điều khiển chuyên nghiệp'),
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+        <BarChart3 className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  // Secondary items (placed below user core choices)
+  const savedItem = {
+    id: 'saved',
+    label: t('saved') || 'Đã lưu',
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+        <Bookmark className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const supportItem = {
+    id: 'support',
+    label: t('sidebar.supportInbox') || (isEn ? 'Support Inbox' : 'Hộp thư hỗ trợ'),
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-sm">
+        <HelpCircle className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  const settingsItem = {
+    id: 'settings',
+    label: t('settings') || 'Cài đặt & quyền riêng tư',
+    iconNode: (
+      <div className="w-8 h-8 rounded-full bg-gray-500 dark:bg-[#4e4f50] flex items-center justify-center text-white shadow-sm">
+        <Settings className="w-4 h-4" />
+      </div>
+    ),
+  };
+
+  // Build items based on collapsed state:
+  // When collapsed: exactly 4 nav items (Home, Video, Friends, Groups) which combine with Profile = 5 default items.
+  // When expanded: Home -> [Moderation if mod] -> [Dashboard if pro] -> Video -> Friends -> Groups -> Other items below.
+  let primaryItems: any[] = [];
+  let secondaryItems: any[] = [];
+
+  if (isCollapsed) {
+    primaryItems = [homeItem, watchItem, friendsItem, groupsItem];
+    secondaryItems = [];
+  } else {
+    const mainExpanded: any[] = [homeItem];
+    if (canModerate) {
+      mainExpanded.push(moderationItem, moderationAppealsItem);
+    }
+    if (isProfessional) {
+      mainExpanded.push(creatorDashboardItem);
+    }
+    mainExpanded.push(watchItem, friendsItem, groupsItem);
+
+    primaryItems = mainExpanded;
+    secondaryItems = [savedItem];
+    if (!canModerate) {
+      secondaryItems.push(supportItem);
+    }
+    secondaryItems.push(settingsItem);
+  }
 
   const handleItemClick = (id: string) => {
     if (id === 'settings' && onNavigateSettings) {

@@ -3,6 +3,7 @@ import { NotificationItem } from '../../../types/notification';
 import { useNotification } from '../../../context/NotificationContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { fetchAuthorProfile, authorProfileCache, userService, myFriendIdsMemoryCache } from '../../../services/userService';
+import { postService } from '../../../services/postService';
 
 interface UseNotificationDropdownDataProps {
   onClose: () => void;
@@ -36,6 +37,7 @@ export const useNotificationDropdownData = ({
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
   const [actorProfiles, setActorProfiles] = useState<Record<string, { name: string; avatar: string }>>({});
+  const [actorReactions, setActorReactions] = useState<Record<string, string>>({});
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [friendActionStatus, setFriendActionStatus] = useState<Record<string, 'accepted' | 'rejected'>>(loadSavedFriendStatus);
@@ -95,6 +97,81 @@ export const useNotificationDropdownData = ({
         });
         return next;
       });
+    });
+  }, [notifications]);
+
+  // Fetch actual reaction types for LIKE_POST notifications
+  useEffect(() => {
+    if (!notifications || notifications.length === 0) return;
+
+    const likeNotifs = notifications.filter(
+      (n) => n.type === 'LIKE_POST' && n.targetId && n.actorId
+    );
+
+    if (likeNotifs.length === 0) return;
+
+    const immediateMap: Record<string, string> = {};
+    const postsToFetch = new Set<string>();
+
+    likeNotifs.forEach((n) => {
+      // 1. Check targetUrl query param (?reaction=...)
+      if (n.targetUrl) {
+        const match = n.targetUrl.match(/[?&]reaction=([A-Za-z]+)/i);
+        if (match) {
+          const type = match[1].toUpperCase();
+          immediateMap[n.id] = type;
+          if (n.targetId && n.actorId) {
+            immediateMap[`${n.targetId}_${n.actorId}`] = type;
+          }
+        }
+      }
+
+      // 2. Check content for reaction keywords/emojis
+      if (!immediateMap[n.id] && n.content) {
+        const c = n.content.toLowerCase();
+        let found: string | null = null;
+        if (c.includes('❤️') || c.includes('thả tim') || c.includes('yêu thích') || c.includes('love')) found = 'LOVE';
+        else if (c.includes('😆') || c.includes('haha')) found = 'HAHA';
+        else if (c.includes('😮') || c.includes('wow')) found = 'WOW';
+        else if (c.includes('😢') || c.includes('buồn') || c.includes('sad')) found = 'SAD';
+        else if (c.includes('😡') || c.includes('phẫn nộ') || c.includes('angry')) found = 'ANGRY';
+        else if (c.includes('👍') || c.includes('thích') || c.includes('like')) found = 'LIKE';
+
+        if (found) {
+          immediateMap[n.id] = found;
+          if (n.targetId && n.actorId) {
+            immediateMap[`${n.targetId}_${n.actorId}`] = found;
+          }
+        }
+      }
+
+      // 3. For any remaining without known reaction, queue post reaction fetch
+      if (!immediateMap[n.id] && n.targetId && n.actorId && !actorReactions[`${n.targetId}_${n.actorId}`]) {
+        postsToFetch.add(n.targetId);
+      }
+    });
+
+    if (Object.keys(immediateMap).length > 0) {
+      setActorReactions((prev) => ({ ...prev, ...immediateMap }));
+    }
+
+    if (postsToFetch.size === 0) return;
+
+    Array.from(postsToFetch).forEach(async (postId) => {
+      try {
+        const reactions = await postService.getReactions(postId);
+        if (Array.isArray(reactions) && reactions.length > 0) {
+          setActorReactions((prev) => {
+            const next = { ...prev };
+            reactions.forEach((r: any) => {
+              if (r.userId && r.type) {
+                next[`${postId}_${r.userId}`] = String(r.type).toUpperCase();
+              }
+            });
+            return next;
+          });
+        }
+      } catch {}
     });
   }, [notifications]);
 
@@ -186,6 +263,7 @@ export const useNotificationDropdownData = ({
     activeFilter,
     setActiveFilter,
     actorProfiles,
+    actorReactions,
     activeMenuId,
     setActiveMenuId,
     headerMenuOpen,

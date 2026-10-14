@@ -5,6 +5,7 @@ import { Message } from './useChatBoxData';
 import { ChatFileAttachment } from './ChatFileAttachment';
 import { ChatInlineEditor } from './ChatInlineEditor';
 import { ChatSharedPostCard } from './ChatSharedPostCard';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatMessageBubbleProps {
   msg: Message;
@@ -19,45 +20,31 @@ interface ChatMessageBubbleProps {
 
 const POST_URL_REGEX = /(?:https?:\/\/[^\s/]+)?\/posts?\/([a-zA-Z0-9_-]+)/;
 
-const renderMessageContent = (text: string, isMe: boolean) => {
-  const postMatch = text ? text.match(POST_URL_REGEX) : null;
-  const sharedPostId = postMatch ? postMatch[1] : null;
-
+const renderOnlyText = (text: string, isMe: boolean) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text ? text.split(urlRegex) : [];
 
-  const isSolelyPostUrl = postMatch && (text.trim() === postMatch[0] || (postMatch.index === 0 && text.trim().length === postMatch[0].length));
-
   return (
-    <div className="space-y-1.5">
-      {!isSolelyPostUrl && (
-        <div className="whitespace-pre-wrap">
-          {parts.map((part, i) => {
-            if (part.match(urlRegex)) {
-              return (
-                <a
-                  key={i}
-                  href={part}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className={`underline font-medium break-all hover:opacity-80 transition ${
-                    isMe ? 'text-white' : 'text-[#1877f2] dark:text-[#4599ff]'
-                  }`}
-                >
-                  {part}
-                </a>
-              );
-            }
-            return <span key={i}>{part}</span>;
-          })}
-        </div>
-      )}
-
-      {/* Embedded Rich Card Preview for Shared Post */}
-      {sharedPostId && (
-        <ChatSharedPostCard postId={sharedPostId} isMe={isMe} />
-      )}
+    <div className="whitespace-pre-wrap">
+      {parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={`underline font-medium break-all hover:opacity-80 transition ${
+                isMe ? 'text-white' : 'text-[#1877f2] dark:text-[#4599ff]'
+              }`}
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
     </div>
   );
 };
@@ -74,12 +61,15 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   msg,
   isMe,
   isGroup,
-  isUnread,
+  isUnread: _isUnread,
   onEdit,
   onRecall,
   onDeleteForMe,
   onMediaLoad,
 }) => {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
+
   const [isEditing, setIsEditing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -87,6 +77,12 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   const isRecalled = Boolean(msg.deleted);
   const isUrl = msg.text.startsWith('http://') || msg.text.startsWith('https://');
   const mediaUrl = msg.mediaUrl || (isUrl ? msg.text : '');
+
+  // Detect shared post link
+  const postMatch = msg.text ? msg.text.match(POST_URL_REGEX) : null;
+  const sharedPostId = postMatch ? postMatch[1] : null;
+  const textWithoutPostUrl = postMatch ? msg.text.replace(postMatch[0], '').trim() : msg.text;
+  const isSolelyPostUrl = Boolean(sharedPostId && !textWithoutPostUrl);
 
   // Detect type accurately
   const isFile =
@@ -109,23 +105,23 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
       case 'SEEN':
         return (
           <span className="flex items-center text-[9px] text-[#1877f2] font-semibold gap-0.5">
-            <CheckCheck className="w-3 h-3" /> Đã xem
+            <CheckCheck className="w-3 h-3" /> {t('chat.seen', isEn ? 'Seen' : 'Đã xem')}
           </span>
         );
       case 'DELIVERED':
         return (
           <span className="flex items-center text-[9px] text-gray-400 gap-0.5">
-            <CheckCheck className="w-3 h-3" /> Đã nhận
+            <CheckCheck className="w-3 h-3" /> {t('chat.delivered', isEn ? 'Delivered' : 'Đã nhận')}
           </span>
         );
       case 'SENT':
         return (
           <span className="flex items-center text-[9px] text-gray-400 gap-0.5">
-            <Check className="w-3 h-3" /> Đã gửi
+            <Check className="w-3 h-3" /> {t('chat.sent', isEn ? 'Sent' : 'Đã gửi')}
           </span>
         );
       case 'SENDING':
-        return <span className="text-[9px] text-gray-400">Đang gửi...</span>;
+        return <span className="text-[9px] text-gray-400">{t('chat.sending', isEn ? 'Sending...' : 'Đang gửi...')}</span>;
       default:
         return null;
     }
@@ -165,7 +161,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           /* Recalled Message State (Facebook Messenger Style) */
           <div className="flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs italic text-gray-400 dark:text-gray-500 bg-gray-100/70 dark:bg-[#2b2d2f]/50 border border-dashed border-gray-300 dark:border-gray-700 select-none">
             <Undo2 className="w-3.5 h-3.5 text-gray-400" />
-            <span>Tin nhắn đã được thu hồi</span>
+            <span>{t('chat.messageRecalled', isEn ? 'Message has been recalled' : 'Tin nhắn đã được thu hồi')}</span>
           </div>
         ) : isFile || (imageError && mediaUrl) ? (
           /* File Attachment (PDF, Word, Excel, ZIP, or fallback) */
@@ -187,16 +183,33 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           <div className="overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-xs max-w-full my-0.5 bg-black/5 dark:bg-white/5">
             <img
               src={mediaUrl}
-              alt="Ảnh đính kèm"
+              alt={isEn ? 'Attached photo' : 'Ảnh đính kèm'}
               onError={() => setImageError(true)}
               onLoad={onMediaLoad}
               className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
               onClick={() => window.open(mediaUrl, '_blank')}
-              title="Bấm để xem ảnh gốc"
+              title={isEn ? 'Click to view original image' : 'Bấm để xem ảnh gốc'}
             />
           </div>
+        ) : isSolelyPostUrl ? (
+          /* Pure Shared Post (No outer speech bubble, direct rich card) */
+          <ChatSharedPostCard postId={sharedPostId!} isMe={isMe} />
+        ) : sharedPostId ? (
+          /* Message with text + Shared Post Card attached */
+          <div className={`flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
+            <div
+              className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs break-words break-all ${
+                isMe
+                  ? 'bg-[#1877f2] text-white rounded-br-none'
+                  : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
+              }`}
+            >
+              {renderOnlyText(textWithoutPostUrl, isMe)}
+            </div>
+            <ChatSharedPostCard postId={sharedPostId} isMe={isMe} />
+          </div>
         ) : (
-          /* Standard Text Message / Shared Post Card */
+          /* Standard Text Message */
           <div
             className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs break-words break-all ${
               isMe
@@ -204,7 +217,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
             }`}
           >
-            {renderMessageContent(msg.text, isMe)}
+            {renderOnlyText(msg.text, isMe)}
           </div>
         )}
 
@@ -215,7 +228,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               type="button"
               onClick={() => setShowMenu((prev) => !prev)}
               className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-              title="Tùy chọn tin nhắn"
+              title={t('chat.messageOptions', isEn ? 'Message options' : 'Tùy chọn tin nhắn')}
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
@@ -228,7 +241,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 } w-44 bg-white dark:bg-[#242526] rounded-xl shadow-xl border border-gray-100 dark:border-[#3e4042] py-1 text-xs text-gray-700 dark:text-[#e4e6eb]`}
               >
                 {/* Edit (only own text messages) */}
-                {isMe && !isFile && !isVideo && !isImage && (
+                {isMe && !isFile && !isVideo && !isImage && !isSolelyPostUrl && (
                   <button
                     type="button"
                     onClick={() => {
@@ -238,7 +251,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition text-left cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Chỉnh sửa</span>
+                    <span>{t('chat.edit', isEn ? 'Edit' : 'Chỉnh sửa')}</span>
                   </button>
                 )}
 
@@ -253,7 +266,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition text-left text-amber-600 dark:text-amber-400 cursor-pointer"
                   >
                     <Undo2 className="w-3.5 h-3.5" />
-                    <span>Thu hồi với mọi người</span>
+                    <span>{t('chat.unsendForEveryone', isEn ? 'Unsend for everyone' : 'Thu hồi với mọi người')}</span>
                   </button>
                 )}
 
@@ -267,7 +280,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition text-left text-red-600 dark:text-red-400 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Xóa ở phía bạn</span>
+                  <span>{t('chat.deleteForYou', isEn ? 'Delete for you' : 'Xóa ở phía bạn')}</span>
                 </button>
               </div>
             )}
@@ -284,7 +297,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
         <span>{msg.time}</span>
         {msg.edited && !isRecalled && (
           <span className="text-[9px] text-gray-400 font-normal italic">
-            (Đã chỉnh sửa)
+            {t('chat.edited', isEn ? '(Edited)' : '(Đã chỉnh sửa)')}
           </span>
         )}
         {renderStatus()}

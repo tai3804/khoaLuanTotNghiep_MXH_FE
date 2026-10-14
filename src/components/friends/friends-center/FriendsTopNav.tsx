@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, Search, UserPlus, Sparkles, UserCheck, X } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface FriendsTopNavProps {
   activeTab: 'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following';
@@ -28,11 +29,14 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
   t,
   onRefresh,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+
   // Chỉ giữ lại 3 option: Tất cả, Lời mời, Gợi ý
   const tabs = [
-    { id: 'friends', label: t('friends.allFriends') || 'Tất cả bạn bè', icon: UserCheck, count: friendsCount },
-    { id: 'requests', label: t('friends.requests') || 'Lời mời kết bạn', icon: UserPlus, count: requestsCount },
-    { id: 'suggestions', label: t('friends.suggestions') || 'Gợi ý kết bạn', icon: Sparkles, count: suggestionsCount },
+    { id: 'friends', label: t('friends.allFriends') || (isEn ? 'All Friends' : 'Tất cả bạn bè'), icon: UserCheck, count: friendsCount },
+    { id: 'requests', label: t('friends.requests') || (isEn ? 'Friend Requests' : 'Lời mời kết bạn'), icon: UserPlus, count: requestsCount },
+    { id: 'suggestions', label: t('friends.suggestions') || (isEn ? 'Suggestions' : 'Gợi ý kết bạn'), icon: Sparkles, count: suggestionsCount },
   ];
 
   return (
@@ -47,10 +51,10 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={
               activeTab === 'requests'
-                ? 'Tìm lời mời...'
+                ? (isEn ? 'Search requests...' : 'Tìm lời mời...')
                 : activeTab === 'suggestions'
-                ? 'Tìm gợi ý...'
-                : 'Tìm bạn bè...'
+                ? (isEn ? 'Search suggestions...' : 'Tìm gợi ý...')
+                : (isEn ? 'Search friends...' : 'Tìm bạn bè...')
             }
             className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
           />
@@ -58,7 +62,7 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
             <button
               onClick={() => setSearchTerm('')}
               className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
-              title="Xóa tìm kiếm"
+              title={isEn ? 'Clear search' : 'Xóa tìm kiếm'}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -67,7 +71,7 @@ export const FriendsTopNav: React.FC<FriendsTopNavProps> = ({
 
         <button
           onClick={onRefresh}
-          title="Làm mới danh sách"
+          title={isEn ? 'Refresh list' : 'Làm mới danh sách'}
           className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />

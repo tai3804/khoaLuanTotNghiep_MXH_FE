@@ -43,6 +43,16 @@ export const useStoriesData = () => {
     } else {
       setUserStoriesList([]);
     }
+
+    const handleStoriesUpdated = () => {
+      if (isAuthenticated) {
+        loadStories();
+      }
+    };
+    window.addEventListener('stories_updated', handleStoriesUpdated);
+    return () => {
+      window.removeEventListener('stories_updated', handleStoriesUpdated);
+    };
   }, [isAuthenticated]);
 
   const handleScrollRight = () => {

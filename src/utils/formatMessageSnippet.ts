@@ -9,13 +9,20 @@ const VIDEO_EXT_REGEX = /\.(mp4|webm|mov|mkv|avi|m4v)(\?.*)?$/i;
 const AUDIO_EXT_REGEX = /\.(mp3|wav|m4a|aac|ogg|opus)(\?.*)?$/i;
 const FILE_EXT_REGEX = /\.(pdf|docx?|xlsx?|pptx?|zip|rar|7z|tar|gz)(\?.*)?$/i;
 
-export const formatMessageSnippet = (content?: string | null, fallback = ''): string => {
+export const formatMessageSnippet = (
+  content?: string | null,
+  fallback = '',
+  lang?: 'vi' | 'en'
+): string => {
   if (!content || typeof content !== 'string') {
     return fallback;
   }
 
   const trimmed = content.trim();
   if (!trimmed) return fallback;
+
+  const currentLang = lang || (typeof localStorage !== 'undefined' && localStorage.getItem('language') === 'en' ? 'en' : 'vi');
+  const isEn = currentLang === 'en';
 
   // 1. Check if the message is or contains a shared post link
   const postMatch = trimmed.match(POST_URL_REGEX);
@@ -26,15 +33,15 @@ export const formatMessageSnippet = (content?: string | null, fallback = ''): st
       trimmed.replace(/https?:\/\/[^\s/]+/, '').trim() === `/post/${postMatch[1]}`;
 
     if (isSolelyPostUrl) {
-      return '📰 [Đã chia sẻ một bài viết]';
+      return isEn ? '📰 [Shared a post]' : '📰 [Đã chia sẻ một bài viết]';
     }
 
     // Has custom text/note along with post url
     const cleanNote = trimmed.replace(POST_URL_REGEX, '').trim();
     if (cleanNote) {
-      return `${cleanNote} [Bài viết]`;
+      return isEn ? `${cleanNote} [Post]` : `${cleanNote} [Bài viết]`;
     }
-    return '📰 [Đã chia sẻ một bài viết]';
+    return isEn ? '📰 [Shared a post]' : '📰 [Đã chia sẻ một bài viết]';
   }
 
   // 2. Video check
@@ -44,20 +51,15 @@ export const formatMessageSnippet = (content?: string | null, fallback = ''): st
 
   // 3. Audio check
   if (AUDIO_EXT_REGEX.test(trimmed)) {
-    return '🎤 [Đoạn ghi âm]';
+    return isEn ? '🎤 [Voice message]' : '🎤 [Đoạn ghi âm]';
   }
 
   // 4. Document / file check
   if (FILE_EXT_REGEX.test(trimmed)) {
-    return '📁 [Tập tin]';
+    return isEn ? '📁 [Attachment]' : '📁 [Tập tin]';
   }
 
   // 5. Image check:
-  // - Explicit image extensions (.jpg, .png, etc.)
-  // - Starts with data:image/
-  // - Contains Google Photos/Drive image format e.g. '=w' or '=s' parameter or googleusercontent
-  // - Cloud storage keys without spaces like chats/xxx, images/xxx, uploads/xxx
-  // - Long hash/token without spaces containing image/photo patterns
   const isGoogleImageKey =
     !trimmed.includes(' ') &&
     (trimmed.includes('=w') || trimmed.includes('=s') || trimmed.includes('googleusercontent') || trimmed.includes('drive.google')) &&
@@ -80,12 +82,12 @@ export const formatMessageSnippet = (content?: string | null, fallback = ''): st
     isCloudStorageImageKey ||
     isRawImageString
   ) {
-    return '📷 [Hình ảnh]';
+    return isEn ? '📷 [Photo]' : '📷 [Hình ảnh]';
   }
 
   // 6. Generic external web link
   if (/^https?:\/\/[^\s]+$/.test(trimmed)) {
-    return '🔗 [Liên kết]';
+    return isEn ? '🔗 [Link]' : '🔗 [Liên kết]';
   }
 
   // 7. Clean up markdown mentions like @[Nguyen Anh Ngoc] or @[Name](id)

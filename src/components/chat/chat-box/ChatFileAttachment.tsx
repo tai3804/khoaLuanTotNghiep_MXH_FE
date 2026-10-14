@@ -7,6 +7,7 @@ import {
   File,
   Download,
 } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatFileAttachmentProps {
   fileUrl: string;
@@ -23,7 +24,7 @@ const formatBytes = (bytes?: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
-const getFileNameFromUrl = (url: string, fallback?: string): string => {
+const getFileNameFromUrl = (url: string, fallback?: string, defaultLabel: string = 'Attached file'): string => {
   if (fallback && !fallback.startsWith('http://') && !fallback.startsWith('https://')) {
     return fallback;
   }
@@ -31,9 +32,9 @@ const getFileNameFromUrl = (url: string, fallback?: string): string => {
     const pathname = new URL(url).pathname;
     const parts = pathname.split('/');
     const last = parts[parts.length - 1];
-    return decodeURIComponent(last) || 'Tập tin đính kèm';
+    return decodeURIComponent(last) || defaultLabel;
   } catch {
-    return fallback || 'Tập tin đính kèm';
+    return fallback || defaultLabel;
   }
 };
 
@@ -43,7 +44,10 @@ export const ChatFileAttachment: React.FC<ChatFileAttachmentProps> = ({
   fileSize,
   isMe = false,
 }) => {
-  const displayName = getFileNameFromUrl(fileUrl, fileName);
+  const { language } = useLanguage();
+  const isEn = language === 'en';
+  const defaultLabel = isEn ? 'Attached file' : 'Tập tin đính kèm';
+  const displayName = getFileNameFromUrl(fileUrl, fileName, defaultLabel);
   const ext = displayName.split('.').pop()?.toLowerCase() || '';
 
   const renderIcon = () => {
@@ -87,7 +91,7 @@ export const ChatFileAttachment: React.FC<ChatFileAttachmentProps> = ({
       onClick={handleDownload}
       role="button"
       tabIndex={0}
-      title={`Bấm để tải về: ${displayName}`}
+      title={isEn ? `Click to download: ${displayName}` : `Bấm để tải về: ${displayName}`}
       className={`group flex items-center gap-3 p-3 max-w-[280px] sm:max-w-[320px] rounded-2xl border transition-all cursor-pointer select-none shadow-xs ${
         isMe
           ? 'bg-[#1877f2]/10 dark:bg-[#1877f2]/20 border-[#1877f2]/30 hover:border-[#1877f2] hover:bg-[#1877f2]/15'
@@ -121,7 +125,7 @@ export const ChatFileAttachment: React.FC<ChatFileAttachmentProps> = ({
         type="button"
         onClick={handleDownload}
         className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-[#1877f2] dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#3e4042] transition shrink-0"
-        title="Tải tập tin về"
+        title={isEn ? 'Download file' : 'Tải tập tin về'}
       >
         <Download className="w-4 h-4" />
       </button>

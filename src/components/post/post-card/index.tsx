@@ -16,6 +16,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Globe } from 'lucide-react';
 import { postService } from '../../../services/api';
 import { TimeAgo } from '../../common/TimeAgo';
+import { PostReactionsModal } from '../common/PostReactionsModal';
 
 export interface PostCardProps {
   post: Post;
@@ -36,6 +37,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   const [originalPost, setOriginalPost] = useState<Post | null>(post.sharedPost || null);
   const [loadingOriginalPost, setLoadingOriginalPost] = useState<boolean>(!post.sharedPost && Boolean(post.originalPostId));
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [showReactionsModal, setShowReactionsModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (post.sharedPost) {
@@ -195,6 +197,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         topReactionIcons={data.topReactionIcons}
         language={data.language}
         setShowCommentModal={data.setShowCommentModal}
+        onOpenReactionsModal={() => setShowReactionsModal(true)}
       />
 
       <div className="mx-3 border-t border-gray-200 dark:border-[#393a3b]" />
@@ -306,6 +309,17 @@ export const PostCard: React.FC<PostCardProps> = ({
         onConfirm={data.confirmDeletePost}
         onClose={() => data.setShowDeleteModal(false)}
       />
+
+      {/* Post Reactions Classification Modal - Facebook Style */}
+      {showReactionsModal && (
+        <PostReactionsModal
+          isOpen={showReactionsModal}
+          onClose={() => setShowReactionsModal(false)}
+          postId={currentPost.id}
+          initialTotalCount={data.likesCount}
+          onViewProfile={onViewProfile}
+        />
+      )}
     </div>
   );
 };

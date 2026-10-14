@@ -4,6 +4,7 @@ import { ChatUser } from './types';
 import { Message } from './useChatBoxData';
 import { UserAvatar } from '../../common/UserAvatar';
 import { ChatMessageBubble } from './ChatMessageBubble';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatBoxMessagesListProps {
   friend: ChatUser;
@@ -40,6 +41,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
   onDeleteForMe,
   scrollToBottom,
 }) => {
+  const { t } = useLanguage();
   const [showScrollDown, setShowScrollDown] = useState(false);
 
   // Auto scroll to bottom whenever loading finishes or new messages are rendered
@@ -104,22 +106,22 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
         className="h-[340px] sm:h-[350px] p-2.5 overflow-y-auto overflow-x-hidden space-y-2 bg-gray-50/50 dark:bg-[#18191a]"
       >
         {loadingOlder && (
-          <div className="py-1 text-center text-[10px] text-gray-400">Đang tải tin nhắn cũ...</div>
+          <div className="py-1 text-center text-[10px] text-gray-400">{t('chat.loadingOlder', 'Đang tải tin nhắn cũ...')}</div>
         )}
         {!hasMoreMessages && messages.length > 0 && (
-          <div className="py-1 text-center text-[10px] text-gray-400">Đã xem toàn bộ tin nhắn</div>
+          <div className="py-1 text-center text-[10px] text-gray-400">{t('chat.allLoaded', 'Đã xem toàn bộ tin nhắn')}</div>
         )}
         {loading ? (
           <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-[#b0b3b8]">
             <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin mr-2" />
-            <span>Đang tải tin nhắn...</span>
+            <span>{t('chat.loading', 'Đang tải tin nhắn...')}</span>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
             <UserAvatar src={friend.avatar} alt={friend.name} size="md" />
             <p className="text-xs font-semibold mt-2.5 text-gray-800 dark:text-[#e4e6eb]">{friend.name}</p>
             <p className="text-[11px] text-gray-400 dark:text-[#b0b3b8] mt-1">
-              Chưa có tin nhắn nào trong cuộc trò chuyện này.
+              {t('chat.emptyConversation', 'Chưa có tin nhắn nào trong cuộc trò chuyện này.')}
             </p>
           </div>
         ) : (
@@ -140,7 +142,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
                     <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />
                     <div className="px-3 py-0.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 rounded-full text-[10px] sm:text-[11px] font-bold shadow-xs flex items-center gap-1.5 animate-pulse">
                       <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-ping" />
-                      <span>Tin nhắn chưa đọc{unreadCount && unreadCount > 0 ? ` (${unreadCount})` : ''}</span>
+                      <span>{t('chat.unreadMessages', 'Tin nhắn chưa đọc')}{unreadCount && unreadCount > 0 ? ` (${unreadCount})` : ''}</span>
                     </div>
                     <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />
                   </div>
@@ -168,7 +170,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
           type="button"
           onClick={handleScrollToBottomClick}
           className="absolute bottom-3 right-3 p-1.5 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-full shadow-lg transition-all duration-200 cursor-pointer flex items-center gap-1 text-[10px] font-bold animate-in fade-in zoom-in-95 z-20"
-          title="Cuộn xuống tin nhắn mới nhất"
+          title={t('chat.scrollToBottom', 'Cuộn xuống tin nhắn mới nhất')}
         >
           <ChevronDown className="w-4 h-4" />
           {unreadCount && unreadCount > 0 ? (

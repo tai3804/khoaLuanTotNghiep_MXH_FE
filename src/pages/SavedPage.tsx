@@ -139,7 +139,7 @@ export const SavedPage: React.FC<SavedPageProps> = ({
         const q = searchTerm.toLowerCase();
         const matchesContent = p.content?.toLowerCase().includes(q);
         const matchesAuthor =
-          p.user?.name?.toLowerCase().includes(q) ||
+          (p as any).user?.name?.toLowerCase().includes(q) ||
           p.authorName?.toLowerCase().includes(q);
         if (!matchesContent && !matchesAuthor) return false;
       }

@@ -14,7 +14,7 @@ interface PostDetailPageProps {
   activeNavTab?: string;
   setActiveNavTab?: (tab: string) => void;
   onNavigateSettings?: () => void;
-  onNavigateProfile?: (userId: string) => void;
+  onNavigateProfile?: (userId?: string) => void;
   onNavigateAuth?: () => void;
   activeChatUser?: ChatUser | null;
   setActiveChatUser?: (user: ChatUser | null) => void;
@@ -104,7 +104,7 @@ export const PostDetailPage: React.FC<PostDetailPageProps> = ({
         activeTab={activeNavTab}
         onTabChange={handleTabChange}
         onNavigateSettings={onNavigateSettings || (() => navigate('/settings/profile'))}
-        onNavigateProfile={onNavigateProfile || ((uid) => navigate(`/profile/${uid}`))}
+        onNavigateProfile={onNavigateProfile || ((uid) => navigate(uid ? `/profile/${uid}` : '/profile'))}
         onNavigateAuth={onNavigateAuth || (() => navigate('/auth'))}
         onSelectChatUser={setActiveChatUser}
       />

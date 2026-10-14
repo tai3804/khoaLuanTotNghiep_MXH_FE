@@ -5,6 +5,7 @@ import { userService } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface GroupInfoModalProps {
@@ -27,6 +28,8 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
   const { user } = useAuth();
   const toast = useToast();
   const { confirm } = useConfirm();
+  const { language } = useLanguage();
+  const isEn = language === 'en';
 
   const [loading, setLoading] = useState(true);
   const [groupDetail, setGroupDetail] = useState<any>(null);
@@ -231,7 +234,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-[#1877f2]" />
             <h3 className="font-bold text-gray-900 dark:text-[#e4e6eb] text-base">
-              Thông tin nhóm chat
+              {isEn ? 'Group chat info' : 'Thông tin nhóm chat'}
             </h3>
           </div>
           <button
@@ -247,7 +250,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
           {loading ? (
             <div className="py-12 flex flex-col items-center justify-center space-y-2 text-gray-400">
               <Loader2 className="w-6 h-6 animate-spin text-[#1877f2]" />
-              <span className="text-xs font-medium">Đang tải thông tin nhóm...</span>
+              <span className="text-xs font-medium">{isEn ? 'Loading group info...' : 'Đang tải thông tin nhóm...'}</span>
             </div>
           ) : (
             <>
@@ -264,14 +267,14 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       className="flex-1 px-3 py-1.5 text-sm bg-gray-50 dark:bg-[#3a3b3c] border border-gray-300 dark:border-[#4e4f50] rounded-lg text-gray-900 dark:text-[#e4e6eb] focus:outline-none focus:ring-1 focus:ring-[#1877f2]"
-                      placeholder="Nhập tên mới..."
+                      placeholder={isEn ? 'Enter new name...' : 'Nhập tên mới...'}
                       autoFocus
                     />
                     <button
                       onClick={handleSaveName}
                       disabled={savingName || !editName.trim()}
                       className="p-2 bg-[#1877f2] text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition"
-                      title="Lưu"
+                      title={isEn ? 'Save' : 'Lưu'}
                     >
                       {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     </button>
@@ -281,7 +284,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                         setIsEditingName(false);
                       }}
                       className="p-2 bg-gray-200 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#b0b3b8] rounded-lg hover:bg-gray-300 transition"
-                      title="Hủy"
+                      title={isEn ? 'Cancel' : 'Hủy'}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -289,12 +292,12 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                 ) : (
                   <div className="flex items-center gap-2">
                     <h4 className="font-extrabold text-lg text-gray-900 dark:text-[#e4e6eb]">
-                      {groupDetail?.name || 'Nhóm chat'}
+                      {groupDetail?.name || (isEn ? 'Group chat' : 'Nhóm chat')}
                     </h4>
                     {isAdmin && <button
                       onClick={() => setIsEditingName(true)}
                       className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full transition"
-                      title="Đổi tên nhóm"
+                      title={isEn ? 'Rename group' : 'Đổi tên nhóm'}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>}
@@ -302,7 +305,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                 )}
 
                 <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium">
-                  {groupDetail?.members?.length || 0} thành viên
+                  {groupDetail?.members?.length || 0} {isEn ? 'members' : 'thành viên'}
                 </span>
               </div>
 
@@ -314,14 +317,14 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                   className="flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-[#1877f2] dark:text-[#4599ff] rounded-xl text-xs font-bold transition"
                 >
                   <UserPlus className="w-4 h-4" />
-                  Thêm thành viên
+                  {isEn ? 'Add members' : 'Thêm thành viên'}
                 </button>
                 <button
                   onClick={handleLeaveGroup}
                   className="flex items-center justify-center gap-1.5 py-2 px-3 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition"
                 >
                   <LogOut className="w-4 h-4" />
-                  Rời khỏi nhóm
+                  {isEn ? 'Leave group' : 'Rời khỏi nhóm'}
                 </button>
               </div>
 
@@ -330,24 +333,24 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                 <div className="p-3 bg-gray-50 dark:bg-[#3a3b3c]/30 rounded-xl border border-gray-200 dark:border-[#393a3b] space-y-3">
                   <div className="flex items-center justify-between">
                     <h5 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb]">
-                      Chọn bạn bè để thêm:
+                      {isEn ? 'Select friends to add:' : 'Chọn bạn bè để thêm:'}
                     </h5>
                     <button
                       onClick={() => setShowAddMembers(false)}
                       className="text-xs text-gray-400 hover:text-gray-600"
                     >
-                      Đóng
+                      {isEn ? 'Close' : 'Đóng'}
                     </button>
                   </div>
 
                   {loadingFriends ? (
                     <div className="py-4 text-center text-xs text-gray-400">
                       <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-[#1877f2]" />
-                      Đang tải danh sách bạn bè...
+                      {isEn ? 'Loading friends list...' : 'Đang tải danh sách bạn bè...'}
                     </div>
                   ) : friends.length === 0 ? (
                     <div className="py-3 text-center text-xs text-gray-400">
-                      Tất cả bạn bè của bạn đã ở trong nhóm.
+                      {isEn ? 'All your friends are already in this group.' : 'Tất cả bạn bè của bạn đã ở trong nhóm.'}
                     </div>
                   ) : (
                     <div className="max-h-40 overflow-y-auto space-y-1">
@@ -397,7 +400,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                       className="w-full py-2 bg-[#1877f2] hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5"
                     >
                       {addingMembers && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      Thêm {selectedFriendIds.size} bạn bè đã chọn
+                      {isEn ? `Add ${selectedFriendIds.size} selected friends` : `Thêm ${selectedFriendIds.size} bạn bè đã chọn`}
                     </button>
                   )}
                 </div>
@@ -406,7 +409,7 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
               {/* Members List */}
               <div className="space-y-2">
                 <h5 className="text-xs font-bold text-gray-500 dark:text-[#b0b3b8] uppercase tracking-wider">
-                  Danh sách thành viên ({groupDetail?.members?.length || 0})
+                  {isEn ? `Members List (${groupDetail?.members?.length || 0})` : `Danh sách thành viên (${groupDetail?.members?.length || 0})`}
                 </h5>
 
                 <div className="space-y-1.5 divide-y divide-gray-100 dark:divide-[#393a3b]/40">
@@ -422,23 +425,23 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                         className="flex items-center justify-between pt-1.5 first:pt-0"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <UserAvatar src={prof?.avatar} alt={prof?.name || 'Thành viên'} size="sm" />
+                          <UserAvatar src={prof?.avatar} alt={prof?.name || (isEn ? 'Member' : 'Thành viên')} size="sm" />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] truncate">
-                                {prof?.name || 'Đang tải...'}
+                                {prof?.name || (isEn ? 'Loading...' : 'Đang tải...')}
                               </span>
                               {isCurrentUser && (
-                                <span className="text-[10px] text-gray-400 font-normal">(Bạn)</span>
+                                <span className="text-[10px] text-gray-400 font-normal">{isEn ? '(You)' : '(Bạn)'}</span>
                               )}
                             </div>
                             <div className="flex items-center gap-1 mt-0.5">
                               {isMemberAdmin ? (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
-                                  <Shield className="w-2.5 h-2.5" /> Quản trị viên
+                                  <Shield className="w-2.5 h-2.5" /> {isEn ? 'Admin' : 'Quản trị viên'}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-gray-400">Thành viên</span>
+                                <span className="text-[10px] text-gray-400">{isEn ? 'Member' : 'Thành viên'}</span>
                               )}
                             </div>
                           </div>
@@ -447,9 +450,9 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
                         {/* Admin Action: Remove other members */}
                         {isAdmin && !isCurrentUser && (
                           <button
-                            onClick={() => handleRemoveMember(uid, prof?.name || 'thành viên')}
+                            onClick={() => handleRemoveMember(uid, prof?.name || (isEn ? 'member' : 'thành viên'))}
                             className="p-1 text-gray-400 hover:text-red-500 rounded transition"
-                            title="Xóa khỏi nhóm"
+                            title={isEn ? 'Remove from group' : 'Xóa khỏi nhóm'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

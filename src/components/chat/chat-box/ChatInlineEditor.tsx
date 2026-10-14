@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, X, Loader2 } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatInlineEditorProps {
   initialContent: string;
@@ -12,6 +13,8 @@ export const ChatInlineEditor: React.FC<ChatInlineEditorProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const [content, setContent] = useState(initialContent);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,17 +58,19 @@ export const ChatInlineEditor: React.FC<ChatInlineEditorProps> = ({
         disabled={saving}
         rows={2}
         className="w-full text-xs text-gray-900 dark:text-[#e4e6eb] bg-transparent resize-none border-0 outline-none leading-relaxed placeholder-gray-400"
-        placeholder="Nhập nội dung mới..."
+        placeholder={isEn ? 'Type new content...' : 'Nhập nội dung mới...'}
       />
       <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700/60 mt-1">
-        <span className="text-[10px] text-gray-400">Esc để hủy · Enter để lưu</span>
+        <span className="text-[10px] text-gray-400">
+          {isEn ? 'Esc to cancel · Enter to save' : 'Esc để hủy · Enter để lưu'}
+        </span>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={onCancel}
             disabled={saving}
             className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-            title="Hủy chỉnh sửa"
+            title={isEn ? 'Cancel edit' : 'Hủy chỉnh sửa'}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -74,7 +79,7 @@ export const ChatInlineEditor: React.FC<ChatInlineEditorProps> = ({
             onClick={handleSubmit}
             disabled={saving || !content.trim()}
             className="p-1 rounded-full bg-[#1877f2] hover:bg-[#166fe5] text-white disabled:opacity-40 transition shadow-xs cursor-pointer"
-            title="Lưu thay đổi"
+            title={isEn ? 'Save changes' : 'Lưu thay đổi'}
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>

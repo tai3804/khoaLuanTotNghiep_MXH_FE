@@ -67,7 +67,7 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
       : (item.bio && item.bio !== 'Gợi ý kết bạn' ? item.bio : t('friends.suggestions'));
 
   return (
-    <div className="bg-white dark:bg-[#242526] rounded-2xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition duration-200 flex flex-col group select-none">
+    <div className="bg-white dark:bg-[#242526] rounded-xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-xs hover:shadow-md transition duration-200 flex flex-col group select-none">
       {/* 1. Square Avatar / Cover Photo at Top */}
       <div
         onClick={onViewProfile}
@@ -86,35 +86,35 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
       </div>
 
       {/* 2. Card Info & Facebook Action Buttons */}
-      <div className="p-3 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
         {/* Name & Subtitle */}
         <div className="min-w-0">
           <h4
             onClick={onViewProfile}
             title={displayName}
-            className="font-bold text-sm sm:text-base text-gray-900 dark:text-[#e4e6eb] hover:underline cursor-pointer truncate block"
+            className="font-bold text-sm sm:text-[15px] text-gray-900 dark:text-[#e4e6eb] hover:underline cursor-pointer truncate block leading-snug"
           >
             {displayName}
           </h4>
-          <p title={cardSubtitle} className="text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
+          <p title={cardSubtitle} className="text-[11px] sm:text-xs text-gray-500 dark:text-[#b0b3b8] truncate mt-0.5">
             {cardSubtitle}
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-1.5 pt-1">
+        <div className="space-y-1.5 pt-0.5">
           {/* TYPE: REQUEST (Lời mời kết bạn) */}
           {type === 'request' && (
             <>
               <button
                 onClick={onAccept}
-                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1 cursor-pointer"
+                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-[13px] rounded-lg shadow-xs transition flex items-center justify-center space-x-1 cursor-pointer"
               >
                 <span>{t('friends.confirm')}</span>
               </button>
               <button
                 onClick={onReject}
-                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
+                className="w-full py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-[13px] rounded-lg transition cursor-pointer"
               >
                 <span>{t('friends.delete')}</span>
               </button>
@@ -127,23 +127,23 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
               {isSent ? (
                 <button
                   disabled
-                  className="w-full py-2 bg-gray-100 dark:bg-[#3a3b3c]/60 text-gray-500 dark:text-[#b0b3b8] font-bold text-xs sm:text-sm rounded-xl cursor-default flex items-center justify-center space-x-1 border border-gray-200 dark:border-[#393a3b]"
+                  className="w-full py-2 bg-gray-100 dark:bg-[#3a3b3c]/60 text-gray-500 dark:text-[#b0b3b8] font-bold text-xs sm:text-[13px] rounded-lg cursor-default flex items-center justify-center space-x-1 border border-gray-200 dark:border-[#393a3b]"
                 >
-                  <Check className="w-4 h-4 text-emerald-500" />
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
                   <span>{t('friends.requestSent')}</span>
                 </button>
               ) : (
                 <button
                   onClick={onAdd}
-                  className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                  className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-[13px] rounded-lg shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="w-3.5 h-3.5" />
                   <span>{t('friends.addFriend')}</span>
                 </button>
               )}
               <button
                 onClick={onRemove}
-                className="w-full py-2 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
+                className="w-full py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-[13px] rounded-lg transition cursor-pointer"
               >
                 <span>{t('friends.remove')}</span>
               </button>
@@ -155,14 +155,14 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
             <>
               <button
                 onClick={onChat}
-                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                className="w-full py-2 bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs sm:text-[13px] rounded-lg shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
               >
-                <MessageCircle className="w-4 h-4" />
+                <MessageCircle className="w-3.5 h-3.5" />
                 <span>{t('friends.message')}</span>
               </button>
               <button
                 onClick={onUnfriend}
-                className="w-full py-1.5 bg-gray-100 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] font-bold text-xs rounded-xl transition cursor-pointer"
+                className="w-full py-1.5 bg-gray-100 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8] font-bold text-xs sm:text-[13px] rounded-lg transition cursor-pointer"
               >
                 <span>{t('friends.unfriend')}</span>
               </button>
@@ -173,7 +173,7 @@ export const FacebookFriendCard: React.FC<FacebookFriendCardProps> = ({
           {type === 'follower' && onViewProfile && (
             <button
               onClick={onViewProfile}
-              className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
+              className="w-full py-2 bg-gray-100 hover:bg-gray-200 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] text-gray-800 dark:text-[#e4e6eb] font-bold text-xs sm:text-[13px] rounded-lg transition cursor-pointer"
             >
               <span>{t('userMenu.seeProfile') || 'Xem hồ sơ'}</span>
             </button>

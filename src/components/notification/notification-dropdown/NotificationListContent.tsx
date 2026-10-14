@@ -9,6 +9,7 @@ interface NotificationListContentProps {
   filteredNotifications: NotificationItem[];
   activeFilter: 'all' | 'unread';
   actorProfiles: Record<string, { name: string; avatar: string }>;
+  actorReactions?: Record<string, string>;
   activeMenuId: string | null;
   friendActionStatus: Record<string, 'accepted' | 'rejected'>;
   isEn: boolean;
@@ -26,6 +27,7 @@ export const NotificationListContent: React.FC<NotificationListContentProps> = (
   filteredNotifications,
   activeFilter,
   actorProfiles,
+  actorReactions,
   activeMenuId,
   friendActionStatus,
   isEn,
@@ -68,12 +70,16 @@ export const NotificationListContent: React.FC<NotificationListContentProps> = (
           const profile = item.actorId ? actorProfiles[item.actorId] : undefined;
           const isMenuOpen = activeMenuId === item.id;
           const friendStatus = friendActionStatus[item.id] || (item.actorId ? friendActionStatus[item.actorId] : undefined);
+          const detectedReaction =
+            actorReactions?.[item.id] ||
+            (item.targetId && item.actorId ? actorReactions?.[`${item.targetId}_${item.actorId}`] : undefined);
 
           return (
             <NotificationItemCard
               key={item.id}
               item={item}
               profile={profile}
+              detectedReaction={detectedReaction}
               isEn={isEn}
               isMenuOpen={isMenuOpen}
               friendStatus={friendStatus}

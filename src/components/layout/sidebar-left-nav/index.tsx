@@ -73,9 +73,12 @@ export const SidebarLeft: React.FC<SidebarLeftProps> = ({
         onItemClick={handleItemClick}
       />
 
-      <hr className="my-2 border-gray-200 dark:border-[#393a3b] mx-1" />
-
-      <SidebarLeftShortcuts isCollapsed={isCollapsed} onFilterChange={onFilterChange} />
+      {!isCollapsed && (
+        <>
+          <hr className="my-2 border-gray-200 dark:border-[#393a3b] mx-1" />
+          <SidebarLeftShortcuts isCollapsed={isCollapsed} onFilterChange={onFilterChange} />
+        </>
+      )}
     </aside>
   );
 };

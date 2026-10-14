@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface SidebarNavItem {
   id: string;
@@ -26,6 +27,8 @@ export const SidebarLeftNavList: React.FC<SidebarLeftNavListProps> = ({
   onToggleShowMore,
   onItemClick,
 }) => {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const renderItem = (item: SidebarNavItem) => {
     const isActive = activeFilter === item.id || (item.id === 'home' && activeFilter === 'all');
     return (
@@ -71,7 +74,7 @@ export const SidebarLeftNavList: React.FC<SidebarLeftNavListProps> = ({
       {secondaryItems.length > 0 && (
         <button
           onClick={onToggleShowMore}
-          title={isCollapsed ? (showMore ? 'Ẩn bớt' : 'Xem thêm') : undefined}
+          title={isCollapsed ? (showMore ? (t('sidebar.seeLess') || (isEn ? 'See less' : 'Ẩn bớt')) : (t('sidebar.seeMore') || (isEn ? 'See more' : 'Xem thêm'))) : undefined}
           className="w-full flex items-center px-2 py-1.5 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 text-gray-800 dark:text-[#e4e6eb] text-xs sm:text-sm font-medium cursor-pointer transition-colors duration-150"
         >
           <div className="shrink-0 w-8 h-8 flex items-center justify-center">
@@ -84,7 +87,7 @@ export const SidebarLeftNavList: React.FC<SidebarLeftNavListProps> = ({
               isCollapsed ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none' : 'max-w-[180px] opacity-100 translate-x-0'
             }`}
           >
-            <span>{showMore ? 'Ẩn bớt' : 'Xem thêm'}</span>
+            <span>{showMore ? (t('sidebar.seeLess') || (isEn ? 'See less' : 'Ẩn bớt')) : (t('sidebar.seeMore') || (isEn ? 'See more' : 'Xem thêm'))}</span>
           </div>
         </button>
       )}

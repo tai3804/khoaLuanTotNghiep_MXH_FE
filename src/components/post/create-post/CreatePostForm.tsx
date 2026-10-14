@@ -101,7 +101,10 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
   });
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 space-y-3.5">
+    <form
+      onSubmit={handleSubmit}
+      className="p-4 space-y-3.5 max-h-[calc(90vh-75px)] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out"
+    >
       {/* User Info & Privacy Selector */}
       <div className="flex items-center space-x-3">
         <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="lg" />

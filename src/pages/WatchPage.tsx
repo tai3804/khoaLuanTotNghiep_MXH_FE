@@ -107,7 +107,7 @@ export const WatchPage: React.FC<WatchPageProps> = ({
     return posts.filter(
       (p) =>
         p.content?.toLowerCase().includes(q) ||
-        p.user?.name?.toLowerCase().includes(q) ||
+        (p as any).user?.name?.toLowerCase().includes(q) ||
         p.authorName?.toLowerCase().includes(q)
     );
   }, [posts, searchTerm]);

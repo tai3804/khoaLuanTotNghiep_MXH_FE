@@ -25,16 +25,18 @@ export interface Message {
 // Messenger-style timestamp: keep a compact clock for the last 24 hours;
 // older messages need their calendar date so a conversation remains clear.
 const formatMessageTime = (value?: string | Date): string => {
-  if (!value) return 'Vừa xong';
+  const isEn = typeof window !== 'undefined' && localStorage.getItem('language') === 'en';
+  if (!value) return isEn ? 'Just now' : 'Vừa xong';
   const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Vừa xong';
+  if (Number.isNaN(date.getTime())) return isEn ? 'Just now' : 'Vừa xong';
   const now = new Date();
   const age = now.getTime() - date.getTime();
+  const locale = isEn ? 'en-US' : 'vi-VN';
   if (age >= 0 && age < 24 * 60 * 60 * 1000) {
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   }
   const sameYear = date.getFullYear() === now.getFullYear();
-  return date.toLocaleDateString('vi-VN', sameYear
+  return date.toLocaleDateString(locale, sameYear
     ? { day: '2-digit', month: '2-digit' }
     : { day: '2-digit', month: '2-digit', year: 'numeric' });
 };

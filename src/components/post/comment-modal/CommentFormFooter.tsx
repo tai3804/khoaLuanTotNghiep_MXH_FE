@@ -82,7 +82,7 @@ export const CommentFormFooter: React.FC<CommentFormFooterProps> = ({
         inputRef.current?.setSelectionRange(newCursor, newCursor);
       }, 10);
     } else {
-      setCommentText((prev) => prev + emoji);
+      setCommentText(commentText + emoji);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 10);

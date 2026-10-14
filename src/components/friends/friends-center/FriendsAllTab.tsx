@@ -2,6 +2,7 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import { FacebookFriendCard } from './FacebookFriendCard';
 import { ChatUser } from '../../../components/chat/chat-box';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface FriendsAllTabProps {
   friends: any[];
@@ -16,17 +17,17 @@ interface FriendsAllTabProps {
 }
 
 const SkeletonCards = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-3.5">
     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
       <div
         key={i}
-        className="bg-white dark:bg-[#242526] rounded-2xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-sm animate-pulse flex flex-col"
+        className="bg-white dark:bg-[#242526] rounded-xl overflow-hidden border border-gray-200 dark:border-[#393a3b] shadow-xs animate-pulse flex flex-col"
       >
         <div className="w-full aspect-square bg-gray-200 dark:bg-[#3a3b3c]" />
-        <div className="p-3 space-y-2">
-          <div className="h-4 bg-gray-200 dark:bg-[#3a3b3c] rounded w-3/4" />
-          <div className="h-3 bg-gray-100 dark:bg-[#3a3b3c]/60 rounded w-1/2" />
-          <div className="h-8 bg-gray-200 dark:bg-[#3a3b3c] rounded-xl w-full mt-2" />
+        <div className="p-3 space-y-1.5">
+          <div className="h-3.5 bg-gray-200 dark:bg-[#3a3b3c] rounded w-3/4" />
+          <div className="h-2.5 bg-gray-100 dark:bg-[#3a3b3c]/60 rounded w-1/2" />
+          <div className="h-8 bg-gray-200 dark:bg-[#3a3b3c] rounded-lg w-full mt-2" />
         </div>
       </div>
     ))}
@@ -44,6 +45,8 @@ export const FriendsAllTab: React.FC<FriendsAllTabProps> = ({
   onUnfriend,
   onViewProfile,
 }) => {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const filteredFriends = friends.filter(
     (f) => !searchTerm || (f.name && f.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -57,8 +60,8 @@ export const FriendsAllTab: React.FC<FriendsAllTabProps> = ({
           </h2>
           <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
             {filteredFriends.length !== friends.length
-              ? `${filteredFriends.length} / ${friends.length} người bạn`
-              : `${friends.length} người bạn`}
+              ? `${filteredFriends.length} / ${friends.length} ${isEn ? 'friends' : 'người bạn'}`
+              : `${friends.length} ${isEn ? 'friends' : 'người bạn'}`}
           </p>
         </div>
       </div>
@@ -84,7 +87,7 @@ export const FriendsAllTab: React.FC<FriendsAllTabProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-3.5">
           {filteredFriends.map((item) => (
             <FacebookFriendCard
               key={item.id || item.userId}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sparkles, Send, X, Minimize2, Maximize2, Copy, Check, Lightbulb, PenTool, Hash, GraduationCap, Trash2 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +19,7 @@ const QUICK_PROMPTS = [
 ];
 
 export const AiSocialChatWidget: React.FC = () => {
+  const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -67,8 +69,8 @@ export const AiSocialChatWidget: React.FC = () => {
 
     try {
       const historyPayload = messages.slice(-10).map((m) => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text,
+        sender: m.sender === 'user' ? ('user' as const) : ('ai' as const),
+        text: m.text,
       }));
 
       const reply = await aiService.chatWithAiAssistant(text, historyPayload);
@@ -80,7 +82,8 @@ export const AiSocialChatWidget: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err) {
+      console.error('AI chat widget error:', err);
       const errorMsg: Message = {
         id: 'ai-err-' + Date.now(),
         sender: 'ai',
@@ -109,6 +112,10 @@ export const AiSocialChatWidget: React.FC = () => {
       },
     ]);
   };
+
+  if (location.pathname.startsWith('/moderation') || location.pathname.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <>

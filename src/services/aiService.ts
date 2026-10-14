@@ -188,15 +188,23 @@ export const aiService = {
   /**
    * Trò chuyện đa lượt có nhớ ngữ cảnh với Trợ lý AI KLTN
    */
-  chatWithAi: async (message: string, history?: ChatHistoryItem[]): Promise<string> => {
+  chatWithAiAssistant: async (message: string, history?: any[]): Promise<string> => {
     try {
-      const response = await api.post('/ai/assistant/chat', { message, history });
+      const formattedHistory: ChatHistoryItem[] = (history || []).map((item) => ({
+        sender: (item.sender || (item.role === 'user' ? 'user' : 'ai')) as any,
+        text: item.text || item.content || '',
+      }));
+      const response = await api.post('/ai/assistant/chat', { message, history: formattedHistory });
       const data: ChatResult = response.data?.data || response.data || {};
       return data?.reply || 'Xin lỗi, hiện tại tôi chưa thể phản hồi. Vui lòng thử lại sau ít phút.';
     } catch (error) {
       console.warn('AI chat failed:', error);
       return 'Không thể kết nối với Trợ lý AI. Vui lòng thử lại sau.';
     }
+  },
+
+  chatWithAi: async (message: string, history?: ChatHistoryItem[]): Promise<string> => {
+    return aiService.chatWithAiAssistant(message, history);
   },
 
   /**

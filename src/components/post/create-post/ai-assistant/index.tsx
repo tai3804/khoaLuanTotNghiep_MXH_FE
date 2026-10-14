@@ -126,61 +126,73 @@ export const CreatePostAiAssistant: React.FC<CreatePostAiAssistantProps> = ({
         </button>
       </div>
 
-      {/* Tab Panels */}
-      {tab === 'suggest' && (
-        <AiCaptionTab
-          topic={topic}
-          setTopic={setTopic}
-          tone={tone}
-          setTone={setTone}
-          suggestions={suggestions}
-          isSuggesting={isSuggesting}
-          handleSuggest={handleSuggest}
-          handleApply={handleApply}
-        />
-      )}
+      {/* Tab Panels with stable min-height to prevent jitter when switching tabs */}
+      <div className="min-h-[220px] transition-all duration-200 ease-out flex flex-col justify-start">
+        {tab === 'suggest' && (
+          <div className="animate-in fade-in duration-150">
+            <AiCaptionTab
+              topic={topic}
+              setTopic={setTopic}
+              tone={tone}
+              setTone={setTone}
+              suggestions={suggestions}
+              isSuggesting={isSuggesting}
+              handleSuggest={handleSuggest}
+              handleApply={handleApply}
+            />
+          </div>
+        )}
 
-      {tab === 'enhance' && (
-        <AiEnhanceTab
-          draftText={draftText}
-          setDraftText={setDraftText}
-          style={style}
-          setStyle={setStyle}
-          enhancedText={enhancedText}
-          isEnhancing={isEnhancing}
-          handleEnhance={handleEnhance}
-          handleApply={handleApply}
-        />
-      )}
+        {tab === 'enhance' && (
+          <div className="animate-in fade-in duration-150">
+            <AiEnhanceTab
+              draftText={draftText}
+              setDraftText={setDraftText}
+              style={style}
+              setStyle={setStyle}
+              enhancedText={enhancedText}
+              isEnhancing={isEnhancing}
+              handleEnhance={handleEnhance}
+              handleApply={handleApply}
+            />
+          </div>
+        )}
 
-      {tab === 'hashtags' && (
-        <AiHashtagsTab
-          draftText={draftText}
-          setDraftText={setDraftText}
-          hashtags={hashtags}
-          isGeneratingHashtags={isGeneratingHashtags}
-          handleGenerateHashtags={handleGenerateHashtags}
-          handleAppendHashtags={handleAppendHashtags}
-        />
-      )}
+        {tab === 'hashtags' && (
+          <div className="animate-in fade-in duration-150">
+            <AiHashtagsTab
+              draftText={draftText}
+              setDraftText={setDraftText}
+              hashtags={hashtags}
+              isGeneratingHashtags={isGeneratingHashtags}
+              handleGenerateHashtags={handleGenerateHashtags}
+              handleAppendHashtags={handleAppendHashtags}
+            />
+          </div>
+        )}
 
-      {tab === 'analyze' && (
-        <AiPostAnalyzerTab
-          analysisResult={analysisResult}
-          isAnalyzing={isAnalyzing}
-          handleAnalyze={handleAnalyze}
-          hasContent={hasContent}
-        />
-      )}
+        {tab === 'analyze' && (
+          <div className="animate-in fade-in duration-150">
+            <AiPostAnalyzerTab
+              analysisResult={analysisResult}
+              isAnalyzing={isAnalyzing}
+              handleAnalyze={handleAnalyze}
+              hasContent={hasContent}
+            />
+          </div>
+        )}
 
-      {tab === 'check' && (
-        <AiSafetyCheckTab
-          checkResult={checkResult}
-          isChecking={isChecking}
-          handleCheck={handleCheck}
-          hasContent={hasContent}
-        />
-      )}
+        {tab === 'check' && (
+          <div className="animate-in fade-in duration-150">
+            <AiSafetyCheckTab
+              checkResult={checkResult}
+              isChecking={isChecking}
+              handleCheck={handleCheck}
+              hasContent={hasContent}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

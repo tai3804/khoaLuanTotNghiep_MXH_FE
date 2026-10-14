@@ -92,4 +92,12 @@ export * from './useStoriesData';
 export * from './CreateStoryCard';
 export * from './CreateStoryModal';
 export * from './StoryViewerModal';
+export * from './types';
+export * from './storyAudioPresets';
+export * from './StoryMusicBadge';
+export * from './StoryAudioPickerModal';
+export * from './StoryImageEditor';
+export * from './StoryPrivacySelector';
+export * from './StoryCropControls';
+export * from './StoryDraggableTextControls';
 

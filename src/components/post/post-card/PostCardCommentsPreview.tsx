@@ -96,7 +96,7 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
         inputRef.current?.setSelectionRange(newCursor, newCursor);
       }, 10);
     } else {
-      setInlineCommentText((prev) => prev + emoji);
+      setInlineCommentText(inlineCommentText + emoji);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 10);

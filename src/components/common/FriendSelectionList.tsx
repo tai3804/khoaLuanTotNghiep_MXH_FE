@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Check, Loader2 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export interface FriendSelectionListProps {
   friends: any[];
@@ -20,6 +21,7 @@ export const FriendSelectionList: React.FC<FriendSelectionListProps> = ({
   onSearchChange,
   maxHeight = '45vh',
 }) => {
+  const { t } = useLanguage();
   const getFriendName = (friend: any): string => {
     if (!friend || typeof friend !== 'object') return 'Người dùng';
     const composedName = [friend.lastName, friend.middleName, friend.firstName]
@@ -38,14 +40,16 @@ export const FriendSelectionList: React.FC<FriendSelectionListProps> = ({
     <div className="flex flex-col h-full">
       {/* Search Input */}
       <div className="space-y-1.5 pt-2">
-        <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">Tìm kiếm bạn bè</label>
+        <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">
+          {t('chat.searchFriends', 'Tìm kiếm bạn bè')}
+        </label>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Nhập tên bạn bè..."
+            placeholder={t('chat.searchFriendsPlaceholder', 'Nhập tên bạn bè...')}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-xl text-sm font-medium text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-none focus:border-[#1877f2] transition"
           />
         </div>
@@ -59,11 +63,11 @@ export const FriendSelectionList: React.FC<FriendSelectionListProps> = ({
         {loading ? (
           <div className="flex flex-col items-center justify-center h-32 space-y-2 text-gray-500">
             <Loader2 className="w-6 h-6 animate-spin text-[#1877f2]" />
-            <span className="text-xs">Đang tải danh sách...</span>
+            <span className="text-xs">{t('chat.loadingFriends', 'Đang tải danh sách...')}</span>
           </div>
         ) : filteredFriends.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-xs font-semibold text-gray-500 dark:text-[#8a8d91]">
-            Không tìm thấy ai.
+            {t('chat.noFriendsFound', 'Không tìm thấy ai.')}
           </div>
         ) : (
           filteredFriends.map((f) => {

@@ -25,6 +25,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     activeFilter,
     setActiveFilter,
     actorProfiles,
+    actorReactions,
     activeMenuId,
     setActiveMenuId,
     headerMenuOpen,
@@ -72,6 +73,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         filteredNotifications={filteredNotifications}
         activeFilter={activeFilter}
         actorProfiles={actorProfiles}
+        actorReactions={actorReactions}
         activeMenuId={activeMenuId}
         friendActionStatus={friendActionStatus}
         isEn={isEn}

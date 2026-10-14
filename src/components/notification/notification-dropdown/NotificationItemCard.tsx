@@ -15,6 +15,7 @@ import {
   CheckCheck,
   Trash2,
   Tag,
+  Heart,
 } from 'lucide-react';
 import { NotificationItem, NotificationType } from '../../../types/notification';
 import { UserAvatar } from '../../common/UserAvatar';
@@ -22,6 +23,7 @@ import { UserAvatar } from '../../common/UserAvatar';
 interface NotificationItemCardProps {
   item: NotificationItem;
   profile?: { name: string; avatar: string };
+  detectedReaction?: string;
   isEn: boolean;
   isMenuOpen: boolean;
   friendStatus?: 'accepted' | 'rejected';
@@ -32,6 +34,61 @@ interface NotificationItemCardProps {
   onMarkAsRead: (itemId: string) => void;
   onDismiss: (itemId: string) => void;
 }
+
+interface ReactionDisplayInfo {
+  icon: React.ReactNode;
+  bg: string;
+  actionTextVi: string;
+  actionTextEn: string;
+}
+
+const getReactionDisplay = (reactionType: string): ReactionDisplayInfo => {
+  switch (reactionType) {
+    case 'LOVE':
+      return {
+        icon: <Heart className="w-3.5 h-3.5 text-white fill-white" />,
+        bg: 'bg-[#f3425f]',
+        actionTextVi: 'đã thả tim ❤️ về bài viết của bạn.',
+        actionTextEn: 'loved your post. ❤️',
+      };
+    case 'HAHA':
+      return {
+        icon: <span className="text-[12px] leading-none select-none">😆</span>,
+        bg: 'bg-[#f7b125]',
+        actionTextVi: 'đã bày tỏ haha 😆 về bài viết của bạn.',
+        actionTextEn: 'reacted 😆 to your post.',
+      };
+    case 'WOW':
+      return {
+        icon: <span className="text-[12px] leading-none select-none">😮</span>,
+        bg: 'bg-[#f7b125]',
+        actionTextVi: 'đã bày tỏ wow 😮 về bài viết của bạn.',
+        actionTextEn: 'reacted 😮 to your post.',
+      };
+    case 'SAD':
+      return {
+        icon: <span className="text-[12px] leading-none select-none">😢</span>,
+        bg: 'bg-[#f7b125]',
+        actionTextVi: 'đã bày tỏ buồn 😢 về bài viết của bạn.',
+        actionTextEn: 'reacted 😢 to your post.',
+      };
+    case 'ANGRY':
+      return {
+        icon: <span className="text-[12px] leading-none select-none">😡</span>,
+        bg: 'bg-[#e41e3f]',
+        actionTextVi: 'đã bày tỏ phẫn nộ 😡 về bài viết của bạn.',
+        actionTextEn: 'reacted 😡 to your post.',
+      };
+    case 'LIKE':
+    default:
+      return {
+        icon: <ThumbsUp className="w-3 h-3 text-white fill-white" />,
+        bg: 'bg-[#1877f2]',
+        actionTextVi: 'đã thích 👍 bài viết của bạn.',
+        actionTextEn: 'liked your post. 👍',
+      };
+  }
+};
 
 const getNotificationIcon = (type: NotificationType) => {
   switch (type) {
@@ -123,10 +180,27 @@ const formatRelativeTime = (isoString?: string, isEn: boolean = false) => {
 const renderNotificationText = (
   item: NotificationItem,
   profile?: { name: string; avatar: string },
-  isEn: boolean = false
+  isEn: boolean = false,
+  reactionInfo?: ReactionDisplayInfo | null
 ) => {
   const actorName =
     profile?.name && profile.name !== 'Người dùng' && profile.name !== 'Thành viên KLTN' ? profile.name : '';
+
+  if (item.type === 'LIKE_POST' && reactionInfo) {
+    const actorDisplayName = actorName || (isEn ? 'Someone' : 'Một người dùng');
+    return (
+      <div>
+        <span className="text-[13.5px] leading-snug text-gray-800 dark:text-[#e4e6eb]">
+          <strong className="font-bold text-gray-900 dark:text-[#f0f2f5] hover:underline mr-1">
+            {actorDisplayName}
+          </strong>
+          <span className="text-gray-700 dark:text-[#b0b3b8]">
+            {isEn ? reactionInfo.actionTextEn : reactionInfo.actionTextVi}
+          </span>
+        </span>
+      </div>
+    );
+  }
 
   let text = item.content || '';
 
@@ -202,6 +276,7 @@ const renderNotificationText = (
 export const NotificationItemCard: React.FC<NotificationItemCardProps> = ({
   item,
   profile,
+  detectedReaction,
   isEn,
   isMenuOpen,
   friendStatus,
@@ -212,7 +287,26 @@ export const NotificationItemCard: React.FC<NotificationItemCardProps> = ({
   onMarkAsRead,
   onDismiss,
 }) => {
-  const { icon, bg } = getNotificationIcon(item.type);
+  let reactionInfo: ReactionDisplayInfo | null = null;
+  if (item.type === 'LIKE_POST') {
+    let type = detectedReaction;
+    if (!type && item.targetUrl) {
+      const match = item.targetUrl.match(/[?&]reaction=([A-Za-z]+)/i);
+      if (match) type = match[1].toUpperCase();
+    }
+    if (!type && item.content) {
+      const c = item.content.toLowerCase();
+      if (c.includes('❤️') || c.includes('thả tim') || c.includes('yêu thích') || c.includes('love')) type = 'LOVE';
+      else if (c.includes('😆') || c.includes('haha')) type = 'HAHA';
+      else if (c.includes('😮') || c.includes('wow')) type = 'WOW';
+      else if (c.includes('😢') || c.includes('buồn') || c.includes('sad')) type = 'SAD';
+      else if (c.includes('😡') || c.includes('phẫn nộ') || c.includes('angry')) type = 'ANGRY';
+      else if (c.includes('👍') || c.includes('thích') || c.includes('like')) type = 'LIKE';
+    }
+    reactionInfo = getReactionDisplay(type || 'LIKE');
+  }
+
+  const { icon, bg } = reactionInfo || getNotificationIcon(item.type);
   const avatarSrc = profile?.avatar || item.avatarUrl || '/default-avatar.png';
 
   return (
@@ -241,7 +335,7 @@ export const NotificationItemCard: React.FC<NotificationItemCardProps> = ({
 
       {/* Content Body */}
       <div className="flex-1 min-w-0 pr-4">
-        {renderNotificationText(item, profile, isEn)}
+        {renderNotificationText(item, profile, isEn, reactionInfo)}
 
         {/* Friend Request Quick Action Buttons - Facebook Style */}
         {item.type === 'FRIEND_REQUEST' && (

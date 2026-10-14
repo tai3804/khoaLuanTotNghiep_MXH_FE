@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import { Search, MoreHorizontal, UserX, Gift, Edit, Sparkles, Plus, Users } from 'lucide-react';
+import { Search, MoreHorizontal, UserX, Gift, Sparkles, Plus, Users } from 'lucide-react';
 import { ChatUser } from '../../components/chat/chat-box';
 import { UserAvatar } from '../common/UserAvatar';
 import { GroupAvatar } from '../common/GroupAvatar';
@@ -11,12 +11,15 @@ import { websocketService } from '../../services/websocket';
 import { CreateGroupModal } from '../chat/CreateGroupModal';
 import { formatMessageSnippet } from '../../utils/formatMessageSnippet';
 
-interface SidebarRightProps {
+export interface SidebarRightProps {
   onSelectChatUser?: (user: ChatUser) => void;
+  className?: string;
+  isFixed?: boolean;
 }
 
-export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) => {
-  const { t } = useLanguage();
+export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser, className, isFixed }) => {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const { isAuthenticated, tokens } = useAuth();
   const [contacts, setContacts] = useState<ChatUser[]>([]);
   const [groupChats, setGroupChats] = useState<ChatUser[]>([]);
@@ -161,7 +164,13 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
     : contacts;
 
   return (
-    <aside className="w-[280px] 2xl:w-[340px] hidden xl:block px-3 py-3 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto space-y-4 bg-transparent select-none shrink-0">
+    <aside
+      className={`w-[280px] 2xl:w-[340px] hidden xl:block px-3 py-3 overflow-y-auto space-y-4 select-none shrink-0 ${
+        isFixed
+          ? 'fixed top-14 right-0 bottom-0 z-30 bg-[#f8f9fa]/90 dark:bg-[#121314]/90 backdrop-blur-sm border-l border-gray-200/50 dark:border-[#2a2b2d]/50'
+          : 'sticky top-14 h-[calc(100vh-3.5rem)] bg-transparent'
+      } ${className || ''}`}
+    >
       {/* 1. Lời mời kết bạn */}
       {pendingRequests.length > 0 && (
         <div>
@@ -276,7 +285,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
       {/* 3. Cuộc trò chuyện nhóm (Facebook Group Chats section) */}
       <div className="px-1 space-y-1">
         <h3 className="text-gray-500 dark:text-[#b0b3b8] font-bold text-sm mb-1.5">
-          Cuộc trò chuyện nhóm
+          {t('chat.groupConversations', isEn ? 'Group conversations' : 'Cuộc trò chuyện nhóm')}
         </h3>
 
         <button
@@ -287,7 +296,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
             <Plus className="w-5 h-5" />
           </div>
           <span className="text-sm font-semibold text-gray-900 dark:text-[#e4e6eb]">
-            Tạo nhóm mới
+            {t('chat.createNewGroup', isEn ? 'Create new group' : 'Tạo nhóm mới')}
           </span>
         </button>
 
@@ -326,22 +335,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({ onSelectChatUser }) 
         )}
       </div>
 
-      {/* Floating Messenger Quick Button at Bottom Right */}
-      {contacts.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <button
-            onClick={() => {
-              if (onSelectChatUser) {
-                onSelectChatUser(contacts[0]);
-              }
-            }}
-            className="w-12 h-12 rounded-full bg-white dark:bg-[#3a3b3c] hover:bg-gray-100 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] shadow-2xl border border-gray-200 dark:border-gray-700 flex items-center justify-center cursor-pointer transition transform hover:scale-105"
-            title="Tin nhắn"
-          >
-            <Edit className="w-5 h-5" />
-          </button>
-        </div>
-      )}
+
 
       {/* Create Group Modal */}
       <CreateGroupModal

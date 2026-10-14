@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Compass, Users2 } from 'lucide-react';
 import { groupService, GroupResponse } from '../../../services/groupService';
 import { GroupAvatar } from '../../common/GroupAvatar';
+import { useLanguage } from '../../../context/LanguageContext';
 
 let cachedJoinedGroups: GroupResponse[] = [];
 
@@ -15,7 +16,11 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
   isCollapsed = false,
   onFilterChange,
 }) => {
+  if (isCollapsed) return null;
+
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
   const [joinedGroups, setJoinedGroups] = useState<GroupResponse[]>(cachedJoinedGroups);
   const [loading, setLoading] = useState<boolean>(cachedJoinedGroups.length === 0);
 
@@ -65,7 +70,7 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
             isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[180px] opacity-100 translate-x-0'
           }`}
         >
-          Lối tắt của bạn
+          {t('sidebar.yourShortcuts') || (isEn ? 'Your shortcuts' : 'Lối tắt của bạn')}
         </span>
       </div>
 
@@ -104,7 +109,7 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
         {/* Explore all groups link */}
         <button
           onClick={handleNavigateAllGroups}
-          title={isCollapsed ? 'Khám phá nhóm & cộng đồng' : undefined}
+          title={isCollapsed ? (t('sidebar.exploreGroupsCommunities') || (isEn ? 'Discover groups & communities' : 'Khám phá nhóm & cộng đồng')) : undefined}
           className="w-full flex items-center px-2 py-1.5 rounded-xl hover:bg-gray-200/60 dark:hover:bg-[#3a3b3c]/60 text-[#2d88ff] text-xs font-semibold cursor-pointer transition-colors duration-150 group"
         >
           <div className="shrink-0 w-8 h-8 flex items-center justify-center">
@@ -124,7 +129,9 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
             }`}
           >
             <span className="truncate block font-semibold">
-              {joinedGroups.length > 0 ? 'Khám phá tất cả nhóm' : 'Khám phá nhóm & cộng đồng'}
+              {joinedGroups.length > 0
+                ? (t('sidebar.exploreAllGroups') || (isEn ? 'Explore all groups' : 'Khám phá tất cả nhóm'))
+                : (t('sidebar.exploreGroupsCommunities') || (isEn ? 'Discover groups & communities' : 'Khám phá nhóm & cộng đồng'))}
             </span>
           </div>
         </button>

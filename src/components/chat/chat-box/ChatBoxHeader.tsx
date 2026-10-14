@@ -4,6 +4,7 @@ import { ChatUser } from './types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { GroupAvatar } from '../../common/GroupAvatar';
 import { useCall } from '../../../context/CallContext';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatBoxHeaderProps {
   friend: ChatUser;
@@ -31,6 +32,9 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   unreadCount,
 }) => {
   const { startCall, startGroupCall } = useCall();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
+
   const targetUserId = friend.userId || (!friend.isGroup && friend.id !== conversationId ? friend.id : undefined);
 
   const handleAudioCall = () => {
@@ -71,10 +75,10 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
           </h4>
           <span className="text-[10px] text-gray-500 dark:text-[#b0b3b8] block">
             {friend.isGroup
-              ? `${memberCount ? memberCount + ' thành viên' : 'Nhóm chat'}`
+              ? `${memberCount ? `${memberCount} ${t('chat.members', isEn ? 'members' : 'thành viên')}` : isEn ? 'Group chat' : 'Nhóm chat'}`
               : friend.online
-              ? 'Đang hoạt động'
-              : 'Ngoại tuyến'}
+              ? t('chat.activeNow', isEn ? 'Active now' : 'Đang hoạt động')
+              : t('chat.offline', isEn ? 'Offline' : 'Ngoại tuyến')}
           </span>
         </div>
       </div>
@@ -107,7 +111,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
               onClick={() => handleGroupCall('AUDIO')}
               disabled={!conversationId || groupMemberIds.length < 2}
               className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Bắt đầu cuộc gọi thoại nhóm"
+              title={isEn ? 'Start group voice call' : 'Bắt đầu cuộc gọi thoại nhóm'}
             >
               <Phone className="w-4 h-4" />
             </button>
@@ -115,7 +119,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
               onClick={() => handleGroupCall('VIDEO')}
               disabled={!conversationId || groupMemberIds.length < 2}
               className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Bắt đầu cuộc gọi video nhóm"
+              title={isEn ? 'Start group video call' : 'Bắt đầu cuộc gọi video nhóm'}
             >
               <Video className="w-4 h-4" />
             </button>
@@ -123,7 +127,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
               <button
                 onClick={onOpenGroupInfo}
                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
-                title="Thông tin nhóm"
+                title={isEn ? 'Group info' : 'Thông tin nhóm'}
               >
                 <Info className="w-4 h-4" />
               </button>
@@ -134,14 +138,14 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
             <button
               onClick={handleAudioCall}
               className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
-              title="Cuộc gọi thoại"
+              title={isEn ? 'Voice call' : 'Cuộc gọi thoại'}
             >
               <Phone className="w-4 h-4" />
             </button>
             <button
               onClick={handleVideoCall}
               className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
-              title="Cuộc gọi video"
+              title={isEn ? 'Video call' : 'Cuộc gọi video'}
             >
               <Video className="w-4 h-4" />
             </button>
@@ -151,14 +155,14 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
         <button
           onClick={onMinimize}
           className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] transition cursor-pointer"
-          title="Thu nhỏ"
+          title={isEn ? 'Minimize' : 'Thu nhỏ'}
         >
           <Minus className="w-4 h-4" />
         </button>
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] transition cursor-pointer"
-          title="Đóng chat"
+          title={isEn ? 'Close chat' : 'Đóng chat'}
         >
           <X className="w-4 h-4" />
         </button>

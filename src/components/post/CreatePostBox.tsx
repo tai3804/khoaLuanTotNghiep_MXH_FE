@@ -70,7 +70,7 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transition-all transform scale-100 cursor-default"
+            className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl w-full max-w-xl md:max-w-[590px] overflow-hidden transition-all duration-200 transform scale-100 cursor-default flex flex-col max-h-[90vh]"
           >
             <CreatePostModalHeader onClose={() => setIsOpenModal(false)} />
 

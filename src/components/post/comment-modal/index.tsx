@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Post, Comment } from '../../../types';
 import { useCommentModalData } from './useCommentModalData';
 import { CommentModalHeader } from './CommentModalHeader';
@@ -12,6 +12,7 @@ import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { Globe } from 'lucide-react';
 import { isVideo, VideoPlayer } from '../post-card/PostCardContent';
 import { TimeAgo } from '../../common/TimeAgo';
+import { PostReactionsModal } from '../common/PostReactionsModal';
 
 interface CommentModalProps {
   isOpen: boolean;
@@ -88,6 +89,8 @@ export const CommentModal: React.FC<CommentModalProps> = ({
     onSubmitComment,
     onShare,
   });
+
+  const [showReactionsModal, setShowReactionsModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -224,6 +227,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             sharesCount={post.sharesCount || 0}
             topReactionIcons={topReactionIcons}
             language={language}
+            onOpenReactionsModal={() => setShowReactionsModal(true)}
           />
 
           <CommentActionsBar
@@ -292,6 +296,16 @@ export const CommentModal: React.FC<CommentModalProps> = ({
           language={language}
           postContent={post.content}
         />
+
+        {showReactionsModal && (
+          <PostReactionsModal
+            isOpen={showReactionsModal}
+            onClose={() => setShowReactionsModal(false)}
+            postId={post.id}
+            initialTotalCount={likesCount}
+            onViewProfile={onViewProfile}
+          />
+        )}
       </div>
     </div>
   );

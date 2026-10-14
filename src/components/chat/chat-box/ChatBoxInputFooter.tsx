@@ -1,5 +1,6 @@
 import React, { RefObject } from 'react';
 import { Image as ImageIcon, Paperclip, Loader2, Smile, Send } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatBoxInputFooterProps {
   inputText: string;
@@ -22,6 +23,9 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
   onChatDocSelect,
   onSend,
 }) => {
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
+
   return (
     <form
       onSubmit={onSend}
@@ -51,7 +55,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         onClick={() => chatFileInputRef.current?.click()}
         disabled={uploading}
         className="p-1.5 text-gray-400 hover:text-[#1877f2] dark:hover:text-[#4599ff] transition cursor-pointer disabled:opacity-50"
-        title="Gửi hình ảnh/video"
+        title={t('chat.sendPhotoVideo', isEn ? 'Send photo/video' : 'Gửi hình ảnh/video')}
       >
         {uploading ? (
           <Loader2 className="w-4 h-4 animate-spin text-[#1877f2]" />
@@ -66,7 +70,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         onClick={() => (chatDocInputRef?.current ? chatDocInputRef.current.click() : chatFileInputRef.current?.click())}
         disabled={uploading}
         className="p-1.5 text-gray-400 hover:text-[#1877f2] dark:hover:text-[#4599ff] transition cursor-pointer disabled:opacity-50"
-        title="Gửi tập tin tài liệu (PDF, Word, Excel, ZIP...)"
+        title={t('chat.sendDocument', isEn ? 'Send document (PDF, Word, Excel, ZIP...)' : 'Gửi tập tin tài liệu (PDF, Word, Excel, ZIP...)')}
       >
         <Paperclip className="w-4 h-4" />
       </button>
@@ -74,7 +78,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
       <button
         type="button"
         className="p-1.5 text-gray-400 hover:text-[#f7b125] transition cursor-pointer"
-        title="Biểu tượng cảm xúc"
+        title={t('chat.emoji', isEn ? 'Emoji' : 'Biểu tượng cảm xúc')}
       >
         <Smile className="w-4 h-4" />
       </button>
@@ -83,7 +87,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         type="text"
         value={inputText}
         onChange={(e) => setInputText(e.target.value)}
-        placeholder="Nhập tin nhắn..."
+        placeholder={t('chat.typeMessage', isEn ? 'Type a message...' : 'Nhập tin nhắn...')}
         className="flex-1 bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] text-xs px-3 py-1.5 rounded-full border border-transparent focus:outline-none focus:border-[#1877f2] placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
       />
 
@@ -91,7 +95,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         type="submit"
         disabled={!inputText.trim()}
         className="p-1.5 bg-[#1877f2] hover:bg-[#166fe5] active:bg-[#1464d2] text-white rounded-full disabled:opacity-40 transition shadow-xs cursor-pointer"
-        title="Gửi tin nhắn"
+        title={t('chat.send', isEn ? 'Send message' : 'Gửi tin nhắn')}
       >
         <Send className="w-3.5 h-3.5" />
       </button>

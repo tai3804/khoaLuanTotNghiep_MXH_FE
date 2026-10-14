@@ -9,6 +9,7 @@ interface PostCardStatsBarProps {
   topReactionIcons: string[];
   language: string;
   setShowCommentModal: (val: boolean) => void;
+  onOpenReactionsModal?: () => void;
 }
 
 export const PostCardStatsBar: React.FC<PostCardStatsBarProps> = ({
@@ -19,27 +20,33 @@ export const PostCardStatsBar: React.FC<PostCardStatsBarProps> = ({
   topReactionIcons,
   language,
   setShowCommentModal,
+  onOpenReactionsModal,
 }) => {
   return (
     <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 dark:text-[#b0b3b8]">
       <div className="flex items-center space-x-1.5 min-h-[20px]">
         {likesCount > 0 ? (
-          <div className="flex items-center space-x-1.5">
+          <button
+            type="button"
+            onClick={onOpenReactionsModal}
+            className="flex items-center space-x-1.5 hover:underline cursor-pointer group focus:outline-none"
+            title={language === 'en' ? 'See who reacted' : 'Xem ai đã bày tỏ cảm xúc'}
+          >
             <div className="flex items-center -space-x-1">
               {topReactionIcons.map((ico, idx) => (
                 <span
                   key={ico}
-                  className="text-sm sm:text-base leading-none select-none drop-shadow-sm"
+                  className="text-sm sm:text-base leading-none select-none drop-shadow-sm group-hover:scale-110 transition-transform"
                   style={{ zIndex: 30 - idx * 10 }}
                 >
                   {ico}
                 </span>
               ))}
             </div>
-            <span className="text-gray-600 dark:text-[#b0b3b8] text-xs font-semibold">
+            <span className="text-gray-600 dark:text-[#b0b3b8] text-xs font-semibold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {likesCount}
             </span>
-          </div>
+          </button>
         ) : (
           <span className="text-gray-400 dark:text-[#b0b3b8]/60 text-xs">
             {language === 'en' ? 'Be the first to react' : 'Hãy là người đầu tiên thích'}

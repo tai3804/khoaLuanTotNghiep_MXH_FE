@@ -88,9 +88,15 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const maxSizeBytes = (maxUploadSizeMb || 25) * 1024 * 1024;
+      const isVid = file.type.startsWith('video/') || /\.(mp4|webm|ogg|mov|m4v|mkv)$/i.test(file.name);
+      const maxAllowedMb = isVid ? 150 : Math.max(maxUploadSizeMb || 25, 25);
+      const maxSizeBytes = maxAllowedMb * 1024 * 1024;
       if (file.size > maxSizeBytes) {
-        toast.showError(`Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn cho phép của hệ thống (${maxUploadSizeMb}MB). Vui lòng chọn tệp nhỏ hơn!`);
+        toast.showError(
+          isVid
+            ? `Dung lượng video (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn tối đa cho phép (150MB). Vui lòng chọn video nhỏ hơn!`
+            : `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá giới hạn cho phép của hệ thống (${maxAllowedMb}MB). Vui lòng chọn tệp nhỏ hơn!`
+        );
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
@@ -98,7 +104,6 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       setImageUrl('');
       setShowImageInput(false);
       setSelectedFile(file);
-      const isVid = file.type.startsWith('video/') || /\.(mp4|webm|ogg|mov|m4v|mkv)$/i.test(file.name);
       setSelectedFileType(isVid ? 'video' : 'image');
       setFilePreview(URL.createObjectURL(file));
     }
