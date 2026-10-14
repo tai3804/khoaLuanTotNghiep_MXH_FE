@@ -46,7 +46,7 @@ export const ProfileMediaBannerSection: React.FC<ProfileMediaBannerSectionProps>
   setShowUrlInputs,
 }) => {
   return (
-    <div className="bg-gray-50 dark:bg-[#18191a] border border-gray-200 dark:border-[#393a3b] rounded-2xl p-4 shadow-sm overflow-hidden space-y-4">
+    <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl p-5 shadow-xs overflow-hidden space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-extrabold text-gray-700 dark:text-[#e4e6eb] uppercase tracking-wider flex items-center space-x-1.5">
           <ImageIcon className="w-4 h-4 text-[#1877f2]" />
@@ -55,7 +55,7 @@ export const ProfileMediaBannerSection: React.FC<ProfileMediaBannerSectionProps>
         <button
           type="button"
           onClick={() => setShowUrlInputs(!showUrlInputs)}
-          className="text-[11px] font-bold text-[#1877f2] hover:underline flex items-center space-x-1 cursor-pointer"
+          className="text-xs font-bold text-[#1877f2] hover:underline flex items-center space-x-1 cursor-pointer"
         >
           <LinkIcon className="w-3.5 h-3.5" />
           <span>{showUrlInputs ? 'Ẩn ô nhập URL' : 'Tùy chỉnh bằng URL trực tiếp'}</span>

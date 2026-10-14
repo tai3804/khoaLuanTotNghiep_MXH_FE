@@ -24,13 +24,13 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto py-8 px-4 w-full">
-      <div className="flex flex-col md:flex-row gap-6 h-full min-h-[80vh]">
+    <div className="max-w-[1280px] mx-auto py-6 px-3 sm:px-6 w-full">
+      <div className="flex flex-col md:flex-row gap-6 h-full min-h-[82vh] items-start">
         {/* Settings Sidebar Navigation */}
         <SettingsSidebarNav activeSubTab={activeSubTab} onTabChange={handleTabChange} />
 
         {/* Content Details Panel with Sub-routes */}
-        <div className="w-full md:w-3/4 bg-white dark:bg-[#242526] rounded-2xl p-6 border border-gray-200 dark:border-[#393a3b] shadow-sm transition-colors">
+        <div className="w-full md:flex-1 min-w-0 bg-white/80 dark:bg-[#242526]/80 backdrop-blur-md rounded-2xl p-5 sm:p-7 border border-gray-200/90 dark:border-[#393a3b] shadow-xs transition-colors">
           <Routes>
             <Route index element={<ProfileSettingsTab />} />
             <Route path="profile" element={<ProfileSettingsTab />} />

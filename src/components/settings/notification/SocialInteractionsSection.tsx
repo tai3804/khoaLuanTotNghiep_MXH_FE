@@ -14,12 +14,12 @@ export const SocialInteractionsSection: React.FC<SocialInteractionsSectionProps>
   toast,
 }) => {
   return (
-    <div className="space-y-3">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-[#8a8d91]">
+    <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl p-5 shadow-xs space-y-3">
+      <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-[#8a8d91]">
         Tương tác & Bài viết
       </h4>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {/* Like Post */}
         <NotificationToggleItem
           icon={<Heart className="w-4 h-4 fill-rose-500" />}
@@ -62,3 +62,4 @@ export const SocialInteractionsSection: React.FC<SocialInteractionsSectionProps>
     </div>
   );
 };
+

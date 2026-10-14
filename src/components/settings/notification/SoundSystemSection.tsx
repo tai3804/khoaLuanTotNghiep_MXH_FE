@@ -16,12 +16,12 @@ export const SoundSystemSection: React.FC<SoundSystemSectionProps> = ({
   toast,
 }) => {
   return (
-    <div className="space-y-3">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-[#8a8d91]">
+    <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl p-5 shadow-xs space-y-3">
+      <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-[#8a8d91]">
         Âm thanh & Hệ thống
       </h4>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {/* Realtime Sound */}
         <NotificationToggleItem
           icon={<Volume2 className="w-4 h-4" />}
@@ -37,9 +37,9 @@ export const SoundSystemSection: React.FC<SoundSystemSectionProps> = ({
           extraAction={
             <button
               onClick={() => playNotificationSound()}
-              className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline px-2 py-1 cursor-pointer"
+              className="text-xs font-bold text-[#1877f2] hover:bg-blue-50 dark:hover:bg-blue-950/40 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
-              Thử âm thanh
+              Thử chuông
             </button>
           }
         />
@@ -60,3 +60,4 @@ export const SoundSystemSection: React.FC<SoundSystemSectionProps> = ({
     </div>
   );
 };
+

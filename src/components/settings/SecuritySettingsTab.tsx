@@ -6,6 +6,7 @@ import {
   ActiveDevicesSection,
   MfaSecuritySection,
 } from './security-tab';
+import { Shield, Lock } from 'lucide-react';
 
 export const SecuritySettingsTab: React.FC = () => {
   const {
@@ -15,6 +16,7 @@ export const SecuritySettingsTab: React.FC = () => {
     revokingAll,
     confirmModal,
     setConfirmModal,
+    isMfaEnabled,
     mfaQrCode,
     setMfaQrCode,
     mfaSecret,
@@ -37,26 +39,28 @@ export const SecuritySettingsTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b]">
-        <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Mật khẩu và bảo mật</h2>
-        <p className="text-[13px] text-gray-500 dark:text-[#b0b3b8] mt-1">
-          Quản lý các thiết bị đăng nhập và cài đặt bảo mật nâng cao như 2FA để bảo vệ tài khoản.
-        </p>
+      {/* Header Banner */}
+      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#1877f2]">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 dark:text-[#e4e6eb]">
+                Mật khẩu &amp; Bảo mật
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                Bảo vệ tài khoản với xác thực 2 bước (2FA) và giám sát các thiết bị đăng nhập từ xa.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Active Devices Management Section */}
-      <ActiveDevicesSection
-        devices={devices}
-        loadingDevices={loadingDevices}
-        revokingId={revokingId}
-        revokingAll={revokingAll}
-        fetchDevices={fetchDevices}
-        handleRevokeDevice={handleRevokeDevice}
-        handleRevokeAllOthers={handleRevokeAllOthers}
-      />
-
-      {/* Multi-Factor Authentication (MFA / 2FA) Section */}
+      {/* Primary Section 1: Multi-Factor Authentication (MFA / 2FA TOTP) */}
       <MfaSecuritySection
+        isMfaEnabled={isMfaEnabled}
         mfaQrCode={mfaQrCode}
         setMfaQrCode={setMfaQrCode}
         mfaSecret={mfaSecret}
@@ -67,6 +71,17 @@ export const SecuritySettingsTab: React.FC = () => {
         handleSetupMfa={handleSetupMfa}
         handleEnableMfa={handleEnableMfa}
         handleOpenDisableMfaModal={handleOpenDisableMfaModal}
+      />
+
+      {/* Section 2: Active Devices Management */}
+      <ActiveDevicesSection
+        devices={devices}
+        loadingDevices={loadingDevices}
+        revokingId={revokingId}
+        revokingAll={revokingAll}
+        fetchDevices={fetchDevices}
+        handleRevokeDevice={handleRevokeDevice}
+        handleRevokeAllOthers={handleRevokeAllOthers}
       />
 
       {/* Confirmation Modal for Revoking Device */}
@@ -83,7 +98,7 @@ export const SecuritySettingsTab: React.FC = () => {
         isOpen={isDisableMfaModalOpen}
         title="Xác nhận tắt 2FA"
         description="Vui lòng nhập mã OTP 6 chữ số từ ứng dụng Authenticator để xác nhận tắt 2FA:"
-        confirmText="Tắt 2FA"
+        confirmText="Xác nhận tắt"
         cancelText="Hủy"
         loading={disableMfaLoading}
         error={disableMfaError}

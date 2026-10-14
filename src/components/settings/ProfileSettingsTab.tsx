@@ -119,7 +119,7 @@ export const ProfileSettingsTab: React.FC = () => {
             <button
               type="submit"
               disabled={savingProfile || uploadingAvatar || uploadingCover}
-              className="px-6 py-2.5 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#1877f2] hover:bg-[#166fe5] text-white rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all duration-150 flex items-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
             >
               {savingProfile ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -131,6 +131,7 @@ export const ProfileSettingsTab: React.FC = () => {
           </div>
         </form>
       )}
+
 
       {/* Image Cropper Modal (Facebook / TikTok Style) */}
       <ImageCropperModal

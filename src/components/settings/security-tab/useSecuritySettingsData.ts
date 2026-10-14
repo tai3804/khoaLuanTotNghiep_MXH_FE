@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { authService } from '../../../services/api';
 
 export const useSecuritySettingsData = () => {
   const toast = useToast();
+  const { user } = useAuth();
 
   // Security & Devices States
   const [devices, setDevices] = useState<any[]>([]);
@@ -23,6 +25,10 @@ export const useSecuritySettingsData = () => {
   });
 
   // MFA 2FA States
+  const storageKey = `mfa_enabled_${user?.id || user?.email || 'me'}`;
+  const [isMfaEnabled, setIsMfaEnabled] = useState<boolean>(() => {
+    return localStorage.getItem(storageKey) === 'true';
+  });
   const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
   const [mfaSecret, setMfaSecret] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
@@ -128,6 +134,10 @@ export const useSecuritySettingsData = () => {
     setMfaStatusMsg(null);
     try {
       await authService.enableMfa(otpCode.trim());
+      setIsMfaEnabled(true);
+      try {
+        localStorage.setItem(storageKey, 'true');
+      } catch {}
       setMfaStatusMsg({
         type: 'success',
         msg: 'Chúc mừng! Xác thực 2 bước (2FA TOTP) đã được kích hoạt bảo vệ tài khoản của bạn.',
@@ -155,6 +165,10 @@ export const useSecuritySettingsData = () => {
     setDisableMfaError(null);
     try {
       await authService.disableMfa(code.trim());
+      setIsMfaEnabled(false);
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {}
       setMfaStatusMsg({
         type: 'success',
         msg: 'Đã tắt xác thực 2 bước (2FA) thành công.',
@@ -174,6 +188,8 @@ export const useSecuritySettingsData = () => {
     revokingAll,
     confirmModal,
     setConfirmModal,
+    isMfaEnabled,
+    setIsMfaEnabled,
     mfaQrCode,
     setMfaQrCode,
     mfaSecret,

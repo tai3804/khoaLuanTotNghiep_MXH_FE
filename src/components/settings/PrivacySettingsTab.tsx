@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Globe, Users, Lock, Check } from 'lucide-react';
+import { Shield, Globe, Users, Lock, UserCheck, SearchCheck } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { userService } from '../../services/userService';
 import { postService } from '../../services/postService';
@@ -50,13 +50,11 @@ export const PrivacySettingsTab: React.FC = () => {
     localStorage.setItem('default_post_privacy', val);
     window.dispatchEvent(new CustomEvent('default_post_privacy_changed', { detail: val }));
     try {
-      // Keep the setting for future posts and enforce the selected audience on
-      // every existing post, so a viewer cannot continue seeing an old post.
       await Promise.all([
         userService.updatePrivacySettings({ defaultPostPrivacy: val }),
         postService.updateAllMyPostsPrivacy(val as 'PUBLIC' | 'FRIENDS' | 'PRIVATE'),
       ]);
-      toast.showSuccess('Đã áp dụng quyền xem cho bài viết mới và các bài viết hiện có.');
+      toast.showSuccess('Đã áp dụng quyền xem cho bài viết mới và toàn bộ bài viết đã đăng.');
     } catch (err) {
       console.error('Failed to apply post privacy:', err);
       setPostPrivacy(previousPrivacy);
@@ -101,98 +99,125 @@ export const PrivacySettingsTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b]">
-        <div className="flex items-center gap-2">
-          <Shield className="w-6 h-6 text-[#1877f2]" />
-          <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
-            Quyền riêng tư của trang cá nhân
-          </h2>
+      {/* Header */}
+      <div className="pb-4 border-b border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#1877f2]">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 dark:text-[#e4e6eb]">
+                Quyền riêng tư trang cá nhân
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
+                Quản lý quyền xem bài viết, danh sách bạn bè và chế độ hiển thị tài khoản của bạn.
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="text-[13px] text-gray-500 dark:text-[#b0b3b8] mt-1">
-          Quản lý quyền riêng tư cho các hoạt động và thông tin hiển thị trên trang cá nhân của bạn.
-        </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {/* Setting 1: Default Post Audience */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-[#3a3b3c]/50 rounded-2xl border border-gray-200/60 dark:border-[#393a3b] gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
-              Ai có thể xem bài viết của bạn?
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-              Áp dụng cho bài viết mới và toàn bộ bài viết bạn đã đăng
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/70 dark:bg-[#242526]/70 rounded-2xl border border-gray-200/90 dark:border-[#393a3b] shadow-xs gap-3 transition">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#1877f2] shrink-0 mt-0.5">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
+                Ai có thể xem các bài viết của bạn?
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                Áp dụng cho bài viết mới tạo và toàn bộ bài viết trên dòng thời gian của bạn.
+              </p>
+            </div>
           </div>
           <select
             value={postPrivacy}
             onChange={(e) => handlePostPrivacyChange(e.target.value)}
-            className="bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-1 focus:ring-[#1877f2] cursor-pointer"
+            className="bg-gray-50 dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-2 focus:ring-[#1877f2] cursor-pointer shrink-0"
           >
-            <option value="PUBLIC">Công khai (Public)</option>
-            <option value="FRIENDS">Bạn bè (Friends)</option>
-            <option value="PRIVATE">Chỉ mình tôi (Private)</option>
+            <option value="PUBLIC">🌐 Công khai (Mọi người)</option>
+            <option value="FRIENDS">👥 Bạn bè</option>
+            <option value="PRIVATE">🔒 Chỉ mình tôi</option>
           </select>
         </div>
 
         {/* Setting 2: Who can send friend requests */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-[#3a3b3c]/50 rounded-2xl border border-gray-200/60 dark:border-[#393a3b] gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
-              Ai có thể gửi cho bạn lời mời kết bạn?
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-              Kiểm soát người có thể kết nối và kết bạn với bạn
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/70 dark:bg-[#242526]/70 rounded-2xl border border-gray-200/90 dark:border-[#393a3b] shadow-xs gap-3 transition">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">
+              <UserCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
+                Ai có thể gửi lời mời kết bạn cho bạn?
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                Kiểm soát những ai có quyền gửi lời mời kết bạn tới tài khoản này.
+              </p>
+            </div>
           </div>
           <select
             value={friendRequestPrivacy}
             onChange={(e) => handleFriendRequestChange(e.target.value)}
-            className="bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-1 focus:ring-[#1877f2] cursor-pointer"
+            className="bg-gray-50 dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-2 focus:ring-[#1877f2] cursor-pointer shrink-0"
           >
-            <option value="EVERYONE">Mọi người (Everyone)</option>
-            <option value="FRIENDS_OF_FRIENDS">Bạn của bạn bè (Friends of friends)</option>
+            <option value="EVERYONE">🌐 Tất cả mọi người</option>
+            <option value="FRIENDS_OF_FRIENDS">👥 Bạn của bạn bè</option>
           </select>
         </div>
 
         {/* Setting 3: Who can see your friends list */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-[#3a3b3c]/50 rounded-2xl border border-gray-200/60 dark:border-[#393a3b] gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
-              Ai có thể xem danh sách bạn bè của bạn?
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-              Hiển thị bạn bè trên mục tab Bạn bè ở trang cá nhân
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/70 dark:bg-[#242526]/70 rounded-2xl border border-gray-200/90 dark:border-[#393a3b] shadow-xs gap-3 transition">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
+                Ai có thể xem danh sách bạn bè của bạn?
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                Hiển thị hoặc ẩn tab Bạn bè công khai trên trang cá nhân của bạn.
+              </p>
+            </div>
           </div>
           <select
             value={friendListPrivacy}
             onChange={(e) => handleFriendListChange(e.target.value)}
-            className="bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-1 focus:ring-[#1877f2] cursor-pointer"
+            className="bg-gray-50 dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-2 focus:ring-[#1877f2] cursor-pointer shrink-0"
           >
-            <option value="PUBLIC">Công khai (Public)</option>
-            <option value="FRIENDS">Bạn bè (Friends)</option>
-            <option value="PRIVATE">Chỉ mình tôi (Private)</option>
+            <option value="PUBLIC">🌐 Công khai</option>
+            <option value="FRIENDS">👥 Bạn bè</option>
+            <option value="PRIVATE">🔒 Chỉ mình tôi</option>
           </select>
         </div>
 
         {/* Setting 4: Who can look you up */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-[#3a3b3c]/50 rounded-2xl border border-gray-200/60 dark:border-[#393a3b] gap-3">
-          <div className="space-y-0.5">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
-              Ai có thể tìm kiếm bạn bằng email hoặc số điện thoại?
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">
-              Cho phép người khác tìm thấy hồ sơ của bạn trên thanh tìm kiếm
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/70 dark:bg-[#242526]/70 rounded-2xl border border-gray-200/90 dark:border-[#393a3b] shadow-xs gap-3 transition">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+              <SearchCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
+                Ai có thể tìm kiếm hồ sơ của bạn?
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                Cho phép tìm kiếm hồ sơ của bạn qua tên hoặc công cụ tìm kiếm bên ngoài.
+              </p>
+            </div>
           </div>
           <select
             value={searchPrivacy}
             onChange={(e) => handleSearchPrivacyChange(e.target.value)}
-            className="bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-1 focus:ring-[#1877f2] cursor-pointer"
+            className="bg-gray-50 dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] text-xs font-bold rounded-xl px-3.5 py-2 text-gray-800 dark:text-[#e4e6eb] focus:outline-none focus:ring-2 focus:ring-[#1877f2] cursor-pointer shrink-0"
           >
-            <option value="EVERYONE">Mọi người (Everyone)</option>
-            <option value="FRIENDS">Chỉ bạn bè (Friends only)</option>
+            <option value="EVERYONE">🌐 Tất cả mọi người</option>
+            <option value="FRIENDS">👥 Bạn bè</option>
           </select>
         </div>
       </div>
