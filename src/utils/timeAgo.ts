@@ -15,6 +15,17 @@ const DAY = 24 * HOUR;
 
 export const justNowLabel = (lang: TimeLanguage = 'vi') => (lang === 'en' ? 'Just now' : 'Vừa xong');
 
+/** Thời lượng đã trôi qua dạng đồng hồ: "02:17", hoặc "1:05:09" khi từ 1 giờ trở lên. */
+export function formatElapsed(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  const mm = String(mins).padStart(2, '0');
+  const ss = String(secs).padStart(2, '0');
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 /** Ngày giờ đầy đủ, dùng làm tooltip khi rê chuột. Trả về undefined nếu thời gian không hợp lệ. */
 export function formatFullDateTime(iso: string | null | undefined, lang: TimeLanguage = 'vi'): string | undefined {
   const t = iso ? new Date(iso).getTime() : NaN;

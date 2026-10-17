@@ -36,11 +36,13 @@ export const GroupManagementTab = ({ group, onNavigate }: Props) => {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <button type="button" onClick={() => onNavigate('pending-posts')} className="rounded-2xl border border-amber-200 bg-white p-5 text-left shadow transition hover:border-amber-400 hover:shadow-md dark:border-amber-800/50 dark:bg-[#242526]">
-          <div className="flex items-center justify-between"><Clock3 className="text-amber-500" /><b className="text-2xl">{pendingPosts}</b></div>
-          <h3 className="mt-4 font-bold">Bài viết chờ duyệt</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">Xem, duyệt hoặc từ chối bài đăng.</p>
-        </button>
+        {group.postApprovalRequired && (
+          <button type="button" onClick={() => onNavigate('pending-posts')} className="rounded-2xl border border-amber-200 bg-white p-5 text-left shadow transition hover:border-amber-400 hover:shadow-md dark:border-amber-800/50 dark:bg-[#242526]">
+            <div className="flex items-center justify-between"><Clock3 className="text-amber-500" /><b className="text-2xl">{pendingPosts}</b></div>
+            <h3 className="mt-4 font-bold">Bài viết chờ duyệt</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">Xem, duyệt hoặc từ chối bài đăng.</p>
+          </button>
+        )}
         <button type="button" onClick={() => onNavigate('members')} className="rounded-2xl border border-blue-200 bg-white p-5 text-left shadow transition hover:border-blue-400 hover:shadow-md dark:border-blue-800/50 dark:bg-[#242526]">
           <div className="flex items-center justify-between"><Users className="text-[#1877f2]" /><b className="text-2xl">{pendingMembers}</b></div>
           <h3 className="mt-4 font-bold">Yêu cầu tham gia</h3>

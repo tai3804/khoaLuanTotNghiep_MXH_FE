@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Image as ImageIcon, Lock } from 'lucide-react';
-import { GroupData } from './GroupBanner';
+import { GroupResponse } from '../../services/groupService';
 import { postService } from '../../services/api';
 import { Post } from '../../types';
 
-export const GroupMediaTab: React.FC<{ group: GroupData }> = ({ group }) => {
+export const GroupMediaTab: React.FC<{ group: GroupResponse }> = ({ group }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
 

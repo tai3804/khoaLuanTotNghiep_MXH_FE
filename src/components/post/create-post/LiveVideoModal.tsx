@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Video, VideoOff, Mic, MicOff, Radio, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { UserAvatar } from '../../common/UserAvatar';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 interface LiveVideoModalProps {
   isOpen: boolean;
@@ -99,8 +100,8 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
     }
 
     setIsStarting(true);
+    let broadcastStream = stream;
     try {
-      let broadcastStream = stream;
       if (!broadcastStream) {
         broadcastStream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -115,7 +116,11 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
       onClose();
     } catch (err) {
       console.error('Failed to start live stream:', err);
-      toast.showError('Không thể bắt đầu phát trực tiếp. Vui lòng thử lại!');
+      toast.showError(getApiErrorMessage(err, 'Không thể bắt đầu phát trực tiếp. Vui lòng thử lại!'));
+      // Không phát được thì nhả camera/micro (luồng đã được tách khỏi bản xem trước) rồi đóng hộp thoại
+      broadcastStream?.getTracks().forEach((track) => track.stop());
+      isBroadcastingRef.current = false;
+      onClose();
     } finally {
       setIsStarting(false);
     }

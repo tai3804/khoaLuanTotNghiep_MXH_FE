@@ -171,7 +171,14 @@ export const postService = {
    *  - 'trending'  (Nổi bật): xếp theo tốc độ tương tác, phân trang theo số trang
    *  - 'recent'    (Mới nhất): thứ tự thời gian, phân trang theo cursor
    */
-  getFeedPaged: async (page = 1, size = 10, cursor?: string | null, mode: FeedMode = 'recent'): Promise<PagedPostsResponse> => {
+  getFeedPaged: async (
+    page = 1,
+    size = 10,
+    cursor?: string | null,
+    mode: FeedMode = 'recent',
+    // true: máy chủ bỏ các bài người dùng đã xem (giống Facebook không bắt xem lại sau khi tải lại trang)
+    unseenOnly = false,
+  ): Promise<PagedPostsResponse> => {
     try {
       const ranked = mode === 'relevance' || mode === 'trending';
       const params: Record<string, any> = {
@@ -182,6 +189,9 @@ export const postService = {
       };
       if (!ranked && cursor) {
         params.cursor = cursor;
+      }
+      if (unseenOnly) {
+        params.unseenOnly = true;
       }
 
       const res = await api.get('/posts', { params });
@@ -244,7 +254,13 @@ export const postService = {
     }
   },
 
-  getWatchFeed: async (page = 1, size = 10, cursor?: string | null): Promise<PagedPostsResponse> => {
+  getWatchFeed: async (
+    page = 1,
+    size = 10,
+    cursor?: string | null,
+    // true: máy chủ bỏ các video người dùng đã xem (không bắt xem lại sau khi tải lại trang)
+    unseenOnly = false,
+  ): Promise<PagedPostsResponse> => {
     try {
       const params: Record<string, any> = {
         page,
@@ -255,6 +271,9 @@ export const postService = {
       };
       if (cursor) {
         params.cursor = cursor;
+      }
+      if (unseenOnly) {
+        params.unseenOnly = true;
       }
 
       const res = await api.get('/posts', { params });
@@ -448,6 +467,32 @@ export const postService = {
       return [];
     } catch (e) {
       console.warn('Failed to fetch group posts from backend:', e);
+      return [];
+    }
+  },
+
+  /** Một trang bài viết của nhóm (page từ 1). Ném lỗi khi gọi thất bại để giao diện hiện đúng trạng thái lỗi. */
+  getGroupPostsPage: async (groupId: string, page = 1, size = 10): Promise<{ posts: Post[]; last: boolean }> => {
+    const res = await api.get(`/posts/group/${groupId}`, { params: { page, size, sortBy: 'createdAt', sortDirection: 'DESC' } });
+    const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
+    const list: any[] = Array.isArray(raw) ? raw : [];
+    const authorIds = Array.from(new Set(list.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+    if (authorIds.length > 0) {
+      Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+    }
+    const lastFlag = res.data?.last ?? res.data?.data?.last;
+    return { posts: list.map(normalizePost), last: typeof lastFlag === 'boolean' ? lastFlag : list.length < size };
+  },
+
+  /** Bài của chính mình trong nhóm đang chờ quản trị viên duyệt. */
+  getMyPendingGroupPosts: async (groupId: string): Promise<Post[]> => {
+    if (!groupId) return [];
+    try {
+      const res = await api.get(`/posts/group/${groupId}/my-pending`);
+      const raw = res.data?.data || [];
+      return Array.isArray(raw) ? raw.map(normalizePost) : [];
+    } catch (e) {
+      console.warn('Failed to fetch my pending group posts:', e);
       return [];
     }
   },

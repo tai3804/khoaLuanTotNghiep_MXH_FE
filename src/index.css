@@ -62,6 +62,15 @@ html, body {
   background: rgba(107, 114, 128, 0.6);
 }
 
+/* Ẩn thanh cuộn của các hàng tab cuộn ngang nhưng vẫn vuốt/cuộn được */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @layer components {
   .menu-row { @apply flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#3a3b3c]; }
   .menu-row svg { @apply h-5 w-5 shrink-0; }

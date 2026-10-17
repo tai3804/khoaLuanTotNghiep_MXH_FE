@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { X, Users, Globe, Lock, Loader2, UserPlus, Check, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Users, Globe, Lock, Loader2, UserPlus, Check, Search, Image as ImageIcon } from 'lucide-react';
 import { groupService } from '../../services/groupService';
 import { userService } from '../../services/userService';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { UserAvatar } from '../common/UserAvatar';
+
+const MAX_COVER_SIZE = 10 * 1024 * 1024;
 
 interface CreateCommunityGroupModalProps {
   isOpen: boolean;
@@ -27,6 +30,9 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
   const [friendSearch, setFriendSearch] = useState('');
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -34,13 +40,41 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
     if (isOpen) {
       setName('');
       setDescription('');
+      setPrivacy('PUBLIC');
       setSelectedFriendIds(new Set());
       setPostApprovalRequired(false);
       setRules('');
       setFriendSearch('');
+      setCoverFile(null);
       loadFriends();
     }
   }, [isOpen]);
+
+  // Xem trước ảnh bìa đã chọn; giải phóng URL tạm khi đổi ảnh hoặc đóng modal
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreview('');
+      return;
+    }
+    const url = URL.createObjectURL(coverFile);
+    setCoverPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
+
+  const handleCoverPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.showError('Vui lòng chọn một tệp ảnh.');
+      return;
+    }
+    if (file.size > MAX_COVER_SIZE) {
+      toast.showError('Ảnh bìa quá lớn, vui lòng chọn ảnh dưới 10MB.');
+      return;
+    }
+    setCoverFile(file);
+  };
 
   const loadFriends = async () => {
     setLoadingFriends(true);
@@ -95,10 +129,20 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
     }
     try {
       setCreating(true);
+      let coverUrl: string | undefined;
+      if (coverFile) {
+        try {
+          coverUrl = await groupService.uploadCover(coverFile);
+        } catch {
+          // Tải ảnh lỗi không nên chặn việc tạo nhóm: nhóm vẫn được tạo và có thể thêm ảnh bìa sau
+          toast.showError('Không tải được ảnh bìa, nhóm sẽ được tạo không có ảnh bìa.');
+        }
+      }
       const group = await groupService.createGroup({
         name: name.trim(),
         description: description.trim(),
         privacy: privacy,
+        coverUrl,
         initialMemberIds: Array.from(selectedFriendIds),
         postApprovalRequired,
         rules: rules.trim(),
@@ -111,7 +155,7 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
       navigate(`/groups/${group.id}`);
     } catch (error: any) {
       console.error('Failed to create group', error);
-      toast.showError('Không thể tạo nhóm, vui lòng thử lại sau.');
+      toast.showError(getApiErrorMessage(error, 'Không thể tạo nhóm, vui lòng thử lại sau.'));
     } finally {
       setCreating(false);
     }
@@ -143,8 +187,10 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             disabled={creating}
+            aria-label="Đóng"
             className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-[#3a3b3c] dark:hover:bg-[#4e4f50] rounded-full text-gray-500 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -153,13 +199,44 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
 
         {/* Body */}
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {/* Ảnh bìa (tùy chọn) */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">
-              Tên nhóm cộng đồng <span className="text-red-500">*</span>
+            <span className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">
+              Ảnh bìa <span className="text-gray-400 font-normal">(tùy chọn)</span>
+            </span>
+            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverPick} />
+            <div className="relative h-28 rounded-xl overflow-hidden border border-dashed border-gray-300 dark:border-[#4e4f50] bg-gray-50 dark:bg-[#3a3b3c]/40">
+              {coverPreview ? (
+                <img src={coverPreview} alt="Xem trước ảnh bìa" className="w-full h-full object-cover" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={creating}
+                  className="w-full h-full flex flex-col items-center justify-center gap-1 text-xs font-semibold text-gray-500 dark:text-[#b0b3b8] hover:text-[#1877f2] transition cursor-pointer"
+                >
+                  <ImageIcon className="w-6 h-6" />
+                  Chọn ảnh bìa cho nhóm
+                </button>
+              )}
+              {coverPreview && (
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <button type="button" onClick={() => coverInputRef.current?.click()} disabled={creating} className="px-3 py-1.5 rounded-lg bg-white/90 text-xs font-bold text-gray-800 shadow cursor-pointer">Đổi ảnh</button>
+                  <button type="button" onClick={() => setCoverFile(null)} disabled={creating} className="px-3 py-1.5 rounded-lg bg-white/90 text-xs font-bold text-red-600 shadow cursor-pointer">Bỏ ảnh</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8] flex justify-between">
+              <span>Tên nhóm cộng đồng <span className="text-red-500">*</span></span>
+              <span className={`font-normal ${name.length >= 100 ? 'text-red-500' : 'text-gray-400'}`}>{name.length}/100</span>
             </label>
             <input
               type="text"
               value={name}
+              maxLength={100}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ví dụ: Hội yêu thích công nghệ IUH..."
               className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-xl text-sm text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-none focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] transition"
@@ -168,11 +245,13 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">
-              Mô tả nhóm <span className="text-gray-400 font-normal">(tùy chọn)</span>
+            <label className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8] flex justify-between">
+              <span>Mô tả nhóm <span className="text-gray-400 font-normal">(tùy chọn)</span></span>
+              <span className={`font-normal ${description.length >= 1000 ? 'text-red-500' : 'text-gray-400'}`}>{description.length}/1000</span>
             </label>
             <textarea
               value={description}
+              maxLength={1000}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Mô tả mục đích hoạt động của nhóm..."
               rows={2}
@@ -213,7 +292,7 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
               <span><b className="text-xs text-gray-900 dark:text-[#e4e6eb]">Duyệt bài viết trước khi hiển thị</b><small className="block mt-0.5 text-[11px] text-gray-500">Quản trị viên hoặc người kiểm duyệt sẽ xét duyệt bài của thành viên.</small></span>
             </label>
             <label className="block text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">Nội quy nhóm <span className="font-normal text-gray-400">(tùy chọn)</span>
-              <textarea value={rules} onChange={(e) => setRules(e.target.value)} rows={3} placeholder="Ví dụ: Tôn trọng mọi người, không đăng spam…" className="mt-1.5 w-full px-3 py-2 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-lg text-xs text-gray-900 dark:text-[#e4e6eb] focus:outline-none focus:border-[#1877f2] resize-none" />
+              <textarea value={rules} maxLength={3000} onChange={(e) => setRules(e.target.value)} rows={3} placeholder="Ví dụ: Tôn trọng mọi người, không đăng spam…" className="mt-1.5 w-full px-3 py-2 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-lg text-xs text-gray-900 dark:text-[#e4e6eb] focus:outline-none focus:border-[#1877f2] resize-none" />
             </label>
           </div>
 

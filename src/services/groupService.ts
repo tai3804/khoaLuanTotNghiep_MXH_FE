@@ -1,4 +1,8 @@
 import { api } from './axiosClient';
+import { mediaService } from './mediaService';
+
+export type GroupScope = 'all' | 'discover' | 'joined' | 'pending';
+export type GroupJoinStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
 
 export interface CreateGroupRequest {
   name: string;
@@ -15,7 +19,7 @@ export interface CommunityGroupMember {
   name: string;
   avatar: string;
   role: 'ADMIN' | 'MODERATOR' | 'MEMBER';
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
+  status?: GroupJoinStatus;
   joinedAt: string;
 }
 
@@ -29,14 +33,32 @@ export interface GroupResponse {
   memberCount: number;
   isMember: boolean;
   isAdmin: boolean;
-  memberIds?: string[];
+  /** Người đang xem là chủ nhóm (người tạo hoặc người được chuyển quyền) */
+  isOwner: boolean;
   isModerator?: boolean;
-  joinStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BANNED';
+  joinStatus?: GroupJoinStatus;
   postApprovalRequired?: boolean;
   rules?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface GroupPage {
+  groups: GroupResponse[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+  last: boolean;
+}
+
+export interface GroupMeta {
+  id: string;
+  name: string;
+  coverUrl?: string;
+  privacy: 'PUBLIC' | 'PRIVATE' | string;
+}
+
+export const groupMetaCache: Record<string, GroupMeta> = {};
 
 const getCurrentUserId = (): string => {
   try {
@@ -49,40 +71,21 @@ const getCurrentUserId = (): string => {
   return '';
 };
 
-export interface GroupMeta {
-  id: string;
-  name: string;
-  coverUrl?: string;
-  privacy: 'PUBLIC' | 'PRIVATE' | string;
-}
-
-export const groupMetaCache: Record<string, GroupMeta> = {};
+/** Ảnh bìa mặc định cũ (unsplash) coi như chưa có ảnh bìa để hiển thị ảnh thay thế đẹp hơn. */
+export const resolveGroupCover = (url?: string | null): string | undefined => {
+  if (typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes('images.unsplash.com/photo-1522071820081')) return undefined;
+  return trimmed;
+};
 
 export const mapGroupForCurrentUser = (group: any): GroupResponse => {
   const currentUserId = getCurrentUserId();
   const ownerId = String(group.ownerId || group.creatorId || '');
-  const rawMemberIds = Array.isArray(group.memberIds) && group.memberIds.length > 0
-    ? group.memberIds.map(String)
-    : (ownerId ? [ownerId] : []);
-  
-  const joinStatus = group.joinStatus || (group.status as any);
-  const isOwner = Boolean(currentUserId && ownerId && ownerId === currentUserId);
-  const isMember = Boolean(
-    (group.member === true ||
-    group.isMember === true ||
-    (currentUserId && (isOwner || rawMemberIds.includes(currentUserId)))) &&
-    joinStatus !== 'PENDING' &&
-    joinStatus !== 'REJECTED' &&
-    joinStatus !== 'BANNED'
-  );
-  
-  const isAdmin = Boolean(group.admin === true || group.isAdmin === true || isOwner);
-  const isDefaultUnsplash = typeof group.coverUrl === 'string' && group.coverUrl.includes('images.unsplash.com/photo-1522071820081');
-  const validCoverUrl = isDefaultUnsplash ? undefined : (typeof group.coverUrl === 'string' && group.coverUrl.trim() ? group.coverUrl.trim() : undefined);
-  // Lombok/Jackson serializes Java boolean `isModerator` as `moderator` in
-  // some responses. Normalize both shapes so moderators always see their
-  // group-management tools.
-  const isModerator = Boolean(group.moderator === true || group.isModerator === true);
+  // Lombok/Jackson có thể serialize `boolean isMember` thành `member`: chấp nhận cả hai dạng
+  const isMember = group.member === true || group.isMember === true;
+  const isAdmin = group.admin === true || group.isAdmin === true;
+  const isModerator = group.moderator === true || group.isModerator === true;
 
   const mapped: GroupResponse = {
     ...group,
@@ -91,15 +94,15 @@ export const mapGroupForCurrentUser = (group: any): GroupResponse => {
     description: group.description || '',
     privacy: group.privacy || 'PUBLIC',
     ownerId,
-    coverUrl: validCoverUrl,
+    coverUrl: resolveGroupCover(group.coverUrl),
     isMember,
     isAdmin,
-    joinStatus,
     isModerator,
-    memberIds: rawMemberIds,
-    memberCount: Number(group.memberCount || rawMemberIds.length || 1),
-    createdAt: group.createdAt || new Date().toISOString(),
-    updatedAt: group.updatedAt || new Date().toISOString(),
+    isOwner: Boolean(currentUserId && ownerId && ownerId === currentUserId),
+    joinStatus: group.joinStatus || undefined,
+    memberCount: Number(group.memberCount ?? 0),
+    createdAt: group.createdAt || '',
+    updatedAt: group.updatedAt || '',
   };
 
   groupMetaCache[mapped.id] = {
@@ -131,12 +134,12 @@ export const fetchGroupMeta = async (groupId: string): Promise<GroupMeta | null>
   return null;
 };
 
+const isUuid = (val?: string) =>
+  typeof val === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
 export const groupService = {
   createGroup: async (request: CreateGroupRequest): Promise<GroupResponse> => {
-    const isUuid = (val?: string) =>
-      typeof val === 'string' &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-
     const validInitialMemberIds = (request.initialMemberIds || []).filter(isUuid);
     const payload = {
       name: request.name.trim(),
@@ -151,36 +154,38 @@ export const groupService = {
     const response = await api.post('/groups', payload);
     const data = response.data?.data || response.data;
     if (!data?.id) throw new Error('Không thể tạo nhóm.');
-    const mapped = mapGroupForCurrentUser(data as GroupResponse);
+    const mapped = mapGroupForCurrentUser(data);
     window.dispatchEvent(new CustomEvent('community_group_created', { detail: mapped }));
     return mapped;
   },
 
-  getGroups: async (): Promise<GroupResponse[]> => {
-    try {
-      const response = await api.get('/groups');
-      const data = response.data?.data || response.data;
-      if (Array.isArray(data)) {
-        return data.map(mapGroupForCurrentUser);
-      }
-      return [];
-    } catch (err) {
-      console.warn('Failed to fetch groups from backend:', err);
-      return [];
-    }
+  /**
+   * Danh sách nhóm có phân trang (page từ 1) và tìm kiếm ở server.
+   * Ném lỗi khi gọi thất bại để giao diện hiện đúng trạng thái lỗi thay vì "chưa có nhóm nào".
+   */
+  getGroups: async (options: { scope?: GroupScope; keyword?: string; page?: number; size?: number } = {}): Promise<GroupPage> => {
+    const { scope = 'all', keyword = '', page = 1, size = 12 } = options;
+    const response = await api.get('/groups', { params: { scope, keyword: keyword.trim() || undefined, page, size } });
+    const body = response.data;
+    const data = Array.isArray(body?.data) ? body.data : [];
+    return {
+      groups: data.map(mapGroupForCurrentUser),
+      page: Number(body?.page ?? page),
+      totalPages: Number(body?.totalPages ?? 1),
+      totalElements: Number(body?.totalElements ?? data.length),
+      last: Boolean(body?.last ?? true),
+    };
   },
 
+  /** Trả về null khi nhóm không tồn tại (404); các lỗi khác (mạng, server) được ném ra. */
   getGroupById: async (id: string): Promise<GroupResponse | null> => {
     try {
       const response = await api.get(`/groups/${id}`);
       const data = response.data?.data || response.data;
-      if (data && data.id) {
-        return mapGroupForCurrentUser(data as GroupResponse);
-      }
-      return null;
-    } catch (err) {
-      console.warn('Failed to fetch group by id from backend:', err);
-      return null;
+      return data && data.id ? mapGroupForCurrentUser(data) : null;
+    } catch (err: any) {
+      if (err?.response?.status === 404) return null;
+      throw err;
     }
   },
 
@@ -188,7 +193,7 @@ export const groupService = {
     const response = await api.post(`/groups/${id}/join`);
     const data = response.data?.data || response.data;
     if (!data?.id) return null;
-    const mapped = mapGroupForCurrentUser(data as GroupResponse);
+    const mapped = mapGroupForCurrentUser(data);
     window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
     return mapped;
   },
@@ -199,49 +204,51 @@ export const groupService = {
   },
 
   addGroupMembers: async (groupId: string, memberIdsToAdd: string[]): Promise<GroupResponse | null> => {
-    const isUuid = (val?: string) =>
-      typeof val === 'string' &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-
     const validMemberIds = memberIdsToAdd.filter(isUuid);
     const response = await api.post(`/groups/${groupId}/members`, validMemberIds.length > 0 ? validMemberIds : memberIdsToAdd);
     const data = response.data?.data || response.data;
     if (data?.id) {
-      const mapped = mapGroupForCurrentUser(data as GroupResponse);
+      const mapped = mapGroupForCurrentUser(data);
       window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
       return mapped;
     }
     return null;
   },
 
+  /** Ném lỗi khi thất bại (vd: nhóm riêng tư mà mình chưa là thành viên) để người gọi tự quyết định. */
   getGroupMembers: async (groupId: string, includePending = false): Promise<CommunityGroupMember[]> => {
-    try {
-      const response = await api.get(`/groups/${groupId}/members`, { params: { includePending } });
-      const data = response.data?.data || response.data;
-      if (Array.isArray(data)) {
-        return data.map((member: any) => ({
-          id: String(member.userId || member.id),
-          name: member.name || 'Thành viên',
-          avatar: member.avatarUrl || member.avatar || '/default-avatar.png',
-          role: member.role || 'MEMBER',
-          status: member.status,
-          joinedAt: member.joinedAt || new Date().toISOString(),
-        }));
-      }
-      return [];
-    } catch (err) {
-      console.warn('Failed to fetch group members from backend:', err);
-      return [];
-    }
+    const response = await api.get(`/groups/${groupId}/members`, { params: { includePending } });
+    const data = response.data?.data || response.data;
+    if (!Array.isArray(data)) return [];
+    return data.map((member: any) => ({
+      id: String(member.userId || member.id),
+      name: member.name || 'Thành viên',
+      avatar: member.avatarUrl || member.avatar || '/default-avatar.png',
+      role: member.role || 'MEMBER',
+      status: member.status,
+      joinedAt: member.joinedAt || '',
+    }));
   },
 
   updateGroup: async (groupId: string, data: Partial<CreateGroupRequest>): Promise<GroupResponse> => {
     const response = await api.put(`/groups/${groupId}`, data);
-    const updated = (response.data?.data || response.data) as GroupResponse;
+    const updated = response.data?.data || response.data;
     if (!updated?.id) throw new Error('Không thể lưu thay đổi nhóm.');
     const mapped = mapGroupForCurrentUser(updated);
     window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
     return mapped;
+  },
+
+  /** Tải ảnh lên media-service và trả về đường dẫn ảnh. */
+  uploadCover: async (file: File): Promise<string> => {
+    const media = await mediaService.uploadMedia(file, 'covers');
+    if (!media?.fileUrl) throw new Error('Không tải được ảnh lên.');
+    return media.fileUrl;
+  },
+
+  /** Tải ảnh lên rồi lưu làm ảnh bìa của nhóm. */
+  changeGroupCover: async (groupId: string, file: File): Promise<GroupResponse> => {
+    return groupService.updateGroup(groupId, { coverUrl: await groupService.uploadCover(file) });
   },
 
   deleteGroup: async (groupId: string): Promise<void> => {
@@ -251,8 +258,7 @@ export const groupService = {
 
   reviewMember: async (groupId: string, memberId: string, approved: boolean): Promise<GroupResponse> => {
     const response = await api.post(`/groups/${groupId}/members/${memberId}/review`, null, { params: { approved } });
-    const data = (response.data?.data || response.data) as GroupResponse;
-    const mapped = mapGroupForCurrentUser(data);
+    const mapped = mapGroupForCurrentUser(response.data?.data || response.data);
     window.dispatchEvent(new CustomEvent('community_group_updated', { detail: mapped }));
     return mapped;
   },
@@ -267,15 +273,20 @@ export const groupService = {
     window.dispatchEvent(new CustomEvent('community_group_updated'));
   },
 
+  unbanMember: async (groupId: string, memberId: string): Promise<void> => {
+    await api.post(`/groups/${groupId}/members/${memberId}/unban`);
+    window.dispatchEvent(new CustomEvent('community_group_updated'));
+  },
+
+  transferOwnership: async (groupId: string, newOwnerId: string): Promise<void> => {
+    await api.put(`/groups/${groupId}/owner`, null, { params: { newOwnerId } });
+    window.dispatchEvent(new CustomEvent('community_group_updated'));
+  },
+
+  /** Tìm nhóm theo tên/mô tả (dùng cho ô tìm kiếm chung); lỗi thì trả danh sách rỗng. */
   searchGroups: async (keyword: string): Promise<GroupResponse[]> => {
     try {
-      const all = await groupService.getGroups();
-      const query = keyword.trim().toLowerCase();
-      if (!query) return all;
-      return all.filter((g) =>
-        (g.name && g.name.toLowerCase().includes(query)) ||
-        (g.description && g.description.toLowerCase().includes(query))
-      );
+      return (await groupService.getGroups({ scope: 'all', keyword, size: 10 })).groups;
     } catch {
       return [];
     }

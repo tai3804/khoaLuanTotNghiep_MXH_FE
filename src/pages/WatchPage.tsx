@@ -7,6 +7,8 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { postService } from '../services/api';
+import { withoutHiddenPosts } from '../utils/hiddenPosts';
+import { SeenTracker } from '../components/post/SeenTracker';
 import { FileQuestion, Loader2, CheckCircle2, PlaySquare } from 'lucide-react';
 
 interface WatchPageProps {
@@ -40,6 +42,8 @@ export const WatchPage: React.FC<WatchPageProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
+  // Mặc định chỉ có video chưa xem; bấm "Xem lại video đã xem" để lấy cả video đã xem
+  const [includeSeen, setIncludeSeen] = useState(false);
 
   const fetchWatchFeed = async (isLoadMore = false) => {
     if (isLoadMore) {
@@ -49,14 +53,16 @@ export const WatchPage: React.FC<WatchPageProps> = ({
     }
 
     try {
-      const res = await postService.getWatchFeed(1, 10, isLoadMore ? cursor : null);
+      const res = await postService.getWatchFeed(1, 10, isLoadMore ? cursor : null, !includeSeen);
+      // Video người dùng đã chọn "Ẩn bài viết" cũng không hiện lại ở trang Video
+      const visible = withoutHiddenPosts(res.posts);
       if (isLoadMore) {
         setPosts((prev) => {
-          const newPosts = res.posts.filter((p) => !prev.some((exist) => exist.id === p.id));
+          const newPosts = visible.filter((p) => !prev.some((exist) => exist.id === p.id));
           return [...prev, ...newPosts];
         });
       } else {
-        setPosts(res.posts);
+        setPosts(visible);
       }
       setHasMore(!res.last);
       setCursor(res.nextCursor || null);
@@ -69,8 +75,12 @@ export const WatchPage: React.FC<WatchPageProps> = ({
   };
 
   useEffect(() => {
+    setPosts([]);
+    setCursor(null);
+    setHasMore(true);
     fetchWatchFeed();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeSeen]);
 
   // Infinite Scroll Intersection Observer
   useEffect(() => {
@@ -150,6 +160,22 @@ export const WatchPage: React.FC<WatchPageProps> = ({
             <div className="flex justify-center py-10">
               <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
             </div>
+          ) : posts.length === 0 && !includeSeen ? (
+            <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
+              <div className="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-500 mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h4 className="font-bold text-base text-gray-800 dark:text-[#e4e6eb]">Bạn đã xem hết video mới</h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-sm mx-auto">
+                Chưa có video nào chưa xem. Hãy quay lại sau hoặc xem lại những video bạn đã xem.
+              </p>
+              <button
+                onClick={() => setIncludeSeen(true)}
+                className="px-4 py-2 rounded-lg bg-[#1877f2] text-white text-xs font-bold hover:bg-[#166fe5] transition cursor-pointer"
+              >
+                Xem lại video đã xem
+              </button>
+            </div>
           ) : posts.length === 0 ? (
             <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
               <FileQuestion className="w-12 h-12 text-gray-400 mx-auto" />
@@ -161,12 +187,13 @@ export const WatchPage: React.FC<WatchPageProps> = ({
           ) : (
             <>
               {posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onDeletePost={handleDeletePost}
-                  onViewProfile={onViewProfile}
-                />
+                <SeenTracker key={post.id} postId={post.id}>
+                  <PostCard
+                    post={post}
+                    onDeletePost={handleDeletePost}
+                    onViewProfile={onViewProfile}
+                  />
+                </SeenTracker>
               ))}
 
               <div ref={observerRef} className="h-4 w-full pointer-events-none" />
@@ -184,6 +211,14 @@ export const WatchPage: React.FC<WatchPageProps> = ({
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <p className="font-semibold text-gray-700 dark:text-[#e4e6eb]">Bạn đã xem hết video</p>
+                  {!includeSeen && (
+                    <button
+                      onClick={() => setIncludeSeen(true)}
+                      className="mt-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] text-[11px] font-bold hover:bg-gray-200 dark:hover:bg-[#4e4f50] transition cursor-pointer"
+                    >
+                      Xem lại video đã xem
+                    </button>
+                  )}
                 </div>
               )}
             </>

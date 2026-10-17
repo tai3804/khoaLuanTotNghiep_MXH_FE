@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLiveStream, LiveComment } from '../../context/LiveStreamContext';
 import { useAuth } from '../../context/AuthContext';
+import { formatElapsed } from '../../utils/timeAgo';
 
 export const useHostLiveStudio = () => {
   const { user } = useAuth();
@@ -66,11 +67,7 @@ export const useHostLiveStudio = () => {
     }
   }, [comments.length]);
 
-  const formattedTime = useMemo(() => {
-    const mins = Math.floor(elapsedSeconds / 60);
-    const secs = elapsedSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, [elapsedSeconds]);
+  const formattedTime = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
 
   const handleStartReply = (comment: LiveComment) => {
     setReplyingTo(comment);

@@ -1,15 +1,36 @@
 import { api } from './axiosClient';
 import { store } from '../store/store';
 
+/** Quyền hạn / mức phạt của một bậc uy tín. */
+export interface ReputationTier {
+  level: string;
+  levelLabel: string;
+  minScore: number;
+  maxScore: number;
+  /** Các hạn chế bằng tiếng Việt; rỗng nếu bậc này không bị hạn chế. */
+  restrictions: string[];
+  accountLocked: boolean;
+}
+
 export interface MyReputation {
   userId: string;
   score: number;
   maxScore: number;
-  /** EXCELLENT | GOOD | CAUTION | WARNING | CRITICAL */
+  /** EXCELLENT | GOOD | CAUTION | WEAK | VERY_WEAK | LOCKED */
   level: string;
   levelLabel: string;
   /** Điểm tối thiểu của bậc kế tiếp phía trên, null nếu đã ở bậc cao nhất */
   nextLevelScore: number | null;
+  /** Quyền hạn của bậc hiện tại */
+  policy?: ReputationTier;
+  /** Bảng quyền hạn của mọi bậc, từ cao xuống thấp */
+  tiers?: ReputationTier[];
+  /** Số điểm tự hồi phục mỗi ngày không bị trừ điểm */
+  recoveryPerDay?: number;
+  /** Lúc được cộng điểm hồi phục kế tiếp (ISO, giờ máy chủ); null nếu đã đủ điểm */
+  nextRecoveryAt?: string | null;
+  /** Tài khoản bị khóa tới lúc này (ISO); null nếu không bị khóa */
+  lockedUntil?: string | null;
 }
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};

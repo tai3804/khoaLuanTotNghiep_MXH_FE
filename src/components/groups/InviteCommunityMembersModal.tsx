@@ -3,6 +3,7 @@ import { X, UserPlus, Search, Check, Loader2 } from 'lucide-react';
 import { groupService, GroupResponse } from '../../services/groupService';
 import { userService } from '../../services/userService';
 import { useToast } from '../../context/ToastContext';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { UserAvatar } from '../common/UserAvatar';
 
 interface InviteCommunityMembersModalProps {
@@ -36,14 +37,18 @@ export const InviteCommunityMembersModal: React.FC<InviteCommunityMembersModalPr
   const loadEligibleFriends = async () => {
     setLoading(true);
     try {
-      const data = await userService.getFriends();
+      // Loại những người đã có trong nhóm (kể cả đang chờ duyệt hoặc bị cấm) khỏi danh sách có thể mời
+      const [data, existing] = await Promise.all([
+        userService.getFriends(),
+        groupService.getGroupMembers(group.id, true).catch(() => []),
+      ]);
       if (Array.isArray(data)) {
-        const currentMemberIds = new Set(group.memberIds || [group.ownerId]);
-        const eligible = data.filter((f) => !currentMemberIds.has(String(f.userId || f.id)));
-        setFriends(eligible);
+        const currentMemberIds = new Set<string>([group.ownerId, ...existing.map((m) => m.id)]);
+        setFriends(data.filter((f) => !currentMemberIds.has(String(f.userId || f.id))));
       }
     } catch (err) {
       console.error('Failed to load friends for invite', err);
+      toast.showError(getApiErrorMessage(err, 'Không thể tải danh sách bạn bè.'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +74,7 @@ export const InviteCommunityMembersModal: React.FC<InviteCommunityMembersModalPr
       onClose();
     } catch (err) {
       console.error('Failed to invite members', err);
-      toast.showError('Không thể mời thành viên, vui lòng thử lại.');
+      toast.showError(getApiErrorMessage(err, 'Không thể mời thành viên, vui lòng thử lại.'));
     } finally {
       setInviting(false);
     }
@@ -153,7 +158,7 @@ export const InviteCommunityMembersModal: React.FC<InviteCommunityMembersModalPr
           ) : filteredFriends.length === 0 ? (
             <div className="py-10 text-center text-xs text-gray-400">
               {friends.length === 0
-                ? 'Tất cả bạn bè của bạn đã tham gia nhóm này.'
+                ? 'Không còn bạn bè nào để mời vào nhóm này.'
                 : 'Không tìm thấy bạn bè nào phù hợp.'}
             </div>
           ) : (

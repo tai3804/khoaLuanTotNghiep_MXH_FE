@@ -438,6 +438,11 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         createdPost = await postService.createPost(liveContent, privacy, []);
       } catch (err) {
+        // Bị từ chối (vd điểm uy tín quá thấp để phát trực tiếp): không được tự phát cục bộ, để nơi gọi báo lý do
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 400 || status === 403 || status === 429) {
+          throw err;
+        }
         console.warn('Backend createPost for live stream fallback to optimistic post:', err);
         createdPost = {
           id: 'live-' + Date.now(),

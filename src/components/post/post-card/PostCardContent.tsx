@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Sparkles, Languages, RotateCcw } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState, useMemo } from 'react';
+import { Languages, RotateCcw } from 'lucide-react';
 import { Post } from '../../../types';
 import { aiService } from '../../../services/aiService';
 import { LiveStreamPlayer } from './live-stream';
@@ -7,6 +7,11 @@ import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { useToast } from '../../../context/ToastContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { needsTranslation } from '../../../utils/languageDetect';
+import { PostMediaGallery } from './PostMediaGallery';
+import { isVideo, VideoPlayer } from './postMedia';
+
+// isVideo/VideoPlayer vốn nằm ở file này; giữ đường dẫn import cũ cho comment-modal, ShareModal, post-card
+export { isVideo, VideoPlayer };
 
 // Chỉ bài viết dài hơn ngưỡng này mới có tóm tắt AI (khớp ai.summary.min-length ở ai-service)
 const SUMMARY_MIN_LENGTH = 1000;
@@ -15,15 +20,6 @@ interface PostCardContentProps {
   post: Post;
   setShowCommentModal: (val: boolean) => void;
 }
-
-export const isVideo = (url: string, mediaType?: string) => {
-  if (mediaType && (mediaType.toUpperCase() === 'VIDEO' || mediaType.toLowerCase() === 'video')) return true;
-  if (!url) return false;
-  if (url.startsWith('data:video/')) return true;
-  if (url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i) !== null) return true;
-  if (url.includes('/video/') || url.includes('format=mp4') || url.includes('mediaType=VIDEO')) return true;
-  return false;
-};
 
 export const isLivePost = (post: Post) => {
   if (post.isLive || post.liveStatus === 'LIVE' || post.liveStatus === 'ENDED') return true;
@@ -39,67 +35,6 @@ export const isLivePost = (post: Post) => {
   return false;
 };
 
-export const VideoPlayer: React.FC<{ src: string; className?: string; autoPlayOnScroll?: boolean }> = ({
-  src,
-  className,
-  autoPlayOnScroll = true,
-}) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    if (!autoPlayOnScroll) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            video.play().catch(() => {});
-          } else {
-            video.pause();
-          }
-        });
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(video);
-    return () => {
-      observer.unobserve(video);
-    };
-  }, [autoPlayOnScroll]);
-
-  if (hasError) {
-    return (
-      <div className="w-full h-48 bg-gray-900 flex flex-col items-center justify-center text-gray-400 text-xs p-4 text-center">
-        <span>Không thể phát video</span>
-        <a href={src} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline mt-1 text-[11px]">
-          Mở liên kết video
-        </a>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative w-full bg-black flex items-center justify-center overflow-hidden">
-      <video
-        ref={videoRef}
-        src={src}
-        controls
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        onError={() => setHasError(true)}
-        className={className || "w-full max-h-[550px] object-contain bg-black"}
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  );
-};
-
 export const PostCardContent: React.FC<PostCardContentProps> = ({
   post,
   setShowCommentModal,
@@ -107,7 +42,8 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
   const toast = useToast();
   // Bản tóm tắt tạo theo yêu cầu, chỉ dùng cho bài cũ chưa có bản tóm tắt lưu sẵn từ AI
   const [onDemandSummary, setOnDemandSummary] = useState<string | null>(null);
-  const [summaryOpen, setSummaryOpen] = useState(true);
+  // Mặc định thu gọn: chỉ hiện bản tóm tắt khi người xem bấm "Bản tóm tắt bằng AI"
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const { language } = useLanguage();
   const [translatedText, setTranslatedText] = useState<string | null>(null);
@@ -164,13 +100,43 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
   const isLive = isLivePost(post);
   const displayContent = translatedText || post.content;
 
+  // Bài dài chỉ hiện CLAMP_LINES dòng đầu kèm "Xem thêm" (giống Facebook); đo thật trên giao diện nên đúng với mọi độ rộng
+  const textRef = useRef<HTMLDivElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || expanded) return;
+    const measure = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [displayContent, expanded]);
+
   return (
     <>
       {/* Post Text Content */}
       {post.content && !isLive && (
         <div className="px-4 pb-2.5 space-y-2">
-          <div className="text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line">
-            <RichContentRenderer content={displayContent} />
+          <div>
+            <div
+              ref={textRef}
+              className={`text-sm text-gray-900 dark:text-[#e4e6eb] leading-normal whitespace-pre-line break-words ${
+                expanded ? '' : 'line-clamp-8'
+              }`}
+            >
+              <RichContentRenderer content={displayContent} />
+            </div>
+            {(overflowing || expanded) && (
+              <button
+                type="button"
+                onClick={() => setExpanded((open) => !open)}
+                className="mt-0.5 text-[13px] font-semibold text-gray-500 dark:text-[#b0b3b8] hover:underline cursor-pointer"
+              >
+                {expanded ? 'Thu gọn' : 'Xem thêm'}
+              </button>
+            )}
           </div>
 
           {/* AI Action Chips */}
@@ -187,8 +153,7 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
                     : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-300 hover:text-[#1877f2]'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#1877f2]" />
-                <span>{isSummarizing ? 'Đang tóm tắt...' : summary && summaryOpen ? 'Ẩn tóm tắt' : 'Tóm tắt AI'}</span>
+                <span>{isSummarizing ? 'Đang tóm tắt...' : summary && summaryOpen ? 'Ẩn bản tóm tắt' : 'Bản tóm tắt bằng AI'}</span>
               </button>
             )}
 
@@ -223,10 +188,7 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
           {isLongPost && summary && summaryOpen && (
             <div className="p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-[#2d88ff]/10 dark:to-[#8b5cf6]/10 border border-blue-200/80 dark:border-blue-900/40 rounded-xl space-y-1 text-xs">
               <div className="flex items-center justify-between text-[#1877f2] dark:text-blue-400 font-bold">
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Tóm tắt nhanh bởi AI:
-                </span>
+                <span>Bản tóm tắt bằng AI:</span>
                 <button
                   type="button"
                   onClick={() => setSummaryOpen(false)}
@@ -249,49 +211,9 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
           <LiveStreamPlayer post={post} setShowCommentModal={setShowCommentModal} />
         </div>
       ) : (
-        /* Standard Media Grid / Gallery */
+        /* Ảnh/video của bài: lưới kiểu Facebook, giữ chỗ cố định, bấm mở trình xem ảnh */
         post.mediaUrls && post.mediaUrls.length > 0 && (
-          <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden">
-            {post.mediaUrls.length === 1 ? (
-              isVideo(post.mediaUrls[0], post.mediaList?.[0]?.mediaType) ? (
-                <VideoPlayer src={post.mediaUrls[0]} />
-              ) : (
-                <img
-                  src={post.mediaUrls[0]}
-                  loading="lazy"
-                  decoding="async"
-                  alt="Post media"
-                  className="w-full max-h-[550px] object-cover hover:opacity-95 transition cursor-pointer"
-                  onClick={() => setShowCommentModal(true)}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )
-            ) : (
-              <div className="grid grid-cols-2 gap-0.5">
-                {post.mediaUrls.map((url, i) => {
-                  const itemMediaType = post.mediaList?.[i]?.mediaType;
-                  return isVideo(url, itemMediaType) ? (
-                    <VideoPlayer key={i} src={url} className="w-full h-64 object-cover bg-black" />
-                  ) : (
-                    <img
-                      key={i}
-                      src={url}
-                      loading="lazy"
-                      decoding="async"
-                      alt={`Media ${i}`}
-                      className="w-full h-64 object-cover hover:opacity-95 transition cursor-pointer"
-                      onClick={() => setShowCommentModal(true)}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <PostMediaGallery urls={post.mediaUrls} mediaList={post.mediaList} />
         )
       )}
     </>

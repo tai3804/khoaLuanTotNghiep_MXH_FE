@@ -5,6 +5,8 @@ import { useToast } from '../../../context/ToastContext';
 import { Comment, Post } from '../../../types';
 import { postService, fetchAuthorProfile, fetchGroupMeta, groupMetaCache } from '../../../services/api';
 import { useNearViewport } from '../../../utils/useNearViewport';
+import { hidePostLocally } from '../../../utils/hiddenPosts';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 interface UsePostCardDataProps {
   post: Post;
@@ -341,7 +343,13 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
       const added = await postService.addComment(post.id, text.trim(), undefined, parentCommentId);
       setComments((prev) => [...prev, added]);
       setCommentsCount((prev) => prev + 1);
-    } catch {
+    } catch (err) {
+      // Bị từ chối (vd điểm uy tín thấp: giãn cách bình luận, hết lượt trong ngày): báo lý do, không hiện bình luận giả
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 400 || status === 403 || status === 429) {
+        toast.showError(getApiErrorMessage(err, 'Không thể gửi bình luận lúc này.'));
+        return;
+      }
       const fallback: Comment = {
         id: 'comment-' + Date.now(),
         postId: post.id,
@@ -379,12 +387,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   };
 
   const handleHidePost = () => {
-    try {
-      const hidden = JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]');
-      if (!hidden.includes(String(post.id))) {
-        localStorage.setItem('kltn_hidden_post_ids', JSON.stringify([...hidden, String(post.id)]));
-      }
-    } catch {}
+    hidePostLocally(post.id);
     setIsHidden(true);
     if (onDeletePost) onDeletePost(post.id);
     toast.showSuccess(language === 'en' ? 'Post hidden from feed' : 'Đã ẩn bài viết khỏi bảng tin');

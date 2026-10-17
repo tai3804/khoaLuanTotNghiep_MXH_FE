@@ -9,6 +9,8 @@ import { useSystemConfig } from './context/SystemConfigContext';
 import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { postService } from './services/api';
 import type { FeedMode } from './services/postService';
+import { isPostHidden } from './utils/hiddenPosts';
+import { AccountLockedScreen } from './components/common/AccountLockedScreen';
 import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
@@ -93,14 +95,8 @@ export const App: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   // Mỗi lần tải lại bảng tin (đổi tab, làm mới) tăng số này; phản hồi của lần tải cũ đến muộn sẽ bị bỏ qua
   const feedRequestRef = useRef(0);
-
-  const isPostHidden = (postId: string) => {
-    try {
-      return (JSON.parse(localStorage.getItem('kltn_hidden_post_ids') || '[]') as string[]).includes(String(postId));
-    } catch {
-      return false;
-    }
-  };
+  // Mặc định bảng tin chỉ có bài chưa xem; bấm "Xem lại bài đã xem" ở cuối bảng tin để lấy cả bài đã xem
+  const [includeSeen, setIncludeSeen] = useState(false);
 
   let activeNavTab = 'home';
   if (path.startsWith('/settings')) activeNavTab = 'settings';
@@ -120,7 +116,7 @@ export const App: React.FC = () => {
     }
     try {
       // Fetch first page (10 posts) [UC-FE02]
-      const pagedRes = await postService.getFeedPaged(1, 10, null, FEED_MODE_BY_CATEGORY[feedCategory]);
+      const pagedRes = await postService.getFeedPaged(1, 10, null, FEED_MODE_BY_CATEGORY[feedCategory], !includeSeen);
       if (requestId !== feedRequestRef.current) return; // đã đổi tab/làm mới trong lúc chờ
       const feedData = pagedRes.posts.filter((post) => !isPostHidden(post.id));
 
@@ -179,7 +175,7 @@ export const App: React.FC = () => {
     const requestId = feedRequestRef.current;
     try {
       const nextPage = currentPage + 1;
-      const result = await postService.getFeedPaged(nextPage, 10, cursor, FEED_MODE_BY_CATEGORY[feedCategory]);
+      const result = await postService.getFeedPaged(nextPage, 10, cursor, FEED_MODE_BY_CATEGORY[feedCategory], !includeSeen);
       if (requestId !== feedRequestRef.current) return; // người dùng đã đổi tab: không trộn bài của tab cũ vào
       if (result.posts && result.posts.length > 0) {
         setPosts((prev) => {
@@ -202,6 +198,13 @@ export const App: React.FC = () => {
     }
   };
 
+  // Vào /profile (không có id) thì chuyển sang /profile/<id của mình> khi đã biết id
+  useEffect(() => {
+    if (location.pathname === '/profile' && user?.id) {
+      navigate(`/profile/${user.id}`, { replace: true });
+    }
+  }, [location.pathname, user?.id]);
+
   // Tải lại bảng tin khi đăng nhập và mỗi lần đổi tab Tất cả / Mới nhất / Nổi bật
   useEffect(() => {
     if (isAuthenticated) {
@@ -210,7 +213,7 @@ export const App: React.FC = () => {
       setHasMore(true);
       fetchFeed();
     }
-  }, [isAuthenticated, feedCategory]);
+  }, [isAuthenticated, feedCategory, includeSeen]);
 
   useEffect(() => {
     const hasToken = !!tokens?.accessToken;
@@ -300,8 +303,11 @@ export const App: React.FC = () => {
     support: '/support-inbox',
   };
 
+  // Hồ sơ của chính mình cũng có id trên URL (/profile/<id>) như hồ sơ của người khác
+  const ownProfilePath = user?.id ? `/profile/${user.id}` : '/profile';
+
   const handleTabChange = (tab: string) => {
-    const path = TAB_PATHS[tab];
+    const path = tab === 'profile' ? ownProfilePath : TAB_PATHS[tab];
     if (!path) return;
 
     // Bấm vào tab/logo của trang đang đứng: cuộn mượt lên đầu trang (giống Facebook)
@@ -318,7 +324,7 @@ export const App: React.FC = () => {
     if (userId && userId !== 'me') {
       navigate(`/profile/${userId}`);
     } else {
-      navigate('/profile');
+      navigate(ownProfilePath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -359,6 +365,8 @@ export const App: React.FC = () => {
               hasMore={hasMore}
               loadingMore={loadingMore}
               onLoadMore={loadMorePosts}
+              includeSeen={includeSeen}
+              onShowSeen={() => setIncludeSeen(true)}
             />
           }
         />
@@ -574,6 +582,9 @@ export const App: React.FC = () => {
           <span className="text-[10px] font-semibold">Nhóm</span>
         </button>
       </nav>
+
+      {/* Tài khoản bị khóa vì điểm uy tín: vẫn đăng nhập được nhưng chỉ thấy màn hình thông báo khóa */}
+      <AccountLockedScreen />
 
       {/* Global Real-time Audio/Video Call Manager & Modals */}
       <CallManager />

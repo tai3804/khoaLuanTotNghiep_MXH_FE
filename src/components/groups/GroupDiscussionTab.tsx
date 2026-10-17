@@ -1,46 +1,100 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Clock3, Trash2, Users, Lock, Eye, Clock, UserPlus, Shield, Globe, FileText } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { Clock3, Trash2, Users, Lock, Eye, Clock, UserPlus, Shield, Globe, FileText, Loader2, MessageSquarePlus } from 'lucide-react';
 import { CreatePostBox } from '../post/CreatePostBox';
 import { PostCard } from '../post/post-card';
-import { GroupData } from './GroupBanner';
+import { GroupResponse } from '../../services/groupService';
 import { GroupRemovePostModal } from './GroupRemovePostModal';
 import { postService } from '../../services/api';
 import { Post } from '../../types';
+import { useToast } from '../../context/ToastContext';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { Skeleton } from '../common/Skeleton';
+import { TimeAgo } from '../common/TimeAgo';
 
 interface GroupDiscussionTabProps {
-  group: GroupData;
+  group: GroupResponse;
+  joining?: boolean;
   onToggleJoin?: () => void;
 }
 
-export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, onToggleJoin }) => {
+const PAGE_SIZE = 10;
+
+export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, joining = false, onToggleJoin }) => {
+  const toast = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [page, setPage] = useState(1);
+  const [last, setLast] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [submissionMessage, setSubmissionMessage] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [myPending, setMyPending] = useState<Post[]>([]);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [postToRemove, setPostToRemove] = useState<Post | null>(null);
+  const loadSeq = useRef(0);
 
   const isPrivateLocked = group.privacy === 'PRIVATE' && !group.isMember && !group.isAdmin;
   const canModerate = Boolean(group.isAdmin || group.isModerator);
+  const canPost = Boolean(group.isMember || group.isAdmin);
+  const isBanned = group.joinStatus === 'BANNED';
+
+  const loadMyPending = useCallback(async () => {
+    if (!canPost || !group.postApprovalRequired) {
+      setMyPending([]);
+      return;
+    }
+    setMyPending(await postService.getMyPendingGroupPosts(group.id));
+  }, [group.id, canPost, group.postApprovalRequired]);
 
   const loadPosts = useCallback(async () => {
+    const seq = ++loadSeq.current;
     if (!group.id || isPrivateLocked) {
       setPosts([]);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setLoadError('');
     try {
-      setPosts(await postService.getGroupPosts(group.id));
+      const result = await postService.getGroupPostsPage(group.id, 1, PAGE_SIZE);
+      if (seq !== loadSeq.current) return;
+      setPosts(result.posts);
+      setPage(1);
+      setLast(result.last);
     } catch (err) {
-      console.warn('Could not load group posts:', err);
+      if (seq !== loadSeq.current) return;
       setPosts([]);
+      setLoadError(getApiErrorMessage(err, 'Không thể tải bài viết của nhóm.'));
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [group.id, isPrivateLocked]);
 
+  const loadMore = async () => {
+    if (loadingMore || last) return;
+    const seq = loadSeq.current;
+    setLoadingMore(true);
+    try {
+      const result = await postService.getGroupPostsPage(group.id, page + 1, PAGE_SIZE);
+      if (seq !== loadSeq.current) return;
+      setPosts((current) => {
+        const known = new Set(current.map((p) => p.id));
+        return [...current, ...result.posts.filter((p) => !known.has(p.id))];
+      });
+      setPage((p) => p + 1);
+      setLast(result.last);
+    } catch (err) {
+      toast.showError(getApiErrorMessage(err, 'Không thể tải thêm bài viết.'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
-    loadPosts();
+    void loadMyPending();
+  }, [loadMyPending]);
+
+  useEffect(() => {
+    void loadPosts();
 
     const handleFeedPostCreated = (e: any) => {
       const newPost = e.detail;
@@ -53,6 +107,12 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
       const { tempId, realPost } = e.detail || {};
       if (!tempId || !realPost) return;
       if (String(realPost.groupId) === String(group.id)) {
+        if (realPost.status === 'PENDING_APPROVAL') {
+          // Bài chờ duyệt chưa hiện ở luồng bài viết: bỏ bản tạm và hiện ở thẻ "bài chờ duyệt của bạn"
+          setPosts((current) => current.filter((p) => p.id !== tempId));
+          void loadMyPending();
+          return;
+        }
         setPosts((current) => {
           if (current.some((p) => p.id === realPost.id)) {
             return current.filter((p) => p.id !== tempId);
@@ -78,7 +138,7 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
       window.removeEventListener('optimistic_post_settled', handleOptimisticSettled);
       window.removeEventListener('optimistic_post_failed', handleOptimisticFailed);
     };
-  }, [group.id, loadPosts]);
+  }, [group.id, loadPosts, loadMyPending]);
 
   const handleDeletePost = (id: string) => {
     setPosts((current) => current.filter((item) => item.id !== id));
@@ -86,57 +146,68 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
 
   const removePost = async (reason: string) => {
     if (!postToRemove) return;
+    const target = postToRemove;
     try {
-      setRemovingId(postToRemove.id);
-      await postService.removeGroupPost(postToRemove.id, reason || undefined);
-      setPosts((items) => items.filter((item) => item.id !== postToRemove.id));
+      setRemovingId(target.id);
+      await postService.removeGroupPost(target.id, reason || undefined);
+      setPosts((items) => items.filter((item) => item.id !== target.id));
       setPostToRemove(null);
+      toast.showSuccess('Đã gỡ bài viết khỏi nhóm.');
+    } catch (err) {
+      toast.showError(getApiErrorMessage(err, 'Không thể gỡ bài viết, vui lòng thử lại.'));
     } finally {
       setRemovingId(null);
     }
   };
 
+  const joinButtonLabel = group.privacy === 'PUBLIC' ? 'Tham gia nhóm' : 'Gửi yêu cầu tham gia';
+
   return (
     <div className="flex flex-col lg:flex-row w-full gap-5">
-      {/* Left / Main Column */}
-      <div className="flex-1 max-w-[680px]">
+      {/* Cột chính */}
+      <div className="flex-1 min-w-0 max-w-[680px]">
         {isPrivateLocked ? (
-          /* Facebook-like Private Group Locked Screen */
           <div className="bg-white dark:bg-[#242526] rounded-2xl shadow-sm border border-gray-200 dark:border-[#393a3b] p-8 text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-inner">
               <Lock className="w-8 h-8" />
             </div>
 
             <div className="space-y-2 max-w-md mx-auto">
-              <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
-                Đây là nhóm Riêng tư
-              </h2>
+              <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Đây là nhóm riêng tư</h2>
               <p className="text-sm text-gray-500 dark:text-[#b0b3b8] leading-relaxed">
                 Hãy tham gia nhóm này để xem các bài viết, hình ảnh, video và tham gia thảo luận cùng các thành viên khác.
               </p>
             </div>
 
-            {onToggleJoin && (
-              <div className="pt-2">
-                {group.joinStatus === 'PENDING' ? (
-                  <button
-                    onClick={onToggleJoin}
-                    className="bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-200 px-6 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition cursor-pointer"
-                    title="Bấm để hủy yêu cầu tham gia nhóm"
-                  >
-                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    Đã gửi yêu cầu tham gia (Bấm để hủy)
-                  </button>
-                ) : (
-                  <button
-                    onClick={onToggleJoin}
-                    className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-6 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition cursor-pointer shadow-md shadow-blue-500/20"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Tham gia nhóm
-                  </button>
-                )}
-              </div>
+            {isBanned ? (
+              <p className="text-sm font-semibold text-red-600">Bạn đã bị cấm khỏi nhóm này.</p>
+            ) : (
+              onToggleJoin && (
+                <div className="pt-2">
+                  {group.joinStatus === 'PENDING' ? (
+                    <button
+                      type="button"
+                      disabled={joining}
+                      onClick={onToggleJoin}
+                      className="bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-200 px-6 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition cursor-pointer disabled:opacity-60"
+                      title="Bấm để hủy yêu cầu tham gia nhóm"
+                    >
+                      {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                      Đã gửi yêu cầu · Bấm để hủy
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={joining}
+                      onClick={onToggleJoin}
+                      className="bg-[#1877f2] hover:bg-[#166fe5] text-white px-6 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition cursor-pointer shadow-md shadow-blue-500/20 disabled:opacity-60"
+                    >
+                      {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                      {joinButtonLabel}
+                    </button>
+                  )}
+                </div>
+              )
             )}
 
             <div className="border-t border-gray-100 dark:border-[#393a3b] pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-lg mx-auto">
@@ -167,20 +238,12 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
           </div>
         ) : (
           <>
-            {submissionMessage && (
-              <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-100">
-                <Clock3 className="h-4 w-4 shrink-0" />
-                {submissionMessage}
-              </div>
-            )}
-
-            {/* Create Post or Non-member Join Callout */}
-            {group.isMember || group.isAdmin ? (
+            {canPost ? (
               <div className="mb-4">
                 <CreatePostBox
                   onPostCreated={(post) => {
                     if (post.status === 'PENDING_APPROVAL') {
-                      setSubmissionMessage('Bài viết đã được gửi và đang chờ quản trị viên/kiểm duyệt viên phê duyệt.');
+                      void loadMyPending();
                     } else {
                       setPosts((current) => [post, ...current.filter((p) => p.id !== post.id)]);
                     }
@@ -194,41 +257,120 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
                   <Users className="w-5 h-5" />
                 </div>
                 <p className="text-sm font-bold text-gray-900 dark:text-[#e4e6eb]">
-                  Tham gia nhóm để đăng bài viết
+                  {isBanned ? 'Bạn không thể đăng bài trong nhóm này' : 'Tham gia nhóm để đăng bài viết'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-1">
-                  Bạn cần tham gia cộng đồng này để cùng chia sẻ bài viết, bình luận và thảo luận cùng các thành viên khác.
+                  {isBanned
+                    ? 'Bạn đã bị quản trị viên cấm khỏi nhóm nên chỉ có thể xem nội dung công khai.'
+                    : 'Bạn cần tham gia cộng đồng này để cùng chia sẻ bài viết, bình luận và thảo luận cùng các thành viên khác.'}
                 </p>
+                {onToggleJoin && !isBanned && (
+                  <button
+                    type="button"
+                    disabled={joining}
+                    onClick={onToggleJoin}
+                    className="mt-3 bg-[#1877f2] hover:bg-[#166fe5] text-white px-5 py-2 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition cursor-pointer disabled:opacity-60"
+                  >
+                    {joining && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {group.joinStatus === 'PENDING' ? 'Hủy yêu cầu tham gia' : joinButtonLabel}
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Posts Stream */}
+            {/* Bài của chính mình đang chờ duyệt */}
+            {myPending.length > 0 && (
+              <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-700/50 dark:bg-amber-900/20">
+                <div className="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-100">
+                  <Clock3 className="h-4 w-4 shrink-0" />
+                  Bạn có {myPending.length} bài viết đang chờ quản trị viên duyệt
+                </div>
+                <ul className="mt-3 space-y-2">
+                  {myPending.map((post) => (
+                    <li key={post.id} className="rounded-xl bg-white/80 p-3 text-sm text-gray-700 dark:bg-[#242526]/70 dark:text-[#e4e6eb]">
+                      <p className="line-clamp-2 whitespace-pre-wrap break-words">{post.content || 'Bài viết không có nội dung chữ.'}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Gửi <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Luồng bài viết */}
             {loading ? (
-              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-[#393a3b] text-center text-sm text-gray-500 dark:text-[#b0b3b8]">
-                Đang tải bài viết...
+              <div className="space-y-4" aria-busy="true">
+                {[0, 1].map((i) => (
+                  <div key={i} className="bg-white dark:bg-[#242526] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-[#393a3b] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton variant="circular" width="40px" height="40px" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton variant="text" width="40%" height="0.9rem" />
+                        <Skeleton variant="text" width="25%" height="0.7rem" />
+                      </div>
+                    </div>
+                    <Skeleton variant="text" width="100%" height="3rem" />
+                  </div>
+                ))}
+              </div>
+            ) : loadError ? (
+              <div role="alert" className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/50 text-center">
+                <p className="text-sm text-red-600 dark:text-red-300">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadPosts()}
+                  className="mt-3 px-4 py-2 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-bold cursor-pointer"
+                >
+                  Thử lại
+                </button>
               </div>
             ) : posts.length === 0 ? (
-              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-[#393a3b] text-center mt-4">
-                <p className="text-gray-500 dark:text-[#b0b3b8]">Chưa có bài viết nào trong nhóm này.</p>
+              <div className="bg-white dark:bg-[#242526] p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-[#393a3b] text-center">
+                <MessageSquarePlus className="w-10 h-10 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                <p className="font-semibold text-gray-800 dark:text-[#e4e6eb]">Chưa có bài viết nào trong nhóm này</p>
+                <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">
+                  {canPost ? 'Hãy là người đầu tiên chia sẻ điều gì đó với mọi người.' : 'Tham gia nhóm để bắt đầu thảo luận.'}
+                </p>
               </div>
             ) : (
-              posts.map((post) => (
-                <div key={post.id} className="relative mb-4">
-                  {canModerate && !post.isOptimistic && (
-                    <div className="absolute right-3 top-3 z-10">
-                      <button
-                        disabled={removingId === post.id}
-                        onClick={() => setPostToRemove(post)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white shadow hover:bg-red-700 disabled:opacity-60 cursor-pointer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Gỡ bài
-                      </button>
-                    </div>
-                  )}
-                  <PostCard post={post} onDeletePost={handleDeletePost} />
-                </div>
-              ))
+              <>
+                {posts.map((post) => (
+                  <div key={post.id} className="mb-4">
+                    {canModerate && !post.isOptimistic && (
+                      <div className="flex items-center justify-between gap-2 rounded-t-2xl border border-b-0 border-red-100 bg-red-50 px-4 py-2 dark:border-red-900/40 dark:bg-red-900/20">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-red-700 dark:text-red-200">
+                          <Shield className="h-3.5 w-3.5" />
+                          Công cụ điều hành nhóm
+                        </span>
+                        <button
+                          type="button"
+                          disabled={removingId === post.id}
+                          onClick={() => setPostToRemove(post)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Gỡ bài
+                        </button>
+                      </div>
+                    )}
+                    <PostCard post={post} onDeletePost={handleDeletePost} />
+                  </div>
+                ))}
+                {!last && (
+                  <div className="flex justify-center pb-4">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="px-6 py-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#4e4f50] text-sm font-bold text-gray-800 dark:text-[#e4e6eb] hover:bg-gray-50 dark:hover:bg-[#4e4f50] transition flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                    >
+                      {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Xem thêm bài viết
+                    </button>
+                  </div>
+                )}
+              </>
             )}
             <GroupRemovePostModal
               post={postToRemove}
@@ -240,19 +382,16 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
         )}
       </div>
 
-      {/* Right / About Sidebar */}
+      {/* Cột giới thiệu */}
       <div className="w-full lg:w-[320px] shrink-0">
-        <div className="bg-white dark:bg-[#242526] p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-[#393a3b] space-y-4 sticky top-20">
-          <h3 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">
-            Giới thiệu về nhóm này
-          </h3>
+        <div className="bg-white dark:bg-[#242526] p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-[#393a3b] space-y-4 lg:sticky lg:top-20">
+          <h3 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb]">Giới thiệu về nhóm này</h3>
 
-          <p className="text-sm text-gray-600 dark:text-[#b0b3b8] leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-[#b0b3b8] leading-relaxed whitespace-pre-line break-words">
             {group.description || 'Cùng chia sẻ, trao đổi và kết nối trong cộng đồng này.'}
           </p>
 
           <div className="border-t border-gray-100 dark:border-[#393a3b] pt-3 space-y-3">
-            {/* Privacy row */}
             <div className="flex items-start gap-3">
               {group.privacy === 'PUBLIC' ? (
                 <Globe className="w-5 h-5 text-gray-600 dark:text-[#b0b3b8] shrink-0 mt-0.5" />
@@ -271,18 +410,14 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
               </div>
             </div>
 
-            {/* Visibility row */}
             <div className="flex items-start gap-3">
               <Eye className="w-5 h-5 text-gray-600 dark:text-[#b0b3b8] shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb]">Hiển thị</h4>
-                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5 leading-normal">
-                  Ai cũng có thể tìm thấy nhóm này.
-                </p>
+                <p className="text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5 leading-normal">Ai cũng có thể tìm thấy nhóm này.</p>
               </div>
             </div>
 
-            {/* Post Moderation rule */}
             {group.postApprovalRequired && (
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
@@ -296,14 +431,13 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({ group, o
             )}
           </div>
 
-          {/* Rules section */}
           {group.rules && (
             <div className="border-t border-gray-100 dark:border-[#393a3b] pt-3">
               <div className="flex items-center gap-2 mb-2 font-bold text-xs text-gray-900 dark:text-[#e4e6eb]">
                 <FileText className="w-4 h-4 text-[#1877f2]" />
                 <span>Nội quy của nhóm</span>
               </div>
-              <p className="whitespace-pre-line text-xs text-gray-600 dark:text-[#b0b3b8] leading-relaxed bg-gray-50 dark:bg-[#3a3b3c]/50 p-3 rounded-xl">
+              <p className="whitespace-pre-line break-words text-xs text-gray-600 dark:text-[#b0b3b8] leading-relaxed bg-gray-50 dark:bg-[#3a3b3c]/50 p-3 rounded-xl">
                 {group.rules}
               </p>
             </div>
