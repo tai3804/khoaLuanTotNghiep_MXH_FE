@@ -54,7 +54,7 @@ export interface PagedResponse<T> {
 export interface GetReportsParams {
   page?: number;
   size?: number;
-  status?: ModerationReport['status'];
+  status?: ModerationReport['status'] | string;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }
@@ -113,12 +113,12 @@ const parsePagedPayload = <T>(payload: any, reqPage: number, reqSize: number): P
 };
 
 export const moderationService = {
-  getReports: async (params?: GetReportsParams | ModerationReport['status']): Promise<PagedResponse<ModerationReport>> => {
+  getReports: async (params?: GetReportsParams | ModerationReport['status'] | string): Promise<PagedResponse<ModerationReport>> => {
     let page = 1;
     let size = 10;
     let sortBy = 'createdAt';
     let sortDirection: 'ASC' | 'DESC' = 'DESC';
-    let status: ModerationReport['status'] | undefined;
+    let status: ModerationReport['status'] | string | undefined;
 
     if (typeof params === 'string') {
       status = params;
@@ -135,7 +135,7 @@ export const moderationService = {
       size,
       sortBy,
       sortDirection,
-      ...(status ? { 'filters[status]': status } : {}),
+      ...(status ? { status, 'filters[status]': status } : {}),
     };
 
     const response = await api.get('/moderation/reports', { params: queryParams });

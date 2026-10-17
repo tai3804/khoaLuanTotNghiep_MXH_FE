@@ -140,8 +140,8 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
                     className="my-3 flex items-center justify-center gap-2 select-none py-1 animate-in fade-in duration-200"
                   >
                     <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />
-                    <div className="px-3 py-0.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 rounded-full text-[10px] sm:text-[11px] font-bold shadow-xs flex items-center gap-1.5 animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-ping" />
+                    <div className="px-3 py-0.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 rounded-full text-[10px] sm:text-[11px] font-semibold shadow-xs flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0" />
                       <span>{t('chat.unreadMessages', 'Tin nhắn chưa đọc')}{unreadCount && unreadCount > 0 ? ` (${unreadCount})` : ''}</span>
                     </div>
                     <div className="flex-1 h-px bg-red-300 dark:bg-red-800/60" />

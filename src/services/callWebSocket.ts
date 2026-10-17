@@ -8,6 +8,24 @@ import { setAccessToken } from '../store/slices/authSlice';
 
 type SignalCallback = (signal: WebRtcSignal) => void;
 
+function getUserIdFromToken(): string | null {
+  try {
+    const token = store.getState().auth.accessToken;
+    if (!token) return null;
+    const payload = JSON.parse(
+      decodeURIComponent(
+        atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+    );
+    return payload.sub || payload.userId || null;
+  } catch {
+    return null;
+  }
+}
+
 class CallWebSocketService {
   private client: Client | null = null;
   private connected: boolean = false;
@@ -31,13 +49,7 @@ class CallWebSocketService {
       this.currentUserId = userId;
       try { localStorage.removeItem('currentUserId'); } catch {}
     } else if (!this.currentUserId) {
-      try {
-        const stored = localStorage.getItem('user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          this.currentUserId = u.id || u.userId || null;
-        }
-      } catch {}
+      this.currentUserId = getUserIdFromToken();
     }
 
     if (this.isConnected()) {
@@ -77,6 +89,15 @@ class CallWebSocketService {
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),
+        beforeConnect: () => {
+          const freshToken = store.getState().auth.accessToken;
+          if (freshToken && this.client) {
+            this.client.connectHeaders = {
+              Authorization: `Bearer ${freshToken}`,
+              access_token: freshToken,
+            };
+          }
+        },
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           access_token: token,
@@ -94,16 +115,7 @@ class CallWebSocketService {
           this.connected = true;
           this.connectionPromise = null;
 
-          let activeUserId = this.currentUserId;
-          if (!activeUserId) {
-            try {
-              const stored = localStorage.getItem('user');
-              if (stored) {
-                const u = JSON.parse(stored);
-                activeUserId = u.id || u.userId || null;
-              }
-            } catch {}
-          }
+          let activeUserId = this.currentUserId || getUserIdFromToken();
 
           if (activeUserId) {
             this.currentUserId = activeUserId;

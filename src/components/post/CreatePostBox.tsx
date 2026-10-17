@@ -48,6 +48,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
     handleClearFile,
     handleStartLiveStream,
     handleSubmit,
+    showPoll,
+    setShowPoll,
+    pollDraft,
+    setPollDraft,
   } = useCreatePost({ onPostCreated, groupId });
 
   return (
@@ -98,6 +102,10 @@ export const CreatePostBox: React.FC<CreatePostBoxProps> = ({ onPostCreated, gro
               setShowTagFriendsModal={setShowTagFriendsModal}
               scheduledPublishAt={scheduledPublishAt}
               setScheduledPublishAt={setScheduledPublishAt}
+              showPoll={showPoll}
+              setShowPoll={setShowPoll}
+              pollDraft={pollDraft}
+              setPollDraft={setPollDraft}
             />
           </div>
         </div>

@@ -14,6 +14,8 @@ import { CallManager } from './components/call/CallManager';
 import { HostLiveStudioModal } from './components/live-studio';
 import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
 import { HashtagFeedModal } from './components/post/hashtag';
+import { MobileBottomNav } from './components/layout/MobileBottomNav';
+import { BackToTopButton } from './components/common/BackToTopButton';
 
 // Các trang còn lại được tách thành file riêng và chỉ tải khi người dùng thực sự vào trang đó
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -616,45 +618,16 @@ export const App: React.FC = () => {
       </Routes>
       </Suspense>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-[#242526] border-t border-gray-200 dark:border-[#393a3b] h-14 flex items-center justify-around md:hidden z-40 shadow-lg">
-        <button
-          onClick={() => handleTabChange('home')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'home' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
-          }`}
-        >
-          <Home className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Trang chủ</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('watch')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'watch' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
-          }`}
-        >
-          <Tv className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Video</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('friends')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'friends' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Bạn bè</span>
-        </button>
-        <button
-          onClick={() => handleTabChange('groups')}
-          className={`flex flex-col items-center justify-center space-y-0.5 ${
-            activeNavTab === 'groups' ? 'text-[#1877f2]' : 'text-gray-500 dark:text-[#b0b3b8]'
-          }`}
-        >
-          <UsersRound className="w-5 h-5" />
-          <span className="text-[10px] font-semibold">Nhóm</span>
-        </button>
-      </nav>
+      {/* Upgraded Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeNavTab={activeNavTab}
+        onTabChange={handleTabChange}
+        user={user}
+        onViewProfile={() => handleViewProfile()}
+      />
+
+      {/* Floating Back to Top Button */}
+      <BackToTopButton />
 
       {/* Global Real-time Audio/Video Call Manager & Modals */}
       <CallManager />

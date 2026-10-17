@@ -8,6 +8,7 @@ import { EditPostDateModal } from '../EditPostDateModal';
 import { usePostCardData } from './usePostCardData';
 import { PostCardHeader } from './PostCardHeader';
 import { PostCardContent, isVideo, VideoPlayer } from './PostCardContent';
+import { PostMediaGrid } from './PostMediaGrid';
 import { PostCardStatsBar } from './PostCardStatsBar';
 import { PostCardActionsBar } from './PostCardActionsBar';
 import { PostCardCommentsPreview } from './PostCardCommentsPreview';
@@ -160,24 +161,12 @@ export const PostCard: React.FC<PostCardProps> = ({
                 </div>
               )}
               {originalPost.mediaUrls && originalPost.mediaUrls.length > 0 && (
-                <div className="w-full overflow-hidden border-t border-gray-100 dark:border-[#393a3b] bg-black/5 dark:bg-black/20">
-                  {originalPost.mediaUrls.length === 1 ? (
-                    isVideo(originalPost.mediaUrls[0]) ? (
-                      <VideoPlayer src={originalPost.mediaUrls[0]} className="w-full max-h-[420px] object-contain bg-black" />
-                    ) : (
-                      <img src={originalPost.mediaUrls[0]} loading="lazy" decoding="async" alt="Original media" className="w-full max-h-[420px] object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
-                    )
-                  ) : (
-                    <div className="grid grid-cols-2 gap-0.5">
-                      {originalPost.mediaUrls.map((url, i) => (
-                        isVideo(url) ? (
-                          <VideoPlayer key={i} src={url} className="w-full h-48 sm:h-56 object-cover bg-black" />
-                        ) : (
-                          <img key={i} src={url} loading="lazy" decoding="async" alt={`Original media ${i}`} className="w-full h-48 sm:h-56 object-cover hover:opacity-95 transition cursor-pointer" onClick={() => data.setShowCommentModal(true)} />
-                        )
-                      ))}
-                    </div>
-                  )}
+                <div className="w-full overflow-hidden border-t border-gray-100 dark:border-[#393a3b]">
+                  <PostMediaGrid
+                    mediaUrls={originalPost.mediaUrls}
+                    mediaList={originalPost.mediaList}
+                    onMediaClick={() => data.setShowCommentModal(true)}
+                  />
                 </div>
               )}
             </div>

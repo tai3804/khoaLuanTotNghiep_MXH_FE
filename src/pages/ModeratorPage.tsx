@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 import { Header } from '../components/layout/header-bar';
 import { ModeratorSidebarNav } from '../components/moderation/ModeratorSidebarNav';
-import { SidebarRight } from '../components/layout/SidebarRight';
+import { PostReportList } from '../components/moderation/queue/PostReportList';
+import { AiFlagDetailCard } from '../components/moderation/AiFlagDetailCard';
 import { ChatUser } from '../components/chat/chat-box';
 import { moderationService, ModerationAction, ModerationLog, ModerationReport } from '../services/moderationService';
 import { postService } from '../services/postService';
@@ -265,6 +266,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
       const res = await moderationService.getReports({
         page: targetPage,
         size: 10,
+        status: 'PENDING,REVIEWING',
         sortBy: 'createdAt',
         sortDirection: currentSort === 'newest' ? 'DESC' : 'ASC',
       });
@@ -307,6 +309,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         moderationService.getReports({
           page: queuePage,
           size: 10,
+          status: 'PENDING,REVIEWING',
           sortBy: 'createdAt',
           sortDirection: sortDir,
         }),
@@ -466,9 +469,11 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
     () => postReports.filter((r) => r.status === 'PENDING' || r.status === 'REVIEWING'),
     [postReports]
   );
+  const isAiReport = (r: ModerationReport) => r.source === 'AI' || r.status === 'REVIEWING';
+
   // Bài do AI tự động gắn cờ (báo cáo nguồn "AI") đang chờ kiểm duyệt viên quyết định
   const aiFlagged = useMemo(
-    () => pending.filter((r) => r.source === 'AI' || r.status === 'REVIEWING'),
+    () => pending.filter(isAiReport),
     [pending]
   );
 
@@ -499,7 +504,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
       .filter((r) => {
         if (reasonFilter !== 'ALL' && r.reason !== reasonFilter) return false;
         if (sourceFilter !== 'ALL') {
-          const isAi = r.source === 'AI';
+          const isAi = isAiReport(r);
           if (sourceFilter === 'AI' ? !isAi : isAi) return false;
         }
         if (searchQuery.trim()) {
@@ -675,13 +680,13 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         appealsCount={appeals.length}
         sourceFilter={sourceFilter}
         onSourceFilterChange={setSourceFilter}
-        userReportCount={reports.filter((r) => r.source !== 'AI').length}
-        aiReportCount={reports.filter((r) => r.source === 'AI').length}
+        userReportCount={reports.filter((r) => !isAiReport(r)).length}
+        aiReportCount={reports.filter(isAiReport).length}
         isAdmin={(user?.roles || []).some((r: any) => String(r).toUpperCase().includes('ADMIN'))}
       />
 
-      <div className="pt-14 lg:pl-[260px] xl:pl-[280px] xl:pr-[280px] 2xl:pr-[340px] transition-all min-h-screen">
-        <main className="w-full max-w-[960px] xl:max-w-[1040px] 2xl:max-w-[1140px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+      <div className="pt-14 lg:pl-[260px] xl:pl-[280px] transition-all min-h-screen">
+        <main className="w-full max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-3 sm:px-6 py-5 min-h-[calc(100vh-3.5rem)]">
           {/* Top Search Bar & Reload Button, with Section Title */}
           <div className="mb-3 space-y-2.5">
             {/* Row 1: Section Header on Left/Top, Search Bar + Reload on Right */}
@@ -850,7 +855,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                   <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
                     sourceFilter === 'USER' ? 'bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400' : 'bg-gray-200 dark:bg-[#343538] text-gray-600 dark:text-gray-400'
                   }`}>
-                    {reports.filter((r) => r.source !== 'AI').length}
+                    {reports.filter((r) => !isAiReport(r)).length}
                   </span>
                 </button>
 
@@ -868,7 +873,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                   <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
                     sourceFilter === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400' : 'bg-gray-200 dark:bg-[#343538] text-gray-600 dark:text-gray-400'
                   }`}>
-                    {reports.filter((r) => r.source === 'AI').length}
+                    {reports.filter(isAiReport).length}
                   </span>
                 </button>
               </div>
@@ -1085,8 +1090,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
         </main>
       </div>
 
-      <SidebarRight isFixed onSelectChatUser={(u) => props.setActiveChatUser(u)} />
-
       {/* Detailed Modal for In-depth Notes & Action */}
       {selected && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -1132,7 +1135,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 </div>
 
                 {selected.source === 'AI' ? (
-                  <AiFlagInfo report={selected} />
+                  <AiFlagDetailCard report={selected} />
                 ) : (
                   <div className="mt-3">
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Mô tả vi phạm từ người báo cáo:</p>
@@ -1294,56 +1297,6 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
 };
 
 /* --- SUB COMPONENTS --- */
-
-// Khối hiển thị kết quả phân tích của AI cho báo cáo do AI tự động gắn cờ
-const AiFlagInfo: React.FC<{ report: ModerationReport }> = ({ report }) => {
-  const percent = report.aiScore != null ? Math.round(report.aiScore * 100) : null;
-  const severity = report.aiSeverity ? aiSeverityStyles[report.aiSeverity.toUpperCase()] : undefined;
-  const category = report.aiCategory
-    ? aiCategoryLabels[report.aiCategory.toUpperCase()] || report.aiCategory
-    : null;
-  const barColor =
-    percent == null ? 'bg-gray-400' : percent >= 85 ? 'bg-red-500' : percent >= 65 ? 'bg-orange-500' : 'bg-amber-500';
-  const explanation = report.aiReason || report.description;
-
-  return (
-    <div className="mt-2 rounded-lg border border-purple-200/50 bg-purple-50/40 p-2.5 dark:border-purple-900/30 dark:bg-purple-950/20">
-      <div className="flex flex-wrap items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 dark:text-purple-300">
-            <Sparkles className="h-3 w-3 text-purple-500" />
-            AI phân tích
-          </span>
-          {category && (
-            <span className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-gray-700 shadow-2xs dark:bg-[#1a1b1d] dark:text-gray-200">
-              {category}
-            </span>
-          )}
-        </div>
-        {severity && (
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${severity.className}`}>
-            Mức độ: {severity.label}
-          </span>
-        )}
-      </div>
-
-      {percent !== null && (
-        <div className="mt-1.5 flex items-center gap-2">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-purple-100 dark:bg-purple-950/60">
-            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, percent)}%` }} />
-          </div>
-          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{percent}% nghi vấn</span>
-        </div>
-      )}
-
-      {explanation && (
-        <p className="mt-1 text-[11px] font-medium italic text-gray-600 dark:text-gray-300 line-clamp-2">
-          "{explanation}"
-        </p>
-      )}
-    </div>
-  );
-};
 
 const StatCard: React.FC<{
   icon: React.ReactNode;
@@ -1620,231 +1573,6 @@ const PaginationBar: React.FC<{
   );
 };
 
-const PostReportList: React.FC<{
-  reports: ModerationReport[];
-  postsMap: Record<string, Post | null>;
-  loadingPostsMap: Record<string, boolean>;
-  processingId: string | null;
-  onSelect: (report: ModerationReport) => void;
-  onProcess: (report: ModerationReport, action: ModerationAction, note?: string) => void;
-  empty: string;
-}> = ({ reports, postsMap, loadingPostsMap, processingId, onSelect, onProcess, empty }) => {
-  if (reports.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200/80 bg-white/70 py-16 text-center shadow-xs backdrop-blur-md dark:border-[#2f3032] dark:bg-[#1a1b1d]/80">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500 shadow-inner dark:bg-emerald-950/40">
-          <CheckCircle2 className="h-6 w-6" />
-        </div>
-        <h3 className="mt-3 text-sm font-bold text-gray-900 dark:text-white">Không có báo cáo nào</h3>
-        <p className="mt-1 max-w-sm text-xs text-gray-500 dark:text-gray-400">{empty}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {reports.map((report) => {
-        const rConf = reasonConfig[report.reason] || reasonConfig.OTHER;
-        const post = postsMap[report.targetId];
-        const isLoadingPost = loadingPostsMap[report.targetId];
-        const isProcessing = processingId === report.reportId;
-
-        return (
-          <div
-            key={report.reportId}
-            className="group relative rounded-xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-2xs transition hover:border-gray-300 dark:border-[#2b2c2f] dark:bg-[#1c1d1f] dark:hover:border-[#383a3e]"
-          >
-            {/* Top Bar: Reason, Status, Report Date, ID */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5 dark:border-[#262729]">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${rConf.border} ${rConf.bgLight} ${rConf.bgDark} ${rConf.color}`}
-                >
-                  <AlertTriangle className="h-3 w-3" />
-                  {rConf.label}
-                </span>
-
-                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200/50 bg-amber-50/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700 uppercase dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  {report.status}
-                </span>
-
-                {report.source === 'AI' && (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-purple-200/50 bg-purple-50/80 px-2 py-0.5 text-[10px] font-semibold text-purple-700 uppercase dark:border-purple-900/30 dark:bg-purple-950/30 dark:text-purple-300">
-                    <Sparkles className="h-2.5 w-2.5 text-purple-500" />
-                    AI gắn cờ
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                <span>
-                  {report.source === 'AI' ? 'AI cờ:' : 'Báo cáo:'} {new Date(report.createdAt).toLocaleString('vi-VN')}
-                </span>
-                <span className="hidden sm:inline">•</span>
-                <span className="hidden sm:inline font-mono text-[10px] text-gray-400">
-                  #{report.targetId ? report.targetId.slice(0, 8) : ''}
-                </span>
-              </div>
-            </div>
-
-            {/* Reporter's reason / AI analysis */}
-            {report.source === 'AI' ? (
-              <AiFlagInfo report={report} />
-            ) : (
-              report.description && (
-                <div className="mt-2.5 flex items-start gap-1.5 rounded-lg border border-gray-100 bg-gray-50/70 px-2.5 py-1.5 text-xs text-gray-600 dark:border-[#27282b] dark:bg-[#202123] dark:text-gray-300">
-                  <span className="font-semibold text-rose-500 shrink-0">Lý do báo cáo:</span>
-                  <span className="italic">"{report.description}"</span>
-                </div>
-              )
-            )}
-
-            {/* EMBEDDED REAL POST CONTENT */}
-            <div className="mt-2.5">
-              {isLoadingPost ? (
-                <div className="flex items-center justify-center rounded-lg border border-gray-100 bg-gray-50/60 py-3 text-xs text-gray-400 dark:border-[#27282b] dark:bg-[#18191a]">
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-blue-500" />
-                  Đang tải nội dung bài viết...
-                </div>
-              ) : post ? (
-                <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-3 dark:border-[#28292c] dark:bg-[#18191a] space-y-2">
-                  {/* Author Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {post.authorAvatar ? (
-                        <img
-                          src={post.authorAvatar}
-                          alt=""
-                          className="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
-                        />
-                      ) : (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                          {post.authorName?.[0] || 'U'}
-                        </div>
-                      )}
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">
-                            {post.authorName || 'Người dùng'}
-                          </p>
-                          {post.isArchived && (
-                            <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-semibold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                              Đang ẩn
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-gray-400">
-                          {new Date(post.createdAtRaw || post.createdAt).toLocaleString('vi-VN')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 text-[11px] text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp className="h-3 w-3" /> {post.likesCount || 0}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="h-3 w-3" /> {post.commentsCount || 0}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Post Text */}
-                  <p className="text-xs leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-normal line-clamp-3">
-                    {post.content || <span className="italic text-gray-400">Bài viết không có nội dung chữ.</span>}
-                  </p>
-
-                  {/* Media attachments */}
-                  {post.mediaUrls && post.mediaUrls.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {post.mediaUrls.map((url, idx) => (
-                        <a
-                          key={idx}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="group/img relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-black/5"
-                        >
-                          <img
-                            src={url}
-                            alt="post media"
-                            className="h-16 w-16 rounded-lg object-cover transition group-hover/img:scale-105"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover/img:opacity-100">
-                            <ExternalLink className="h-3.5 w-3.5 text-white" />
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/70 px-3 py-2 text-xs text-gray-500 dark:border-[#27282b] dark:bg-[#18191a] dark:text-gray-400">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <FileWarning className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    <span className="truncate">Bài viết không còn khả dụng hoặc đã bị gỡ</span>
-                  </div>
-                  <code className="font-mono text-[10px] text-gray-400 shrink-0">
-                    ID: {report.targetId ? report.targetId.slice(0, 12) + '...' : ''}
-                  </code>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions Footer - Compact & Muted */}
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5 dark:border-[#262729]">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onProcess(report, 'DELETE_POST', 'Gỡ bỏ bài viết vi phạm tiêu chuẩn cộng đồng')}
-                  disabled={isProcessing}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 active:scale-95 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/40 cursor-pointer"
-                  title="Gỡ vĩnh viễn bài viết khỏi hệ thống"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Gỡ bài</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onProcess(report, 'HIDE_POST', 'Ẩn bài viết khỏi bảng tin')}
-                  disabled={isProcessing}
-                  className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-50 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/40 cursor-pointer"
-                  title="Ẩn bài viết khỏi bảng tin"
-                >
-                  <EyeOff className="h-3.5 w-3.5" />
-                  <span>Ẩn bài</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onProcess(report, 'DISMISS', 'Nội dung hợp lệ, bỏ qua báo cáo')}
-                  disabled={isProcessing}
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-95 disabled:opacity-50 dark:border-[#383a3d] dark:bg-[#252628] dark:text-gray-300 dark:hover:bg-[#2f3134] cursor-pointer"
-                  title="Bỏ qua báo cáo nếu bài viết không vi phạm"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  <span>Bỏ qua</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onSelect(report)}
-                disabled={isProcessing}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-100 active:scale-95 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40 cursor-pointer"
-              >
-                <Gavel className="h-3.5 w-3.5" />
-                <span>Chi tiết & Ghi chú...</span>
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 const toneStyles: Record<string, { chip: string }> = {
   danger: { chip: 'border border-rose-200/50 bg-rose-50/80 text-rose-600 dark:border-rose-900/30 dark:bg-rose-950/30 dark:text-rose-400' },

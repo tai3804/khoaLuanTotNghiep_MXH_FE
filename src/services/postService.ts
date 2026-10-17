@@ -129,6 +129,7 @@ export const normalizePost = (p: any): Post => {
     taggedUserIds: Array.isArray(p.taggedUserIds) ? p.taggedUserIds.map(String) : [],
     hashtags: Array.isArray(p.hashtags) ? p.hashtags.map(String) : [],
     relevanceReason: typeof p.relevanceReason === 'string' ? p.relevanceReason : undefined,
+    poll: p.poll || undefined,
   };
 };
 
@@ -339,7 +340,8 @@ export const postService = {
     mediaUrls?: string[],
     groupId?: string,
     taggedUserIds?: string[],
-    scheduledPublishAt?: string
+    scheduledPublishAt?: string,
+    poll?: { question: string; options: string[]; multipleChoice?: boolean; closedAt?: string }
   ): Promise<Post> => {
     const formData = new FormData();
     formData.append('content', content);
@@ -354,6 +356,9 @@ export const postService = {
       taggedUserIds.forEach((id) => {
         formData.append('taggedUserIds', id);
       });
+    }
+    if (poll && poll.question && poll.options?.length >= 2) {
+      formData.append('pollJson', JSON.stringify(poll));
     }
 
     files.forEach((file) => {
@@ -372,6 +377,14 @@ export const postService = {
     });
     const data = res.data?.data || res.data;
     return normalizePost(data);
+  },
+
+  votePoll: async (postId: string, optionIds: string[]): Promise<Post> => {
+    const res = await api.post(`/posts/${postId}/poll/vote`, { optionIds });
+    const postData = res.data?.data || res.data;
+    const normalized = normalizePost(postData);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
   },
 
   getUserPosts: async (userId: string, page = 0, size = 100): Promise<Post[]> => {

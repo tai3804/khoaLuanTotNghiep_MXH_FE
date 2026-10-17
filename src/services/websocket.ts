@@ -67,6 +67,15 @@ class WebSocketService {
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),
+        beforeConnect: () => {
+          const freshToken = store.getState().auth.accessToken;
+          if (freshToken && this.client) {
+            this.client.connectHeaders = {
+              Authorization: `Bearer ${freshToken}`,
+              access_token: freshToken,
+            };
+          }
+        },
         connectHeaders: {
           Authorization: `Bearer ${token}`,
           access_token: token,

@@ -59,7 +59,7 @@ export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
                   : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
               }`}
             >
-              {isUnreadSummary && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse shrink-0" />}
+              {isUnreadSummary && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block shrink-0" />}
               {summaryData.messageCount} {isEn ? 'messages' : 'tin'}{summaryData.imageCount > 0 ? ` • ${summaryData.imageCount} ${isEn ? 'photos' : 'ảnh'}` : ''}
             </span>
           )}

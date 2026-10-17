@@ -7,7 +7,8 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { postService } from '../services/api';
-import { FileQuestion, Loader2, CheckCircle2, PlaySquare, Flame, Clock, RefreshCw, Search, X } from 'lucide-react';
+import { FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
+import { WatchFilterBar, WatchTabType } from '../components/watch/WatchFilterBar';
 
 interface WatchPageProps {
   activeNavTab: string;
@@ -102,15 +103,39 @@ export const WatchPage: React.FC<WatchPageProps> = ({
   };
 
   const displayedPosts = useMemo(() => {
-    if (!searchTerm.trim()) return posts;
-    const q = searchTerm.toLowerCase();
-    return posts.filter(
-      (p) =>
-        p.content?.toLowerCase().includes(q) ||
-        (p as any).user?.name?.toLowerCase().includes(q) ||
-        p.authorName?.toLowerCase().includes(q)
-    );
-  }, [posts, searchTerm]);
+    let result = [...posts];
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.content?.toLowerCase().includes(q) ||
+          (p as any).user?.name?.toLowerCase().includes(q) ||
+          p.authorName?.toLowerCase().includes(q)
+      );
+    }
+
+    if (activeWatchTab === 'trending') {
+      // Ưu tiên video thịnh hành: video được gắn mác Trending hoặc có tổng điểm tương tác (like, comment, share) cao nhất
+      result.sort((a, b) => {
+        if (a.isTrending && !b.isTrending) return -1;
+        if (!a.isTrending && b.isTrending) return 1;
+        const scoreA = (a.likesCount || 0) + (a.commentsCount || 0) * 2 + (a.sharesCount || 0) * 3;
+        const scoreB = (b.likesCount || 0) + (b.commentsCount || 0) * 2 + (b.sharesCount || 0) * 3;
+        return scoreB - scoreA;
+      });
+    } else if (activeWatchTab === 'recent') {
+      // Mới nhất: Sắp xếp theo mốc thời gian đăng gần nhất
+      result.sort((a, b) => {
+        const timeA = new Date(a.createdAtRaw || a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAtRaw || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+    }
+    // 'for_you': Giữ nguyên thứ tự đề xuất tự nhiên của luồng video từ hệ thống
+
+    return result;
+  }, [posts, searchTerm, activeWatchTab]);
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] transition-colors duration-200">
@@ -149,81 +174,16 @@ export const WatchPage: React.FC<WatchPageProps> = ({
 
         <main className="flex-1 min-w-0 max-w-[740px] xl:max-w-[800px] 2xl:max-w-[860px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           
-          {/* Watch Navigation Option Pills & Right Search + Reload */}
-          <div className="mb-4 space-y-2.5">
-            {/* Row 1: Search Bar on Left, Reload Button on Top Right */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="relative flex-1 max-w-xs sm:max-w-sm">
-                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm kiếm video..."
-                  className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
-                    title="Xóa tìm kiếm"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={() => fetchWatchFeed()}
-                title="Làm mới video"
-                className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-
-            {/* Row 2: Option Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setActiveWatchTab('for_you')}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                  activeWatchTab === 'for_you'
-                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-                }`}
-              >
-                <PlaySquare className="w-4 h-4" />
-                <span>Dành cho bạn</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveWatchTab('trending')}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                  activeWatchTab === 'trending'
-                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-                }`}
-              >
-                <Flame className="w-4 h-4" />
-                <span>Thịnh hành</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveWatchTab('recent')}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-                  activeWatchTab === 'recent'
-                    ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                    : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                <span>Mới nhất</span>
-              </button>
-            </div>
-          </div>
+          {/* Watch Navigation Option Pills & Search Filter */}
+          <WatchFilterBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onClearSearch={() => setSearchTerm('')}
+            loading={loading}
+            onRefresh={() => fetchWatchFeed()}
+            activeWatchTab={activeWatchTab}
+            onSelectTab={setActiveWatchTab}
+          />
 
           {loading && posts.length === 0 ? (
             <div className="flex justify-center py-10">

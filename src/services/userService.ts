@@ -575,4 +575,32 @@ export const userService = {
       return null;
     }
   },
+
+  blockUser: async (targetUserId: string, reason?: string) => {
+    const res = await api.post(`/users/blocks/${targetUserId}`, reason ? { reason } : {});
+    return res.data;
+  },
+
+  unblockUser: async (targetUserId: string) => {
+    const res = await api.delete(`/users/blocks/${targetUserId}`);
+    return res.data;
+  },
+
+  getBlockedUsers: async (page = 0, size = 20) => {
+    try {
+      const res = await api.get('/users/blocks', { params: { page, size } });
+      return res.data?.data || res.data?.result || res.data;
+    } catch {
+      return { content: [], totalElements: 0, totalPages: 0, last: true };
+    }
+  },
+
+  checkBlockStatus: async (targetUserId: string) => {
+    try {
+      const res = await api.get(`/users/blocks/check/${targetUserId}`);
+      return res.data?.data || res.data?.result || null;
+    } catch {
+      return null;
+    }
+  },
 };

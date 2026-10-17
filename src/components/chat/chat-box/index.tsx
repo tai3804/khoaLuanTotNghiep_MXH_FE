@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useChatBoxData } from './useChatBoxData';
 import { ChatBoxHeader } from './ChatBoxHeader';
 import { ChatBoxMessagesList } from './ChatBoxMessagesList';
 import { ChatBoxInputFooter } from './ChatBoxInputFooter';
 import { ChatBoxMinimized } from './ChatBoxMinimized';
 import { ChatAiSummaryBanner } from './ChatAiSummaryBanner';
+import { ChatDetailsPanel } from './chat-details';
 import { GroupInfoModal } from '../GroupInfoModal';
 import { ChatUser } from './types';
 import { aiService, SummarizeMessagesResponse, ChatMessageItemDto } from '../../../services/aiService';
 import { useToast } from '../../../context/ToastContext';
 
 export type { ChatUser };
+export { ChatVoiceRecorder } from './ChatVoiceRecorder';
 
 export interface ChatBoxProps {
   friend: ChatUser;
@@ -19,9 +21,10 @@ export interface ChatBoxProps {
   offsetRight?: number;
 }
 
-export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }) => {
+export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigateProfile, offsetRight }) => {
   const toast = useToast();
   const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [currentFriend, setCurrentFriend] = useState<ChatUser>(friend);
   const [summaryData, setSummaryData] = useState<SummarizeMessagesResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -56,7 +59,31 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     handleRecallMessage,
     handleDeleteForMe,
     handleSend,
+    handleSendVoice,
   } = useChatBoxData({ friend: currentFriend });
+
+  // Quick reaction emoji (defaults to 👍 like Facebook Messenger)
+  const emojiKey = conversationId ? `chat_emoji_${conversationId}` : `chat_emoji_${friend.id}`;
+  const [quickEmoji, setQuickEmoji] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(emojiKey) || '👍';
+    }
+    return '👍';
+  });
+
+  useEffect(() => {
+    const handleEmojiChange = (e: any) => {
+      if ((e.detail?.conversationId === conversationId || !conversationId) && e.detail?.emoji) {
+        setQuickEmoji(e.detail.emoji);
+      }
+    };
+    window.addEventListener('chat_quick_emoji_changed', handleEmojiChange);
+    return () => window.removeEventListener('chat_quick_emoji_changed', handleEmojiChange);
+  }, [conversationId]);
+
+  const handleQuickReaction = () => {
+    handleSend(undefined, quickEmoji);
+  };
 
   const effectiveFriend: ChatUser = {
     ...currentFriend,
@@ -87,15 +114,12 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     setShowSummary(true);
     setSummaryLoading(true);
     try {
-      // 1. Identify which messages to summarize:
-      // If there are unread messages, prioritize summarizing the unread messages!
       let targetMessages = messages;
       let summarizingUnread = false;
 
       if (firstUnreadId) {
         const unreadIdx = messages.findIndex((m) => m.id === firstUnreadId);
         if (unreadIdx >= 0) {
-          // Include unread messages (and up to 3 preceding messages for context if available)
           const contextStart = Math.max(0, unreadIdx - 3);
           targetMessages = messages.slice(contextStart);
           summarizingUnread = true;
@@ -110,7 +134,6 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
       }
       setIsUnreadSummary(summarizingUnread);
 
-      // 2. Format message items with accurate text and mediaUrl for images
       const messageItems: ChatMessageItemDto[] = targetMessages.map((m) => {
         const isMe = m.senderId === user?.id || m.senderId === 'me';
         const senderName = isMe ? (user?.fullName || 'Bạn') : (m.senderName || effectiveFriend.name);
@@ -173,6 +196,8 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           onMinimize={() => setIsMinimized(true)}
           onClose={onClose}
           onOpenGroupInfo={currentFriend.isGroup ? () => setShowGroupInfo(true) : undefined}
+          onToggleDetails={() => setShowDetails((prev) => !prev)}
+          showDetails={showDetails}
           onTriggerSummary={handleTriggerSummary}
           isSummarizing={summaryLoading}
           unreadCount={unreadCount}
@@ -216,8 +241,22 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
           onChatFileSelect={handleChatFileSelect}
           onChatDocSelect={handleChatFileSelect}
           onSend={handleSend}
+          onSendVoice={handleSendVoice}
+          onQuickReaction={handleQuickReaction}
+          quickEmoji={quickEmoji}
         />
       </div>
+
+      {/* Full screen modal overlay for Chat Details, Media & Files */}
+      <ChatDetailsPanel
+        isOpen={showDetails}
+        onClose={() => setShowDetails(false)}
+        friend={effectiveFriend}
+        messages={messages}
+        conversationId={conversationId}
+        memberCount={groupDetail?.members?.length}
+        onNavigateProfile={onNavigateProfile}
+      />
 
       {showGroupInfo && conversationId && (
         <GroupInfoModal
@@ -237,3 +276,4 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, offsetRight }
     </>
   );
 };
+

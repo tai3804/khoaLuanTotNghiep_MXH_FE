@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { NotificationItem, NotificationSetting } from '../types/notification';
 import { notificationService } from '../services/notificationService';
+import { store } from '../store/store';
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -148,6 +149,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     let isSubscribed = true;
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
+      beforeConnect: () => {
+        const freshToken = store.getState().auth.accessToken;
+        if (freshToken) {
+          client.connectHeaders = {
+            Authorization: `Bearer ${freshToken}`,
+            access_token: freshToken,
+          };
+        }
+      },
       connectHeaders: {
         Authorization: `Bearer ${token}`,
         access_token: token || '',

@@ -1,6 +1,7 @@
 export * from './common/UserAvatar';
 export * from './common/Logo';
 export * from './common/LoginModal';
+export * from './common/BackToTopButton';
 export * from './layout/header-bar';
 export * from './layout/SidebarLeft';
 export * from './layout/SidebarRight';

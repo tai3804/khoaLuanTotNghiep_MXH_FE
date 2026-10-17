@@ -35,6 +35,8 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     hasPendingSent: boolean;
     hasPendingReceived: boolean;
     pendingRequestId: string | null;
+    isBlockedByMe?: boolean;
+    isBlockedByTarget?: boolean;
   } | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -370,6 +372,14 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
       toast.showInfo('Đây là trang cá nhân của bạn!');
       return;
     }
+    if (connectionStatus?.isBlockedByMe) {
+      toast.showInfo('Bạn đang chặn người dùng này. Vui lòng bỏ chặn trước khi gửi lời mời kết bạn.');
+      return;
+    }
+    if (connectionStatus?.isBlockedByTarget) {
+      toast.showError('Không thể gửi lời mời kết bạn đến người dùng này.');
+      return;
+    }
     try {
       const resolvedTarget = profile?.userId || profile?.id || targetUserId;
       await userService.sendFriendRequest(resolvedTarget);
@@ -379,6 +389,32 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
       toast.showSuccess('Đã gửi lời mời kết bạn thành công!');
     } catch (e: any) {
       toast.showError(e.response?.data?.message || e.message || 'Không thể gửi lời mời kết bạn');
+    }
+  };
+
+  const handleBlockUser = async () => {
+    const resolvedTarget = profile?.userId || profile?.id || targetUserId;
+    if (!resolvedTarget) return;
+    try {
+      await userService.blockUser(resolvedTarget);
+      setConnectionStatus((prev: any) => ({ ...prev, isBlockedByMe: true, isFriend: false, hasPendingSent: false, hasPendingReceived: false }));
+      toast.showSuccess('Đã chặn người dùng này thành công.');
+      window.dispatchEvent(new CustomEvent('friend_status_updated'));
+    } catch (e: any) {
+      toast.showError(e.response?.data?.message || 'Không thể chặn người dùng');
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    const resolvedTarget = profile?.userId || profile?.id || targetUserId;
+    if (!resolvedTarget) return;
+    try {
+      await userService.unblockUser(resolvedTarget);
+      setConnectionStatus((prev: any) => ({ ...prev, isBlockedByMe: false }));
+      toast.showSuccess('Đã bỏ chặn người dùng này thành công.');
+      window.dispatchEvent(new CustomEvent('friend_status_updated'));
+    } catch (e: any) {
+      toast.showError(e.response?.data?.message || 'Không thể bỏ chặn');
     }
   };
 
@@ -560,5 +596,9 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
     handleAcceptFriendRequest,
     handleRejectFriendRequest,
     handleUnfriendProfile,
+    isBlockedByMe: Boolean(connectionStatus?.isBlockedByMe),
+    isBlockedByTarget: Boolean(connectionStatus?.isBlockedByTarget),
+    handleBlockUser,
+    handleUnblockUser,
   };
 };

@@ -146,6 +146,57 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     }
   };
 
+  const handleSendVoice = async (audioBlob: Blob) => {
+    if (!conversationId) {
+      toast.showError('Không tìm thấy cuộc trò chuyện');
+      return;
+    }
+    const voiceFileName = `voice_${Date.now()}.webm`;
+    const voiceFile = new File([audioBlob], voiceFileName, { type: audioBlob.type || 'audio/webm' });
+    const localAudioUrl = URL.createObjectURL(audioBlob);
+    const tempId = 'temp_voice_' + Date.now();
+
+    try {
+      setUploading(true);
+      const optimisticMsg: any = {
+        id: tempId,
+        senderId: user?.id,
+        senderName: user?.fullName || user?.username || 'You',
+        text: '',
+        mediaUrl: localAudioUrl,
+        type: 'AUDIO',
+        fileName: voiceFileName,
+        fileSize: voiceFile.size,
+        createdAt: new Date().toISOString(),
+        status: 'SENDING',
+      };
+
+      setMessages((prev) => [...prev, optimisticMsg]);
+
+      // Upload audio to media storage
+      const uploadedFile = await mediaService.uploadMedia(voiceFile, 'chats');
+      const serverAudioUrl = uploadedFile?.fileUrl || localAudioUrl;
+
+      // Send via chatService REST
+      const res = await chatService.sendFileMessage(conversationId, serverAudioUrl, voiceFileName, 'AUDIO');
+      const actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
+
+      setMessages((prev) => {
+        if (actualId && prev.some((m) => m.id === actualId)) {
+          return prev.filter((m) => m.id !== tempId);
+        }
+        return prev.map((m) => (m.id === tempId ? { ...m, id: actualId || m.id, mediaUrl: serverAudioUrl, status: 'SENT' } : m));
+      });
+
+      toast.showSuccess('Đã gửi tin nhắn thoại!');
+    } catch (err: any) {
+      toast.showError('Gửi tin nhắn thoại thất bại: ' + (err.response?.data?.message || err.message));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleEditMessage = async (messageId: string, newContent: string) => {
     if (!conversationId) return;
     try {
@@ -567,12 +618,15 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     }
   }, [isMinimized, scrollToBottom]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSend = async (e?: React.FormEvent, customText?: string) => {
+    if (e) e.preventDefault();
+    const rawText = customText !== undefined ? customText : inputText;
+    if (!rawText.trim()) return;
 
-    const textToSend = inputText.trim();
-    setInputText('');
+    const textToSend = rawText.trim();
+    if (customText === undefined) {
+      setInputText('');
+    }
 
     const tempId = 'msg-' + Date.now();
     const optimisticMsg: Message = {
@@ -638,5 +692,6 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     handleRecallMessage,
     handleDeleteForMe,
     handleSend,
+    handleSendVoice,
   };
 };

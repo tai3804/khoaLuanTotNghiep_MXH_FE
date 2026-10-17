@@ -134,6 +134,26 @@ export interface Post {
   isOptimistic?: boolean;
   taggedUserIds?: string[];
   hashtags?: string[];
+  poll?: PostPoll;
+}
+
+export interface PollOption {
+  id: string;
+  text: string;
+  voteCount: number;
+  votePercentage: number;
+  votedByCurrentUser?: boolean;
+}
+
+export interface PostPoll {
+  question: string;
+  options: PollOption[];
+  totalVotes: number;
+  multipleChoice?: boolean;
+  closed?: boolean;
+  closedAt?: string;
+  userVoted?: boolean;
+  userVotedOptionIds?: string[];
 }
 
 export interface ProfileVisitor {

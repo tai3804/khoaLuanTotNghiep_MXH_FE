@@ -14,6 +14,8 @@ interface ChatBoxHeaderProps {
   onMinimize: () => void;
   onClose: () => void;
   onOpenGroupInfo?: () => void;
+  onToggleDetails?: () => void;
+  showDetails?: boolean;
   onTriggerSummary?: () => void;
   isSummarizing?: boolean;
   unreadCount?: number;
@@ -27,6 +29,8 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   onMinimize,
   onClose,
   onOpenGroupInfo,
+  onToggleDetails,
+  showDetails,
   onTriggerSummary,
   isSummarizing,
   unreadCount,
@@ -101,7 +105,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
           >
             <Sparkles className={`w-4 h-4 ${isSummarizing ? 'animate-spin' : ''}`} />
             {unreadCount && unreadCount > 0 ? (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-[#242526] animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-[#242526]" />
             ) : null}
           </button>
         )}
@@ -123,15 +127,6 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
             >
               <Video className="w-4 h-4" />
             </button>
-            {onOpenGroupInfo && (
-              <button
-                onClick={onOpenGroupInfo}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
-                title={isEn ? 'Group info' : 'Thông tin nhóm'}
-              >
-                <Info className="w-4 h-4" />
-              </button>
-            )}
           </>
         ) : (
           <>
@@ -150,6 +145,21 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
               <Video className="w-4 h-4" />
             </button>
           </>
+        )}
+
+        {/* Info & Shared Assets Button for both 1-1 and group chats */}
+        {onToggleDetails && (
+          <button
+            onClick={onToggleDetails}
+            className={`p-1.5 rounded-full transition cursor-pointer ${
+              showDetails
+                ? 'bg-[#1877f2]/10 dark:bg-[#4599ff]/20 text-[#1877f2] dark:text-[#4599ff] ring-1 ring-[#1877f2]/30'
+                : 'hover:bg-gray-100 dark:hover:bg-[#3a3b3c] text-[#1877f2] dark:text-[#4599ff]'
+            }`}
+            title={isEn ? 'Conversation info, media & files' : 'Thông tin đoạn chat, ảnh, file & liên kết'}
+          >
+            <Info className="w-4 h-4" />
+          </button>
         )}
 
         <button

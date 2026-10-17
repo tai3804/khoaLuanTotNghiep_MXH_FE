@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Globe,
   Users,
@@ -118,16 +118,50 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
     currentUserId === postAuthorId
   );
 
-  // Close dropdown on outside click
+  const [openUpward, setOpenUpward] = useState(false);
+  const [maxMenuHeight, setMaxMenuHeight] = useState<number | undefined>(undefined);
+
+  const updateDropdownPlacement = () => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Prefer opening upward if space below is less than 380px and space above is larger than space below
+    const shouldOpenUpward = spaceBelow < 380 && spaceAbove > spaceBelow;
+    setOpenUpward(shouldOpenUpward);
+
+    // Limit maximum height so it never exceeds visible viewport boundaries
+    const availableSpace = shouldOpenUpward ? spaceAbove - 24 : spaceBelow - 24;
+    setMaxMenuHeight(Math.max(160, Math.min(460, availableSpace)));
+  };
+
+  // Close dropdown on outside click and handle smart placement
   useEffect(() => {
     if (!showOptionsMenu) return;
+
+    updateDropdownPlacement();
+
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setShowOptionsMenu(false);
       }
     };
+
+    const handleScrollOrResize = () => {
+      updateDropdownPlacement();
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+    };
   }, [showOptionsMenu, setShowOptionsMenu]);
 
   const renderPrivacyIcon = () => {
@@ -304,14 +338,24 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
           <div className="relative" ref={menuRef}>
             <button
               type="button"
-              onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+              onClick={() => {
+                if (!showOptionsMenu) {
+                  updateDropdownPlacement();
+                }
+                setShowOptionsMenu(!showOptionsMenu);
+              }}
               className="text-gray-500 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer"
             >
               <MoreHorizontal className="w-5 h-5" />
             </button>
 
             {showOptionsMenu && (
-              <div className="absolute right-0 top-10 w-72 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-1.5 z-40 animate-in fade-in duration-100">
+              <div
+                className={`absolute right-0 w-72 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in duration-100 overflow-y-auto overscroll-contain scrollbar-thin ${
+                  openUpward ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'
+                }`}
+                style={maxMenuHeight ? { maxHeight: `${maxMenuHeight}px` } : undefined}
+              >
                 {/* 0. View Post Insights (Owner only) */}
                 {isOwner && (
                   <button

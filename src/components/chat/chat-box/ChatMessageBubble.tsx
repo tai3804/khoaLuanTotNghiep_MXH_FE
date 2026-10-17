@@ -5,6 +5,7 @@ import { Message } from './useChatBoxData';
 import { ChatFileAttachment } from './ChatFileAttachment';
 import { ChatInlineEditor } from './ChatInlineEditor';
 import { ChatSharedPostCard } from './ChatSharedPostCard';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatMessageBubbleProps {
@@ -57,6 +58,10 @@ const isVideoExtension = (url: string) => {
   return /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(url);
 };
 
+const isAudioExtension = (url: string) => {
+  return /\.(mp3|wav|ogg|webm|m4a|aac|opus)(\?.*)?$/i.test(url);
+};
+
 export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   msg,
   isMe,
@@ -85,14 +90,20 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   const isSolelyPostUrl = Boolean(sharedPostId && !textWithoutPostUrl);
 
   // Detect type accurately
+  const isAudio =
+    msg.type === 'AUDIO' ||
+    (isUrl && isAudioExtension(msg.text)) ||
+    (Boolean(mediaUrl) && isAudioExtension(mediaUrl));
   const isFile =
-    msg.type === 'FILE' ||
-    (isUrl && !isMediaExtension(msg.text) && !isVideoExtension(msg.text) && !imageError && /\.[a-z0-9]{2,5}(\?.*)?$/i.test(msg.text));
+    !isAudio &&
+    (msg.type === 'FILE' ||
+    (isUrl && !isMediaExtension(msg.text) && !isVideoExtension(msg.text) && !imageError && /\.[a-z0-9]{2,5}(\?.*)?$/i.test(msg.text)));
   const isVideo =
-    msg.type === 'VIDEO' ||
-    (isUrl && isVideoExtension(msg.text));
+    !isAudio &&
+    (msg.type === 'VIDEO' ||
+    (isUrl && isVideoExtension(msg.text)));
   const isImage =
-    !isFile && !isVideo && (msg.type === 'IMAGE' || (isUrl && isMediaExtension(msg.text)));
+    !isAudio && !isFile && !isVideo && (msg.type === 'IMAGE' || (isUrl && isMediaExtension(msg.text)));
 
   const handleSaveEdit = async (newContent: string) => {
     await onEdit(msg.id, newContent);
@@ -163,6 +174,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
             <Undo2 className="w-3.5 h-3.5 text-gray-400" />
             <span>{t('chat.messageRecalled', isEn ? 'Message has been recalled' : 'Tin nhắn đã được thu hồi')}</span>
           </div>
+        ) : isAudio ? (
+          /* Voice Audio Message Player */
+          <VoiceMessagePlayer audioUrl={mediaUrl || msg.text} isMe={isMe} />
         ) : isFile || (imageError && mediaUrl) ? (
           /* File Attachment (PDF, Word, Excel, ZIP, or fallback) */
           <ChatFileAttachment

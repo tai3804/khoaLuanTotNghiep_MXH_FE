@@ -7,6 +7,8 @@ import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { useToast } from '../../../context/ToastContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { needsTranslation } from '../../../utils/languageDetect';
+import { PostPollView } from '../PostPollView';
+import { PostMediaGrid } from './PostMediaGrid';
 
 // Chỉ bài viết dài hơn ngưỡng này mới có tóm tắt AI (khớp ai.summary.min-length ở ai-service)
 const SUMMARY_MIN_LENGTH = 1000;
@@ -243,55 +245,32 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
         </div>
       )}
 
+      {/* Interactive Poll Component */}
+      {post.poll && (
+        <div className="px-4 pb-2">
+          <PostPollView
+            postId={post.id}
+            poll={post.poll}
+            onPollUpdated={(updatedPoll) => {
+              post.poll = updatedPoll;
+            }}
+          />
+        </div>
+      )}
+
       {/* Live Stream Viewport */}
       {isLive ? (
         <div className="w-full">
           <LiveStreamPlayer post={post} setShowCommentModal={setShowCommentModal} />
         </div>
       ) : (
-        /* Standard Media Grid / Gallery */
+        /* Standard Dynamic Mosaic Media Grid */
         post.mediaUrls && post.mediaUrls.length > 0 && (
-          <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden">
-            {post.mediaUrls.length === 1 ? (
-              isVideo(post.mediaUrls[0], post.mediaList?.[0]?.mediaType) ? (
-                <VideoPlayer src={post.mediaUrls[0]} />
-              ) : (
-                <img
-                  src={post.mediaUrls[0]}
-                  loading="lazy"
-                  decoding="async"
-                  alt="Post media"
-                  className="w-full max-h-[550px] object-cover hover:opacity-95 transition cursor-pointer"
-                  onClick={() => setShowCommentModal(true)}
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )
-            ) : (
-              <div className="grid grid-cols-2 gap-0.5">
-                {post.mediaUrls.map((url, i) => {
-                  const itemMediaType = post.mediaList?.[i]?.mediaType;
-                  return isVideo(url, itemMediaType) ? (
-                    <VideoPlayer key={i} src={url} className="w-full h-64 object-cover bg-black" />
-                  ) : (
-                    <img
-                      key={i}
-                      src={url}
-                      loading="lazy"
-                      decoding="async"
-                      alt={`Media ${i}`}
-                      className="w-full h-64 object-cover hover:opacity-95 transition cursor-pointer"
-                      onClick={() => setShowCommentModal(true)}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <PostMediaGrid
+            mediaUrls={post.mediaUrls}
+            mediaList={post.mediaList}
+            onMediaClick={() => setShowCommentModal(true)}
+          />
         )
       )}
     </>

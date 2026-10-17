@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, UserPlus, LogOut, Edit2, Check, Shield, Loader2, Trash2 } from 'lucide-react';
 import { chatService } from '../../services/chatService';
-import { userService } from '../../services/userService';
+import { userService, fetchAuthorProfile } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -71,15 +71,12 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
             data.members.map(async (m: any) => {
               const uid = String(m.userId);
               try {
-                const prof = await userService.getUserProfile(uid);
-                const fullName =
-                  prof.fullName ||
-                  [prof.lastName, prof.middleName, prof.firstName].filter(Boolean).join(' ') ||
-                  prof.username ||
-                  m.nickname ||
-                  'Thành viên';
-                const avatar = prof.avatarUrl || prof.avatar || '/default-avatar.png';
-                profiles[uid] = { name: fullName, avatar };
+                const cached = await fetchAuthorProfile(uid);
+                if (cached) {
+                  profiles[uid] = cached;
+                } else {
+                  profiles[uid] = { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
+                }
               } catch {
                 profiles[uid] = { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
               }

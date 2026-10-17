@@ -8,6 +8,9 @@ import { TagFriendsModal, TaggedFriend } from './tag-friends';
 import { useMentionSuggestions, MentionDropdown } from '../../common/mention-autocomplete';
 import { PostSchedulePicker } from '../../profile/professional/scheduler/PostSchedulePicker';
 
+import { CreatePollForm, PollDraft } from './CreatePollForm';
+import { BarChart2 } from 'lucide-react';
+
 interface CreatePostFormProps {
   user: any;
   privacy: 'public' | 'friends' | 'private';
@@ -32,6 +35,10 @@ interface CreatePostFormProps {
   setShowTagFriendsModal?: (show: boolean) => void;
   scheduledPublishAt?: string;
   setScheduledPublishAt?: (val?: string) => void;
+  showPoll?: boolean;
+  setShowPoll?: (show: boolean) => void;
+  pollDraft?: PollDraft;
+  setPollDraft?: (draft: PollDraft) => void;
 }
 
 export const CreatePostForm: React.FC<CreatePostFormProps> = ({
@@ -58,6 +65,10 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
   setShowTagFriendsModal,
   scheduledPublishAt,
   setScheduledPublishAt,
+  showPoll = false,
+  setShowPoll,
+  pollDraft,
+  setPollDraft,
 }) => {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
@@ -261,8 +272,32 @@ export const CreatePostForm: React.FC<CreatePostFormProps> = ({
             <CalendarClock className="w-4 h-4" />
             <span className="text-xs font-semibold">Lên lịch</span>
           </button>
+          {setShowPoll && (
+            <button
+              type="button"
+              onClick={() => setShowPoll(!showPoll)}
+              className={`flex items-center space-x-1.5 py-1.5 px-2.5 rounded-lg transition cursor-pointer ${
+                showPoll
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
+                  : 'hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400'
+              }`}
+              title="Tạo cuộc thăm dò ý kiến"
+            >
+              <BarChart2 className="w-4 h-4" />
+              <span className="text-xs font-semibold">Thăm dò</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Poll Creation Form */}
+      {showPoll && pollDraft && setPollDraft && (
+        <CreatePollForm
+          pollDraft={pollDraft}
+          onChange={setPollDraft}
+          onRemove={() => setShowPoll?.(false)}
+        />
+      )}
 
       {/* Tag Friends Modal */}
       {showTagFriendsModal && setShowTagFriendsModal && setTaggedFriends && (

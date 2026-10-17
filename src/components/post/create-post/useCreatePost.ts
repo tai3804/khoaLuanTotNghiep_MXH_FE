@@ -49,6 +49,16 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   }, []);
 
   const [showImageInput, setShowImageInput] = useState(false);
+  const [showPoll, setShowPoll] = useState(false);
+  const [pollDraft, setPollDraft] = useState<{
+    question: string;
+    options: string[];
+    multipleChoice: boolean;
+  }>({
+    question: '',
+    options: ['', ''],
+    multipleChoice: false,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scheduledPublishAt, setScheduledPublishAt] = useState<string | undefined>(undefined);
 
@@ -143,7 +153,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       openLoginModal();
       return;
     }
-    if (!content.trim() && !imageUrl.trim() && !selectedFile) return;
+    const hasValidPoll = Boolean(showPoll && pollDraft.question.trim() && pollDraft.options.filter(Boolean).length >= 2);
+    if (!content.trim() && !imageUrl.trim() && !selectedFile && !hasValidPoll) return;
 
     const fullContent = content.trim();
     const targetGroupId = groupId;
@@ -167,6 +178,28 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
 
     const taggedUserIds = Array.from(new Set(taggedFriends.map((f) => f.id || f.userId)));
 
+    const optimisticPoll = hasValidPoll
+      ? {
+          question: pollDraft.question.trim(),
+          options: pollDraft.options.filter(Boolean).map((t, idx) => ({
+            id: 'opt_' + (idx + 1),
+            text: t.trim(),
+            voteCount: 0,
+            votePercentage: 0,
+          })),
+          totalVotes: 0,
+          multipleChoice: pollDraft.multipleChoice,
+        }
+      : undefined;
+
+    const pollPayload = hasValidPoll
+      ? {
+          question: pollDraft.question.trim(),
+          options: pollDraft.options.filter(Boolean).map((t) => t.trim()),
+          multipleChoice: pollDraft.multipleChoice,
+        }
+      : undefined;
+
     // Build temporary optimistic post object
     const optimisticPost: Post = {
       id: tempId,
@@ -187,6 +220,7 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       groupId: targetGroupId,
       isOptimistic: true,
       taggedUserIds,
+      poll: optimisticPoll,
     };
 
     // 1. Instantly display in feed
@@ -200,6 +234,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     setSelectedFileType(null);
     setFilePreview(null);
     setShowImageInput(false);
+    setShowPoll(false);
+    setPollDraft({ question: '', options: ['', ''], multipleChoice: false });
     setTaggedFriends([]);
     setShowTagFriendsModal(false);
     if (fileInputRef.current) {
@@ -233,7 +269,8 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
           mediaUrls,
           targetGroupId,
           taggedUserIds,
-          scheduledPublishAt
+          scheduledPublishAt,
+          pollPayload
         );
         setScheduledPublishAt(undefined);
 
@@ -317,5 +354,9 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
     handleClearFile,
     handleStartLiveStream,
     handleSubmit,
+    showPoll,
+    setShowPoll,
+    pollDraft,
+    setPollDraft,
   };
 };
