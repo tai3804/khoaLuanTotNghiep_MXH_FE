@@ -4,7 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { authService } from '../../../services/api';
 
 export const useLoginForm = () => {
-  const { loginModalOpen, closeLoginModal, login, register } = useAuth();
+  const { loginModalOpen, closeLoginModal, login, register, verifyMfaLogin } = useAuth();
   const { t } = useLanguage();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
@@ -13,6 +13,12 @@ export const useLoginForm = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // 2FA MFA states
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState('');
+  const [mfaOtp, setMfaOtp] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   // Login states
   const [email, setEmail] = useState('');
@@ -216,7 +222,14 @@ export const useLoginForm = () => {
     setLoading(true);
     try {
       const res = await login(loginEmail, loginPassword);
-      if (!res.success) setError((res as any).message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
+      if (res.mfaRequired && res.mfaToken) {
+        setMfaRequired(true);
+        setMfaToken(res.mfaToken);
+      } else if (!res.success) {
+        setError((res as any).message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
+      } else {
+        closeLoginModal();
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại!');
     } finally {
@@ -231,8 +244,14 @@ export const useLoginForm = () => {
     setLoading(true);
     try {
       const res = await login(quickEmail.trim(), quickPass.trim());
-      if (!res.success) setError((res as any).message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
-      else closeLoginModal();
+      if (res.mfaRequired && res.mfaToken) {
+        setMfaRequired(true);
+        setMfaToken(res.mfaToken);
+      } else if (!res.success) {
+        setError((res as any).message || 'Đăng nhập thất bại. Email hoặc mật khẩu chưa đúng!');
+      } else {
+        closeLoginModal();
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại!');
     } finally {
@@ -240,9 +259,39 @@ export const useLoginForm = () => {
     }
   };
 
+  const handleVerifyMfaOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaOtp.trim()) return;
+    setError('');
+    setMfaLoading(true);
+    try {
+      const ok = await verifyMfaLogin(mfaToken, mfaOtp.trim());
+      if (ok) {
+        closeLoginModal();
+        setMfaRequired(false);
+        setMfaToken('');
+        setMfaOtp('');
+      } else {
+        setError('Mã OTP không chính xác hoặc đã hết hạn. Vui lòng kiểm tra lại Google Authenticator!');
+      }
+    } catch (err: any) {
+      setError('Xác thực 2FA thất bại: ' + (err.message || 'Mã OTP không đúng'));
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleCancelMfa = () => {
+    setMfaRequired(false);
+    setMfaToken('');
+    setMfaOtp('');
+    setError('');
+  };
+
   const toggleRegisterMode = () => {
     setIsRegisterMode(!isRegisterMode);
     setIsForgotPasswordMode(false);
+    setMfaRequired(false);
     setError('');
     setSuccessMsg('');
     setRegisterStep(1);
@@ -288,6 +337,12 @@ export const useLoginForm = () => {
     loading,
     error,
     successMsg,
+    mfaRequired,
+    mfaOtp,
+    setMfaOtp,
+    mfaLoading,
+    handleVerifyMfaOtp,
+    handleCancelMfa,
     handleSendForgotPasswordOtp,
     handleResetPassword,
     handleSendRegisterOtp,

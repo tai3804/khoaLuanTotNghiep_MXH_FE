@@ -3,6 +3,7 @@ import { useLoginForm } from './useLoginForm';
 import { LoginModalHeader } from './LoginModalHeader';
 import { LoginForm } from './LoginForm';
 import { ForgotPasswordForm } from '../../../pages/auth-components/ForgotPasswordForm';
+import { MfaVerificationForm } from '../../../pages/auth-components/MfaVerificationForm';
 import { RegisterStep1Email } from './RegisterStep1Email';
 import { RegisterStep2Otp } from './RegisterStep2Otp';
 import { RegisterStep3Profile } from './RegisterStep3Profile';
@@ -46,6 +47,12 @@ export const LoginModal: React.FC = () => {
     loading,
     error,
     successMsg,
+    mfaRequired,
+    mfaOtp,
+    setMfaOtp,
+    mfaLoading,
+    handleVerifyMfaOtp,
+    handleCancelMfa,
     handleSendForgotPasswordOtp,
     handleResetPassword,
     handleSendRegisterOtp,
@@ -86,7 +93,16 @@ export const LoginModal: React.FC = () => {
           </div>
         )}
 
-        {isForgotPasswordMode ? (
+        {mfaRequired ? (
+          <MfaVerificationForm
+            otpCode={mfaOtp}
+            setOtpCode={setMfaOtp}
+            loading={mfaLoading}
+            errorMessage={error || null}
+            onVerify={handleVerifyMfaOtp}
+            onCancel={handleCancelMfa}
+          />
+        ) : isForgotPasswordMode ? (
           <ForgotPasswordForm
             forgotStep={forgotStep}
             setForgotStep={setForgotStep}
@@ -162,7 +178,7 @@ export const LoginModal: React.FC = () => {
           />
         )}
 
-        {!isForgotPasswordMode && (
+        {!isForgotPasswordMode && !mfaRequired && (
           <div className="mt-5 border-t border-gray-200 dark:border-[#393a3b] pt-4 text-center">
             <button
               type="button"

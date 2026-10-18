@@ -122,8 +122,18 @@ export const authService = {
   },
 
   verifyMfa: async (mfaToken: string, otpCode: string) => {
-    let deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
-    const res = await api.post('/auth/mfa/verify', { mfaToken, otpCode, deviceFingerprint });
+    const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
+    const deviceName = getDeviceName();
+    const res = await api.post(
+      '/auth/mfa/verify',
+      { mfaToken, otpCode, deviceFingerprint, deviceName },
+      {
+        headers: {
+          'X-Client-Type': 'WEB',
+          'X-Device-Fingerprint': deviceFingerprint,
+        },
+      }
+    );
     return res.data;
   },
 
