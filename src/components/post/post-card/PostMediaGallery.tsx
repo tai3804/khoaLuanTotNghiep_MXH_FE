@@ -21,15 +21,32 @@ interface MediaCellProps {
 }
 
 /** Một ô ảnh/video trong bài viết: giữ chỗ cố định, hiệu ứng tải, bấm để mở trình xem ảnh. */
-const MediaCell: React.FC<MediaCellProps> = ({ item, index, onOpen, hiddenCount = 0, className = '', ratio, remember }) => {
+const MediaCell: React.FC<MediaCellProps> = ({
+  item,
+  index,
+  onOpen,
+  hiddenCount = 0,
+  className = '',
+  ratio: initialRatio,
+  remember,
+}) => {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [dynamicRatio, setDynamicRatio] = useState<number | undefined>(initialRatio);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const markLoaded = (img: HTMLImageElement) => {
     setLoaded(true);
-    if (remember) rememberRatio(item.url, img.naturalWidth, img.naturalHeight);
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const realRatio = clampRatio(img.naturalWidth / img.naturalHeight);
+      setDynamicRatio(realRatio);
+      if (remember) rememberRatio(item.url, img.naturalWidth, img.naturalHeight);
+    }
   };
+
+  useEffect(() => {
+    setDynamicRatio(initialRatio);
+  }, [initialRatio, item.url]);
 
   // Ảnh có sẵn trong cache của trình duyệt có thể đã tải xong trước khi React gắn onLoad
   useEffect(() => {
@@ -50,8 +67,8 @@ const MediaCell: React.FC<MediaCellProps> = ({ item, index, onOpen, hiddenCount 
           onOpen(index);
         }
       }}
-      className={`relative overflow-hidden bg-gray-200 dark:bg-[#3a3b3c] cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2] ${className}`}
-      style={ratio ? { aspectRatio: ratio } : undefined}
+      className={`w-full relative overflow-hidden bg-gray-100 dark:bg-[#2d2f31] cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2] ${className}`}
+      style={dynamicRatio ? { aspectRatio: dynamicRatio } : undefined}
     >
       {item.video ? (
         <>
@@ -133,21 +150,28 @@ export const PostMediaGallery: React.FC<PostMediaGalleryProps> = ({ urls, mediaL
     const single = items[0];
     if (single.video) {
       body = (
-        <div className={compact ? 'max-h-[420px] overflow-hidden' : undefined}>
+        <div className={compact ? 'w-full max-h-[480px] overflow-hidden' : 'w-full'}>
           <VideoPlayer src={single.url} reserveSpace />
         </div>
       );
     } else {
       const ratio = clampRatio(getKnownRatio(single.url) ?? DEFAULT_IMAGE_RATIO);
-      body = (
+      const cell = (
         <MediaCell
           item={single}
           index={0}
           onOpen={open}
           ratio={ratio}
           remember
-          className={compact ? 'max-h-[420px]' : ''}
+          className="w-full"
         />
+      );
+      body = compact ? (
+        <div className="w-full max-h-[520px] overflow-hidden">
+          {cell}
+        </div>
+      ) : (
+        cell
       );
     }
   } else {
@@ -167,14 +191,14 @@ export const PostMediaGallery: React.FC<PostMediaGalleryProps> = ({ urls, mediaL
       cellClass = (i) => (i < 2 ? 'col-span-3' : 'col-span-2');
     }
     body = (
-      <div className={`grid gap-0.5 ${gridClass}`}>
+      <div className={`grid gap-0.5 w-full ${gridClass}`}>
         {tiles.map((item, i) => (
           <MediaCell
             key={`${item.url}-${i}`}
             item={item}
             index={i}
             onOpen={open}
-            className={cellClass(i)}
+            className={`${cellClass(i)} h-full`}
             hiddenCount={i === MAX_TILES - 1 && hidden > 0 ? hidden : 0}
           />
         ))}
@@ -183,7 +207,7 @@ export const PostMediaGallery: React.FC<PostMediaGalleryProps> = ({ urls, mediaL
   }
 
   return (
-    <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden">
+    <div className="w-full overflow-hidden">
       {body}
       {lightboxIndex !== null && (
         <MediaLightbox
