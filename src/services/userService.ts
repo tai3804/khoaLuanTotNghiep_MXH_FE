@@ -1,15 +1,62 @@
 import { api } from './axiosClient';
 import { store } from '../store/store';
 
+/** Quyền hạn / mức phạt của một bậc uy tín. */
+export interface ReputationTier {
+  level: string;
+  levelLabel: string;
+  minScore: number;
+  maxScore: number;
+  /** Các hạn chế bằng tiếng Việt; rỗng nếu bậc này không bị hạn chế. */
+  restrictions: string[];
+  accountLocked: boolean;
+}
+
 export interface MyReputation {
   userId: string;
   score: number;
   maxScore: number;
-  /** EXCELLENT | GOOD | CAUTION | WARNING | CRITICAL */
+  /** EXCELLENT | GOOD | CAUTION | WEAK | VERY_WEAK | LOCKED */
   level: string;
   levelLabel: string;
   /** Điểm tối thiểu của bậc kế tiếp phía trên, null nếu đã ở bậc cao nhất */
   nextLevelScore: number | null;
+  /** Quyền hạn của bậc hiện tại */
+  policy?: ReputationTier;
+  /** Bảng quyền hạn của mọi bậc, từ cao xuống thấp */
+  tiers?: ReputationTier[];
+  /** Số điểm tự hồi phục mỗi ngày không bị trừ điểm */
+  recoveryPerDay?: number;
+  /** Lúc được cộng điểm hồi phục kế tiếp (ISO, giờ máy chủ); null nếu đã đủ điểm */
+  nextRecoveryAt?: string | null;
+  /** Tài khoản bị khóa tới lúc này (ISO); null nếu không bị khóa */
+  lockedUntil?: string | null;
+}
+
+/** Một dòng lịch sử điểm uy tín. */
+export interface ReputationHistoryItem {
+  id: string;
+  /** PENALTY (bị trừ) | REFUND (được hoàn) | RECOVERY (tự hồi phục) | LOCK | UNLOCK */
+  type: string;
+  /** WARN_USER | AUTO_HIDE | HIDE_POST | DELETE_POST; null với các loại không do một bài viết gây ra */
+  action?: string | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  points: number;
+  scoreBefore: number;
+  scoreAfter: number;
+  reason?: string | null;
+  /** Lần trừ này đã được hoàn lại (khôi phục bài, kháng nghị thành công...) */
+  reverted: boolean;
+  /** Giờ máy chủ, LocalDateTime không kèm múi giờ */
+  createdAt: string;
+}
+
+export interface ReputationHistoryPage {
+  items: ReputationHistoryItem[];
+  /** Đã là trang cuối */
+  last: boolean;
+  total: number;
 }
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
@@ -519,6 +566,17 @@ export const userService = {
     try {
       const res = await api.get('/users/reputation/me');
       return res.data?.data ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  /** Lịch sử cộng/trừ điểm uy tín của chính mình, mới nhất trước. page bắt đầu từ 1. */
+  getMyReputationHistory: async (page = 1, size = 10): Promise<ReputationHistoryPage | null> => {
+    try {
+      const res = await api.get('/users/reputation/me/history', { params: { page, size } });
+      const items: ReputationHistoryItem[] = Array.isArray(res.data?.data) ? res.data.data : [];
+      return { items, last: res.data?.last ?? items.length < size, total: res.data?.totalElements ?? items.length };
     } catch {
       return null;
     }

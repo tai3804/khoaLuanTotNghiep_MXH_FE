@@ -7,8 +7,8 @@ import { EditAudienceModal } from '../EditAudienceModal';
 import { EditPostDateModal } from '../EditPostDateModal';
 import { usePostCardData } from './usePostCardData';
 import { PostCardHeader } from './PostCardHeader';
-import { PostCardContent, isVideo, VideoPlayer } from './PostCardContent';
-import { PostMediaGrid } from './PostMediaGrid';
+import { PostCardContent } from './PostCardContent';
+import { PostMediaGallery } from './PostMediaGallery';
 import { PostCardStatsBar } from './PostCardStatsBar';
 import { PostCardActionsBar } from './PostCardActionsBar';
 import { PostCardCommentsPreview } from './PostCardCommentsPreview';
@@ -162,11 +162,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               )}
               {originalPost.mediaUrls && originalPost.mediaUrls.length > 0 && (
                 <div className="w-full overflow-hidden border-t border-gray-100 dark:border-[#393a3b]">
-                  <PostMediaGrid
-                    mediaUrls={originalPost.mediaUrls}
-                    mediaList={originalPost.mediaList}
-                    onMediaClick={() => data.setShowCommentModal(true)}
-                  />
+                  <PostMediaGallery urls={originalPost.mediaUrls} mediaList={originalPost.mediaList} compact />
                 </div>
               )}
             </div>

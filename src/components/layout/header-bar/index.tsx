@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   } = useHeaderData({ onTabChange });
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between h-14 px-4 bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] shadow-sm transition-colors duration-200">
+    <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between h-14 px-2 sm:px-4 bg-white dark:bg-[#242526] border-b border-gray-200 dark:border-[#393a3b] shadow-sm transition-colors duration-200">
       <HeaderBrandSearch
         searchRef={searchRef}
         searchQuery={searchQuery}

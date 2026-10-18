@@ -10,6 +10,8 @@ interface LiveStreamViewerVideoProps {
   hostName: string;
   cleanTitle: string;
   onToggleMute: () => void;
+  /** 'host': chủ phòng rớt kết nối, người xem đang chờ họ quay lại. 'self': chính chủ phòng vừa tải lại trang, đang nối lại camera. */
+  waitingFor?: 'host' | 'self';
 }
 
 export const LiveStreamViewerVideo: React.FC<LiveStreamViewerVideoProps> = ({
@@ -20,6 +22,7 @@ export const LiveStreamViewerVideo: React.FC<LiveStreamViewerVideoProps> = ({
   hostName,
   cleanTitle,
   onToggleMute,
+  waitingFor,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -66,10 +69,22 @@ export const LiveStreamViewerVideo: React.FC<LiveStreamViewerVideoProps> = ({
           <div className="text-center px-4">
             <div className="flex items-center justify-center space-x-1.5 text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Đang kết nối luồng phát trực tiếp...</span>
+              <span>
+                {waitingFor === 'host'
+                  ? 'Chủ phòng đang kết nối lại, vui lòng chờ...'
+                  : waitingFor === 'self'
+                    ? 'Đang kết nối lại buổi phát của bạn...'
+                    : 'Đang kết nối luồng phát trực tiếp...'}
+              </span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white max-w-lg truncate">{cleanTitle}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{hostName} đang phát sóng</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {waitingFor === 'host'
+                ? `${hostName} sẽ quay lại trong giây lát`
+                : waitingFor === 'self'
+                  ? 'Hãy cho phép camera nếu trình duyệt hỏi'
+                  : `${hostName} đang phát sóng`}
+            </p>
           </div>
         </div>
       </div>

@@ -1,282 +1,334 @@
-import React, { useState, useEffect } from 'react';
-import { Users2, Plus, Globe, Lock, ArrowRight, Check, Clock, Search, RefreshCw, Compass, ShieldCheck, X } from 'lucide-react';
-import { groupService, GroupResponse } from '../../services/groupService';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, Clock, Compass, Loader2, Mail, Plus, Search, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { GroupAvatar } from '../common/GroupAvatar';
+import { groupService, GroupResponse } from '../../services/groupService';
+import { useToast } from '../../context/ToastContext';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { Skeleton } from '../common/Skeleton';
+import { GroupCard } from './GroupCard';
+import { useGroupMembership } from './useGroupMembership';
+
+/** discover = nhóm chưa tham gia, joined = nhóm của mình, invited = lời mời đang chờ */
+export type GroupListScope = 'discover' | 'joined' | 'invited';
 
 interface GroupsDiscoverProps {
+  scope: GroupListScope;
   onCreateGroupClick: () => void;
+  /** Chuyển sang tab Khám phá (từ trạng thái rỗng của các tab khác). */
+  onExplore: () => void;
 }
 
-export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ onCreateGroupClick }) => {
-  const { user } = useAuth();
-  const [groups, setGroups] = useState<GroupResponse[]>([]);
-  const [loadError, setLoadError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [filterTab, setFilterTab] = useState<'all' | 'joined' | 'managed'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const navigate = useNavigate();
+const PAGE_SIZE = 12;
 
-  const loadGroups = async (silent = false) => {
-    if (!silent) setLoading(true);
+const COPY: Record<GroupListScope, { title: string; subtitle: string; empty: string; emptyHint: string; searchable: boolean }> = {
+  discover: {
+    title: 'Khám phá nhóm',
+    subtitle: 'Tìm những cộng đồng phù hợp với sở thích của bạn.',
+    empty: 'Chưa có nhóm nào để khám phá',
+    emptyHint: 'Hãy tạo nhóm mới để bắt đầu xây dựng cộng đồng.',
+    searchable: true,
+  },
+  joined: {
+    title: 'Nhóm của bạn',
+    subtitle: 'Những nhóm bạn đã tham gia hoặc đang quản lý.',
+    empty: 'Bạn chưa tham gia nhóm nào',
+    emptyHint: 'Sang tab "Khám phá" để tìm và tham gia các nhóm bạn quan tâm.',
+    searchable: true,
+  },
+  invited: {
+    title: 'Lời mời tham gia nhóm',
+    subtitle: 'Bạn bè và quản trị viên mời bạn vào các nhóm này.',
+    empty: 'Bạn không có lời mời nào',
+    emptyHint: 'Khi ai đó mời bạn vào nhóm, lời mời sẽ hiện ở đây để bạn chấp nhận hoặc từ chối.',
+    searchable: false,
+  },
+};
+
+/** Các yêu cầu tham gia nhóm riêng tư mình đã gửi và đang chờ duyệt: thu gọn được, hủy ngay tại đây. */
+const PendingRequests: React.FC = () => {
+  const navigate = useNavigate();
+  const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [open, setOpen] = useState(true);
+
+  const load = useCallback(async () => {
     try {
-      setLoadError('');
-      const data = await groupService.getGroups();
-      setGroups(data);
+      const result = await groupService.getGroups({ scope: 'pending', page: 1, size: 50 });
+      setGroups(result.groups);
     } catch {
       setGroups([]);
-      setLoadError('Không thể tải danh sách nhóm. Hãy kiểm tra backend và thử lại.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+    window.addEventListener('community_group_updated', load);
+    return () => window.removeEventListener('community_group_updated', load);
+  }, [load]);
+
+  const { busyId, cancelRequest } = useGroupMembership((_, previous) => {
+    setGroups((prev) => prev.filter((g) => g.id !== previous.id));
+  });
+
+  if (groups.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/70 dark:bg-amber-900/10">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 px-4 py-3 text-left cursor-pointer"
+      >
+        <Clock className="w-4 h-4 text-amber-600 dark:text-amber-300 shrink-0" />
+        <span className="flex-1 text-sm font-bold text-amber-900 dark:text-amber-100">
+          Yêu cầu đang chờ duyệt ({groups.length})
+        </span>
+        <ChevronDown className={`w-4 h-4 text-amber-700 dark:text-amber-200 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul className="px-3 pb-3 grid grid-cols-1 lg:grid-cols-2 gap-2">
+          {groups.map((group) => (
+            <li key={group.id} className="flex items-center gap-3 rounded-xl bg-white dark:bg-[#242526] border border-amber-100 dark:border-[#393a3b] p-3">
+              <button
+                type="button"
+                onClick={() => navigate(`/groups/${group.id}`)}
+                className="flex-1 min-w-0 text-left cursor-pointer"
+              >
+                <span className="block text-sm font-bold text-gray-900 dark:text-[#e4e6eb] truncate hover:underline">{group.name}</span>
+                <span className="block text-xs text-gray-500 dark:text-[#b0b3b8]">
+                  Chờ quản trị viên duyệt · {group.memberCount.toLocaleString('vi-VN')} thành viên
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={busyId === group.id}
+                onClick={() => cancelRequest(group)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-[#3a3b3c] text-gray-800 dark:text-[#e4e6eb] hover:bg-gray-200 dark:hover:bg-[#4e4f50] disabled:opacity-60 cursor-pointer"
+              >
+                {busyId === group.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Hủy yêu cầu
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+export const GroupsDiscover: React.FC<GroupsDiscoverProps> = ({ scope, onCreateGroupClick, onExplore }) => {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const copy = COPY[scope];
+
+  const [searchInput, setSearchInput] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [page, setPage] = useState(1);
+  const [last, setLast] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  // Chỉ nhận kết quả của lần gọi mới nhất (tránh tab/từ khóa cũ ghi đè kết quả mới)
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setKeyword(searchInput.trim()), 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const loadFirstPage = useCallback(async () => {
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setLoadError('');
+    try {
+      const result = await groupService.getGroups({ scope, keyword: copy.searchable ? keyword : '', page: 1, size: PAGE_SIZE });
+      if (seq !== requestSeq.current) return;
+      setGroups(result.groups);
+      setPage(1);
+      setLast(result.last);
+      setTotal(result.totalElements);
+    } catch (err) {
+      if (seq !== requestSeq.current) return;
+      setGroups([]);
+      setLoadError(getApiErrorMessage(err, 'Không thể tải danh sách nhóm. Vui lòng thử lại.'));
     } finally {
-      if (!silent) setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
+    }
+  }, [scope, keyword, copy.searchable]);
+
+  useEffect(() => {
+    void loadFirstPage();
+  }, [loadFirstPage]);
+
+  const loadMore = async () => {
+    if (loadingMore || last) return;
+    const seq = requestSeq.current;
+    setLoadingMore(true);
+    try {
+      const result = await groupService.getGroups({ scope, keyword: copy.searchable ? keyword : '', page: page + 1, size: PAGE_SIZE });
+      if (seq !== requestSeq.current) return;
+      setGroups((prev) => {
+        const known = new Set(prev.map((g) => g.id));
+        return [...prev, ...result.groups.filter((g) => !known.has(g.id))];
+      });
+      setPage(result.page);
+      setLast(result.last);
+      setTotal(result.totalElements);
+    } catch (err) {
+      toast.showError(getApiErrorMessage(err, 'Không thể tải thêm nhóm.'));
+    } finally {
+      setLoadingMore(false);
     }
   };
 
-  useEffect(() => {
-    loadGroups();
-    const handleUpdate = () => loadGroups(true);
-    window.addEventListener('community_group_created', handleUpdate);
-    window.addEventListener('community_group_updated', handleUpdate);
-    return () => {
-      window.removeEventListener('community_group_created', handleUpdate);
-      window.removeEventListener('community_group_updated', handleUpdate);
-    };
-  }, [user?.id]);
+  const { busyId, requestJoin, cancelRequest, respondToInvitation, joinModal } = useGroupMembership((updated, previous) => {
+    // Lời mời đã được trả lời thì không còn nằm trong danh sách lời mời
+    if (scope === 'invited') {
+      setGroups((prev) => prev.filter((g) => g.id !== previous.id));
+      setTotal((t) => Math.max(0, t - 1));
+      return;
+    }
+    if (!updated) {
+      void loadFirstPage();
+      return;
+    }
+    setGroups((prev) => prev.map((g) => (g.id === previous.id ? updated : g)));
+  });
 
-  const handleToggleJoin = async (e: React.MouseEvent, groupId: string) => {
-    e.stopPropagation();
-    await groupService.toggleJoinGroup(groupId);
-    loadGroups(true);
-  };
-
-  const joinedGroups = groups.filter((g) => g.isMember);
-  const managedGroups = groups.filter((g) => g.isAdmin);
-
-  const displayedGroups = groups
-    .filter((g) => {
-      if (filterTab === 'joined') return g.isMember;
-      if (filterTab === 'managed') return g.isAdmin;
-      return true;
-    })
-    .filter((g) => {
-      if (!searchTerm.trim()) return true;
-      const term = searchTerm.toLowerCase();
-      return (
-        (g.name && g.name.toLowerCase().includes(term)) ||
-        (g.description && g.description.toLowerCase().includes(term))
-      );
-    });
+  const openGroup = (groupId: string) => navigate(`/groups/${groupId}`);
+  const hasKeyword = keyword.length > 0;
 
   return (
-    <div className="w-full space-y-5">
-      {/* Groups Navigation Options & Actions */}
-      <div className="mb-4 space-y-3">
-        {/* Row 1: Search Bar on Left, Reload & Create Group on Top Right */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative flex-1 max-w-xs sm:max-w-sm">
-            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400 dark:text-[#b0b3b8]" />
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">{copy.title}</h2>
+          <p className="text-sm text-gray-500 dark:text-[#b0b3b8]">{copy.subtitle}</p>
+        </div>
+
+        {copy.searchable && (
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm nhóm..."
-              className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#1877f2] transition"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={scope === 'joined' ? 'Tìm trong nhóm của bạn...' : 'Tìm nhóm theo tên hoặc mô tả...'}
+              aria-label="Tìm nhóm"
+              maxLength={100}
+              className="w-full pl-9 pr-9 py-2 bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#393a3b] rounded-full text-sm text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-none focus:border-[#1877f2] focus:ring-1 focus:ring-[#1877f2] transition"
             />
-            {searchTerm && (
+            {searchInput && (
               <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] cursor-pointer"
-                title="Xóa tìm kiếm"
+                type="button"
+                onClick={() => setSearchInput('')}
+                aria-label="Xóa từ khóa"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-[#4e4f50] cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              onClick={() => loadGroups(false)}
-              title="Làm mới danh sách nhóm"
-              className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-
-            <button
-              onClick={onCreateGroupClick}
-              className="bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm group whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
-              <span>Tạo nhóm mới</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Option Pills */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setFilterTab('all')}
-            className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-              filterTab === 'all'
-                ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-            }`}
-          >
-            <Compass className="w-4 h-4" />
-            <span>Tất cả nhóm</span>
-            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-              filterTab === 'all' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-            }`}>
-              {groups.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setFilterTab('joined')}
-            className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-              filterTab === 'joined'
-                ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-            }`}
-          >
-            <Users2 className="w-4 h-4" />
-            <span>Đã tham gia</span>
-            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-              filterTab === 'joined' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-            }`}>
-              {joinedGroups.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setFilterTab('managed')}
-            className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
-              filterTab === 'managed'
-                ? 'bg-[#1877f2] text-white shadow-xs font-bold'
-                : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Quản trị</span>
-            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-              filterTab === 'managed' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb]'
-            }`}>
-              {managedGroups.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Row 3: Thống kê số lượng nhóm */}
-        <div className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium pt-0.5">
-          {filterTab === 'all'
-            ? `Tất cả cộng đồng (${groups.length})`
-            : filterTab === 'joined'
-            ? `Nhóm bạn đã tham gia (${joinedGroups.length})`
-            : `Nhóm do bạn quản trị (${managedGroups.length})`}
-        </div>
-      </div>
-
-      {/* Suggested Groups Grid */}
-      <div className="space-y-4">
-        {loadError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">{loadError}</div>
-        ) : displayedGroups.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 dark:border-[#4e4f50] bg-white/60 dark:bg-[#242526]/60 px-6 py-12 text-center space-y-2">
-            <Users2 className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" />
-            <h4 className="font-bold text-gray-800 dark:text-[#e4e6eb]">Không tìm thấy nhóm phù hợp</h4>
-            <p className="text-xs text-gray-500 dark:text-[#b0b3b8]">Hãy thử từ khóa khác hoặc tạo nhóm mới để bắt đầu xây dựng cộng đồng.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayedGroups.map((group) => {
-              const hasCover = typeof group.coverUrl === 'string' && group.coverUrl.trim() && !group.coverUrl.includes('images.unsplash.com/photo-1522071820081');
-              return (
-                <div
-                  key={group.id}
-                  onClick={() => navigate(`/groups/${group.id}`)}
-                  className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-sm hover:shadow-md transition overflow-hidden cursor-pointer flex flex-col group select-none"
-                >
-                  {/* Cover Image Frame */}
-                  <div className="h-36 w-full relative overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-[#1a1b1c]">
-                    {hasCover ? (
-                      <img
-                        src={group.coverUrl}
-                        alt={group.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#2a2b2d] dark:to-[#1a1b1d] group-hover:scale-105 transition duration-300">
-                        <GroupAvatar
-                          name={group.name}
-                          size="xl"
-                          shape="squircle"
-                          className="shadow-lg ring-4 ring-white/30 dark:ring-white/10"
-                        />
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1">
-                      {group.privacy === 'PUBLIC' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                      {group.privacy === 'PUBLIC' ? 'Công khai' : 'Riêng tư'}
-                    </div>
-                  </div>
-
-                  {/* Group Info */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div className="space-y-1">
-                      <h4 className="font-bold text-base text-gray-900 dark:text-[#e4e6eb] line-clamp-1 group-hover:text-[#1877f2] transition">
-                        {group.name}
-                      </h4>
-                      <span className="text-xs text-gray-500 dark:text-[#b0b3b8] font-medium block">
-                        {group.memberCount} thành viên
-                      </span>
-                      <p className="text-xs text-gray-600 dark:text-[#b0b3b8] line-clamp-2 leading-relaxed pt-1">
-                        {group.description || 'Không có mô tả chi tiết.'}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleToggleJoin(e, group.id)}
-                        className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${group.isMember
-                            ? 'bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-200'
-                            : group.joinStatus === 'PENDING'
-                              ? 'bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200'
-                              : 'bg-[#1877f2] hover:bg-[#166fe5] text-white shadow-sm'
-                          }`}
-                        title={group.joinStatus === 'PENDING' ? 'Bấm để hủy yêu cầu tham gia' : undefined}
-                      >
-                        {group.isMember ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-green-500" />
-                            Đã tham gia
-                          </>
-                        ) : group.joinStatus === 'PENDING' ? (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                            Đã gửi yêu cầu (Hủy)
-                          </>
-                        ) : (
-                          'Tham gia nhóm'
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => navigate(`/groups/${group.id}`)}
-                        className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-[#3a3b3c] rounded-xl transition cursor-pointer"
-                        title="Xem nhóm"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         )}
       </div>
+
+      {scope === 'joined' && !hasKeyword && <PendingRequests />}
+
+      {!loading && !loadError && groups.length > 0 && (
+        <p className="text-xs text-gray-500 dark:text-[#b0b3b8]" aria-live="polite">
+          {hasKeyword ? `${total} kết quả cho "${keyword}"` : `${total} nhóm`}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-busy="true">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-[#242526] rounded-2xl border border-gray-200 dark:border-[#393a3b] overflow-hidden">
+              <Skeleton className="w-full h-28 sm:h-32 rounded-none" />
+              <div className="p-4 space-y-3">
+                <Skeleton variant="text" width="70%" height="1.1rem" />
+                <Skeleton variant="text" width="40%" height="0.8rem" />
+                <Skeleton variant="text" width="100%" height="2rem" />
+                <Skeleton width="100%" height="2.25rem" className="rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center dark:border-red-900/50 dark:bg-red-900/20">
+          <p className="text-sm text-red-700 dark:text-red-200">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => void loadFirstPage()}
+            className="mt-4 px-4 py-2 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-bold cursor-pointer"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 dark:border-[#4e4f50] bg-white/60 dark:bg-[#242526]/60 px-6 py-12 text-center">
+          {scope === 'invited' ? (
+            <Mail className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+          ) : scope === 'discover' ? (
+            <Compass className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+          ) : (
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+          )}
+          {hasKeyword ? (
+            <>
+              <h4 className="font-bold text-gray-800 dark:text-[#e4e6eb]">Không tìm thấy nhóm phù hợp</h4>
+              <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">Thử từ khóa khác hoặc xóa bộ lọc tìm kiếm.</p>
+            </>
+          ) : (
+            <>
+              <h4 className="font-bold text-gray-800 dark:text-[#e4e6eb]">{copy.empty}</h4>
+              <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8] max-w-md mx-auto">{copy.emptyHint}</p>
+              {scope !== 'invited' && (
+                <button
+                  type="button"
+                  onClick={scope === 'joined' ? onExplore : onCreateGroupClick}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1877f2] hover:bg-[#166fe5] text-white text-sm font-bold cursor-pointer"
+                >
+                  {scope === 'joined' ? <Compass className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {scope === 'joined' ? 'Khám phá nhóm' : 'Tạo nhóm mới'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {groups.map((group) => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                busy={busyId === group.id}
+                onOpen={openGroup}
+                onJoin={requestJoin}
+                onCancelRequest={cancelRequest}
+                onRespondInvitation={respondToInvitation}
+              />
+            ))}
+          </div>
+          {!last && (
+            <div className="flex justify-center pt-2 pb-6">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+                className="px-6 py-2.5 rounded-xl bg-white dark:bg-[#3a3b3c] border border-gray-200 dark:border-[#4e4f50] text-sm font-bold text-gray-800 dark:text-[#e4e6eb] hover:bg-gray-50 dark:hover:bg-[#4e4f50] transition flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+              >
+                {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                Xem thêm nhóm
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {joinModal}
     </div>
   );
 };
-
-

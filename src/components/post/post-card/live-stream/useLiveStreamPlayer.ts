@@ -4,6 +4,7 @@ import { useAuth } from '../../../../context/AuthContext';
 import { useLiveStream, LiveComment } from '../../../../context/LiveStreamContext';
 import { useLiveViewerStream } from './useLiveViewerStream';
 import { liveStreamWebSocketService } from '../../../../services/liveStreamWebSocket';
+import { formatElapsed } from '../../../../utils/timeAgo';
 
 export const useLiveStreamPlayer = (post: Post) => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     openStudio,
     isPostLive,
     loadPostComments,
+    resumableLive,
   } = useLiveStream();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,17 +33,21 @@ export const useLiveStreamPlayer = (post: Post) => {
 
   const isPostLiveActive = isPostLive(post);
   const isHost = activeBroadcast.isBroadcasting && (activeBroadcast.postId === post.id || user?.id === post.userId);
+  // Chính chủ phòng vừa tải lại trang: buổi phát đang được giữ chờ nối lại, không được coi mình là người xem
+  // (nếu không, không ai trả luồng sẽ bị hiểu là buổi phát đã kết thúc)
+  const isHostResuming = !isHost && resumableLive?.postId === post.id;
 
   // Hook up WebRTC viewer stream when watching someone else's live stream
   const viewerStream = useLiveViewerStream(
-    !isHost && isPostLiveActive ? post.id : '',
+    !isHost && !isHostResuming && isPostLiveActive ? post.id : '',
     post.userId,
     post.content
   );
 
   const isLive = isHost
     ? activeBroadcast.isBroadcasting
-    : isPostLiveActive && !viewerStream.hasEnded && (!viewerStream.isChecking || viewerStream.isConnected);
+    : isHostResuming ||
+      (isPostLiveActive && !viewerStream.hasEnded && (!viewerStream.isChecking || viewerStream.isConnected));
 
   // Auto-subscribe viewer to WebSocket room for real-time comments & reactions
   useEffect(() => {
@@ -61,22 +67,21 @@ export const useLiveStreamPlayer = (post: Post) => {
   const comments = liveCommentsMap[post.id] || [];
   const reactions = liveReactionsMap[post.id] || [];
 
-  // Elapsed duration counter
+  // Đồng hồ thời lượng phát. Mốc bắt đầu: chủ phòng dùng lúc bấm phát (đồng hồ máy mình); người xem, hoặc chủ phòng
+  // sau khi tải lại trang, dùng giờ đăng bài (bài live được đăng đúng lúc bắt đầu phát) nên đồng hồ luôn khớp với
+  // "x phút trước" của bài, thay vì chỉ đếm từ lúc thẻ bài được mở trên màn hình người xem.
   useEffect(() => {
     if (!isLive) return;
-    const start = activeBroadcast.startedAt || Date.now();
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - start) / 1000));
-    }, 1000);
+    const postStart = post.createdAtRaw ? new Date(post.createdAtRaw).getTime() : NaN;
+    const start = (isHost ? activeBroadcast.startedAt : null) ?? (Number.isNaN(postStart) ? Date.now() : postStart);
+    const tick = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+    tick();
+    const interval = setInterval(tick, 1000);
 
     return () => clearInterval(interval);
-  }, [isLive, activeBroadcast.startedAt]);
+  }, [isLive, isHost, activeBroadcast.startedAt, post.createdAtRaw]);
 
-  const formattedTime = useMemo(() => {
-    const mins = Math.floor(elapsedSeconds / 60);
-    const secs = elapsedSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, [elapsedSeconds]);
+  const formattedTime = useMemo(() => formatElapsed(elapsedSeconds), [elapsedSeconds]);
 
   const handleStartReply = (comment: LiveComment) => {
     setReplyingTo(comment);
@@ -128,6 +133,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     inputRef,
     isLive,
     isHost,
+    isHostResuming,
     activeBroadcast,
     viewerStream,
     effectiveViewerCount,

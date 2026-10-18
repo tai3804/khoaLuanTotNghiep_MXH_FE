@@ -5,6 +5,9 @@ import { getDeviceFingerprint } from '../utils/fingerprint';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
+/** Mã lỗi (trường code của phản hồi) khi tài khoản đang bị khóa; khớp ACCOUNT_LOCKED_CODE ở post-service và user-service. */
+const ACCOUNT_LOCKED_CODE = 40320;
+
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
@@ -53,6 +56,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Máy chủ từ chối vì tài khoản đang bị khóa (điểm uy tín quá thấp): báo cho AccountLockedScreen hiện màn hình khóa
+    if (error.response?.status === 403 && error.response?.data?.code === ACCOUNT_LOCKED_CODE) {
+      window.dispatchEvent(new CustomEvent('account_locked'));
+    }
 
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/login')) {

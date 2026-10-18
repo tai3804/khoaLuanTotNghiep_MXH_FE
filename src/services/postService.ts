@@ -114,6 +114,7 @@ export const normalizePost = (p: any): Post => {
     viewsCount: Number(p.viewCount ?? p.viewsCount ?? 0),
     isLiked: Boolean(p.isLiked),
     isPinned: Boolean(p.isPinned),
+    groupPinned: Boolean(p.groupPinned),
     isArchived: Boolean(p.isArchived),
     isTrending: Boolean(p.isTrending ?? ((Number(p.viewCount ?? p.viewsCount ?? 0) >= 50) || ((Number(p.likeCount ?? p.likesCount ?? 0) + Number(p.commentCount ?? p.commentsCount ?? 0)) >= 10))),
     scheduledPublishAt: p.scheduledPublishAt,
@@ -134,6 +135,39 @@ export const normalizePost = (p: any): Post => {
 };
 
 export type FeedMode = 'relevance' | 'recent' | 'trending';
+
+/** Thứ tự bài trong nhóm: 'activity' = hoạt động gần đây, 'newest' = bài mới đăng. */
+export type GroupPostSort = 'activity' | 'newest';
+
+/** Bài viết bị thành viên báo cáo cho quản trị viên nhóm, kèm các lý do. */
+export interface GroupReportedPost {
+  post: Post;
+  reportCount: number;
+  reasons: { reason: string; count: number }[];
+  reports: { reporterId: string; reporterName: string; reason: string; detail?: string; createdAt: string }[];
+}
+
+export interface GroupPostStats {
+  postsToday: number;
+  postsThisWeek: number;
+  totalPosts: number;
+}
+
+export interface GroupModerationCounts {
+  pendingPosts: number;
+  pendingAppeals: number;
+  reportedPosts: number;
+}
+
+/** Một ảnh/video trong tab "Ảnh & video" của nhóm; postId để mở bài viết gốc. */
+export interface GroupMediaItem {
+  id: string;
+  postId: string;
+  url: string;
+  type: 'IMAGE' | 'VIDEO';
+  authorId: string;
+  createdAt: string;
+}
 
 export interface PagedPostsResponse {
   posts: Post[];
@@ -175,7 +209,14 @@ export const postService = {
    *  - 'trending'  (Nổi bật): xếp theo tốc độ tương tác, phân trang theo số trang
    *  - 'recent'    (Mới nhất): thứ tự thời gian, phân trang theo cursor
    */
-  getFeedPaged: async (page = 1, size = 10, cursor?: string | null, mode: FeedMode = 'recent'): Promise<PagedPostsResponse> => {
+  getFeedPaged: async (
+    page = 1,
+    size = 10,
+    cursor?: string | null,
+    mode: FeedMode = 'recent',
+    // true: máy chủ bỏ các bài người dùng đã xem (giống Facebook không bắt xem lại sau khi tải lại trang)
+    unseenOnly = false,
+  ): Promise<PagedPostsResponse> => {
     try {
       const ranked = mode === 'relevance' || mode === 'trending';
       const params: Record<string, any> = {
@@ -186,6 +227,9 @@ export const postService = {
       };
       if (!ranked && cursor) {
         params.cursor = cursor;
+      }
+      if (unseenOnly) {
+        params.unseenOnly = true;
       }
 
       const res = await api.get('/posts', { params });
@@ -248,7 +292,13 @@ export const postService = {
     }
   },
 
-  getWatchFeed: async (page = 1, size = 10, cursor?: string | null): Promise<PagedPostsResponse> => {
+  getWatchFeed: async (
+    page = 1,
+    size = 10,
+    cursor?: string | null,
+    // true: máy chủ bỏ các video người dùng đã xem (không bắt xem lại sau khi tải lại trang)
+    unseenOnly = false,
+  ): Promise<PagedPostsResponse> => {
     try {
       const params: Record<string, any> = {
         page,
@@ -259,6 +309,9 @@ export const postService = {
       };
       if (cursor) {
         params.cursor = cursor;
+      }
+      if (unseenOnly) {
+        params.unseenOnly = true;
       }
 
       const res = await api.get('/posts', { params });
@@ -495,6 +548,90 @@ export const postService = {
     }
   },
 
+  /**
+   * Một trang bài viết của nhóm (page từ 1); bài quản trị viên ghim luôn ở đầu trang 1.
+   * sort: 'activity' = hoạt động gần đây (mặc định như Facebook), 'newest' = bài mới đăng.
+   * Ném lỗi khi gọi thất bại để giao diện hiện đúng trạng thái lỗi.
+   */
+  getGroupPostsPage: async (groupId: string, page = 1, size = 10, sort: GroupPostSort = 'activity', keyword = ''): Promise<{ posts: Post[]; last: boolean }> => {
+    const res = await api.get(`/posts/group/${groupId}`, {
+      params: { page, size, sortBy: sort === 'newest' ? 'createdAt' : 'lastActivityAt', sortDirection: 'DESC', keyword: keyword.trim() || undefined },
+    });
+    const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
+    const list: any[] = Array.isArray(raw) ? raw : [];
+    const authorIds = Array.from(new Set(list.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+    if (authorIds.length > 0) {
+      Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+    }
+    const lastFlag = res.data?.last ?? res.data?.data?.last;
+    return { posts: list.map(normalizePost), last: typeof lastFlag === 'boolean' ? lastFlag : list.length < size };
+  },
+
+  /** Số bài viết của nhóm hôm nay / 7 ngày qua / tổng cộng (thẻ "Hoạt động của nhóm"). */
+  getGroupStats: async (groupId: string): Promise<GroupPostStats> => {
+    const res = await api.get(`/posts/group/${groupId}/stats`);
+    const d = res.data?.data || {};
+    return { postsToday: Number(d.postsToday ?? 0), postsThisWeek: Number(d.postsThisWeek ?? 0), totalPosts: Number(d.totalPosts ?? 0) };
+  },
+
+  /** Bảng tin "Nhóm của bạn": bài mới trong mọi nhóm mình là thành viên. */
+  getGroupsFeedPage: async (page = 1, size = 10, sort: GroupPostSort = 'activity'): Promise<{ posts: Post[]; last: boolean; total: number }> => {
+    const res = await api.get('/posts/groups/feed', { params: { page, size, sort } });
+    const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
+    const list: any[] = Array.isArray(raw) ? raw : [];
+    const authorIds = Array.from(new Set(list.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+    const groupIds = Array.from(new Set(list.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))) as string[];
+    // Nạp thông tin tác giả và nhóm trước khi vẽ để thẻ bài không nhấp nháy tên "Nhóm"/"Thành viên"
+    await Promise.all([...authorIds.map((id) => fetchAuthorProfile(id)), ...groupIds.map((id) => fetchGroupMeta(id))]).catch(() => {});
+    const lastFlag = res.data?.last ?? res.data?.data?.last;
+    return {
+      posts: list.map(normalizePost),
+      last: typeof lastFlag === 'boolean' ? lastFlag : list.length < size,
+      total: Number(res.data?.totalElements ?? res.data?.data?.totalElements ?? list.length),
+    };
+  },
+
+  /** Ảnh và video của nhóm, phân trang (page từ 1). type: all | image | video. */
+  getGroupMediaPage: async (groupId: string, type: 'all' | 'image' | 'video' = 'all', page = 1, size = 24): Promise<{ items: GroupMediaItem[]; last: boolean; total: number }> => {
+    const res = await api.get(`/posts/group/${groupId}/media`, { params: { type, page, size } });
+    const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
+    const items: GroupMediaItem[] = (Array.isArray(raw) ? raw : []).map((m: any) => ({
+      id: String(m.id),
+      postId: String(m.postId),
+      url: String(m.url),
+      type: m.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+      authorId: m.authorId ? String(m.authorId) : '',
+      createdAt: m.createdAt ? String(m.createdAt) : '',
+    }));
+    const lastFlag = res.data?.last ?? res.data?.data?.last;
+    return {
+      items,
+      last: typeof lastFlag === 'boolean' ? lastFlag : items.length < size,
+      total: Number(res.data?.totalElements ?? res.data?.data?.totalElements ?? items.length),
+    };
+  },
+
+  /** Quản trị/kiểm duyệt viên ghim (hoặc bỏ ghim) bài lên đầu nhóm; tối đa 5 bài. */
+  pinGroupPost: async (postId: string, pinned: boolean): Promise<Post> => {
+    const res = await api.patch(`/posts/${postId}/group-pin`, null, { params: { pinned } });
+    const normalized = normalizePost(res.data?.data || res.data);
+    window.dispatchEvent(new CustomEvent('post_updated', { detail: normalized }));
+    return normalized;
+  },
+
+  /** Bài của chính mình trong nhóm đang chờ quản trị viên duyệt. */
+  getMyPendingGroupPosts: async (groupId: string): Promise<Post[]> => {
+    if (!groupId) return [];
+    try {
+      const res = await api.get(`/posts/group/${groupId}/my-pending`);
+      const raw = res.data?.data || [];
+      return Array.isArray(raw) ? raw.map(normalizePost) : [];
+    } catch (e) {
+      console.warn('Failed to fetch my pending group posts:', e);
+      return [];
+    }
+  },
+
   getPendingGroupPosts: async (groupId: string): Promise<Post[]> => {
     if (!groupId) return [];
     try {
@@ -534,6 +671,44 @@ export const postService = {
   reviewGroupAppeal: async (postId: string, approved: boolean, note?: string) => {
     const res = await api.patch(`/posts/${postId}/group-appeal/review`, { note }, { params: { approved } });
     return res.data?.data || res.data;
+  },
+
+  /** Thành viên báo cáo một bài viết cho quản trị viên nhóm. */
+  reportGroupPost: async (postId: string, reason: string, detail?: string): Promise<void> => {
+    await api.post(`/posts/${postId}/group-report`, { reason, detail: detail?.trim() || undefined });
+  },
+
+  /** Hàng đợi bài viết bị báo cáo của nhóm (chỉ quản trị/kiểm duyệt viên). */
+  getGroupReports: async (groupId: string): Promise<GroupReportedPost[]> => {
+    const res = await api.get(`/posts/group/${groupId}/reports`);
+    const raw = Array.isArray(res.data?.data) ? res.data.data : [];
+    const reporterIds = Array.from(new Set(raw.flatMap((r: any) => (r.reports || []).map((x: any) => String(x.reporterId))))) as string[];
+    const authorIds = Array.from(new Set(raw.map((r: any) => (r.post?.authorId ? String(r.post.authorId) : null)).filter(Boolean))) as string[];
+    await Promise.all([...reporterIds, ...authorIds].map((id) => fetchAuthorProfile(id))).catch(() => {});
+    return raw.map((r: any) => ({
+      post: normalizePost(r.post),
+      reportCount: Number(r.reportCount ?? 0),
+      reasons: (r.reasons || []).map((x: any) => ({ reason: String(x.reason), count: Number(x.count) })),
+      reports: (r.reports || []).map((x: any) => ({
+        reporterId: String(x.reporterId),
+        reporterName: authorProfileCache[String(x.reporterId)]?.name || 'Thành viên',
+        reason: String(x.reason),
+        detail: x.detail ? String(x.detail) : undefined,
+        createdAt: x.createdAt ? String(x.createdAt) : '',
+      })),
+    }));
+  },
+
+  /** action = 'dismiss' giữ bài viết, 'remove' gỡ bài khỏi nhóm (reason gửi cho tác giả). */
+  resolveGroupReports: async (groupId: string, postId: string, action: 'dismiss' | 'remove', reason?: string): Promise<void> => {
+    await api.patch(`/posts/group/${groupId}/reports/${postId}`, null, { params: { action, reason: reason?.trim() || undefined } });
+  },
+
+  /** Số việc đang chờ quản trị viên nhóm xử lý (huy hiệu ở thanh tab). */
+  getGroupModerationCounts: async (groupId: string): Promise<GroupModerationCounts> => {
+    const res = await api.get(`/posts/group/${groupId}/moderation-counts`);
+    const d = res.data?.data || {};
+    return { pendingPosts: Number(d.pendingPosts ?? 0), pendingAppeals: Number(d.pendingAppeals ?? 0), reportedPosts: Number(d.reportedPosts ?? 0) };
   },
 
   getMyModerationAppeals: async (): Promise<any[]> => {

@@ -54,17 +54,16 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-[#f0f2f5] dark:bg-[#18191a] flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-200">
-      {/* Hidden file input for uploading cover photo */}
+    <div className="fixed inset-0 z-[120] flex bg-black/60 backdrop-blur-xs overflow-hidden select-none animate-in fade-in duration-200">
       <input
-        type="file"
         ref={coverInputRef}
-        onChange={handleCoverUpload}
+        type="file"
         accept="image/*"
         className="hidden"
+        onChange={handleCoverUpload}
       />
 
-      {/* Left Sidebar Controller */}
+      {/* Left Sidebar Configuration Form */}
       <CreateGroupSidebar
         user={user}
         name={name}

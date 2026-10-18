@@ -656,7 +656,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case 'END_CALL': {
           const currentId = callSessionRef.current?.callSessionId;
           const incomingId = signal.callSessionId;
-          if (currentId && incomingId && String(currentId).toLowerCase() !== String(incomingId).toLowerCase()) {
+          // Chỉ xử lý tín hiệu của cuộc gọi mà CallContext đang quản lý. Phiên phát trực tiếp cũng gửi LEAVE/END_CALL tới
+          // mọi người trong phiên (chủ phòng + người xem) mỗi khi có người xem thoát: không có cuộc gọi nào ở đây thì
+          // không được hiện "Cuộc gọi đã kết thúc" hay phát âm báo kết thúc cuộc gọi.
+          if (!currentId || !incomingId || String(currentId).toLowerCase() !== String(incomingId).toLowerCase()) {
             return;
           }
           if (signal.signalType === 'LEAVE' && callSessionRef.current?.channelType === 'GROUP') {

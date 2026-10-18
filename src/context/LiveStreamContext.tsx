@@ -5,6 +5,15 @@ import { Post } from '../types';
 import { postService } from '../services/api';
 import { callService } from '../services/callService';
 import { liveStreamWebSocketService } from '../services/liveStreamWebSocket';
+import { liveWebRtcService } from '../services/liveWebRtcService';
+import {
+  HostLiveSession,
+  clearHostLiveSession,
+  hostResumeRemainingMs,
+  readHostLiveSession,
+  readResumableHostLiveSession,
+  writeHostLiveSession,
+} from '../utils/liveHostSession';
 
 export interface LiveBroadcastState {
   isBroadcasting: boolean;
@@ -94,6 +103,11 @@ interface LiveStreamContextType {
   decrementViewerCount: (postId: string) => void;
   updateViewerCount: (postId: string, count: number) => void;
   isPostLive: (post: Post) => boolean;
+  /** Buổi phát của chính mình đang được giữ chờ sau khi tải lại trang (chưa mở lại được camera). */
+  resumableLive: HostLiveSession | null;
+  isResumingLive: boolean;
+  resumeBroadcast: () => Promise<boolean>;
+  discardResumableLive: () => void;
 }
 
 const LiveStreamContext = createContext<LiveStreamContextType | undefined>(undefined);
@@ -127,6 +141,11 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Tải lại trang làm mất camera và kết nối nhưng không được làm kết thúc buổi phát: giữ chỗ chờ chủ phòng nối lại
+  const [resumableLive, setResumableLive] = useState<HostLiveSession | null>(() => readResumableHostLiveSession());
+  const [isResumingLive, setIsResumingLive] = useState(false);
+  const autoResumeTriedRef = useRef(false);
 
   const loadPostComments = useCallback(async (postId: string) => {
     if (!postId) return;
@@ -438,6 +457,11 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         createdPost = await postService.createPost(liveContent, privacy, []);
       } catch (err) {
+        // Bị từ chối (vd điểm uy tín quá thấp để phát trực tiếp): không được tự phát cục bộ, để nơi gọi báo lý do
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 400 || status === 403 || status === 429) {
+          throw err;
+        }
         console.warn('Backend createPost for live stream fallback to optimistic post:', err);
         createdPost = {
           id: 'live-' + Date.now(),
@@ -496,15 +520,9 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     [user]
   );
 
-  const stopBroadcast = useCallback((targetPostId?: string) => {
-    const pId = targetPostId || activeBroadcast.postId;
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (pId) {
+  /** Kết thúc hẳn một buổi phát ở máy chủ và báo cho người xem (dùng khi chủ phòng bấm kết thúc hoặc hết thời gian chờ nối lại). */
+  const endLivePost = useCallback(
+    (pId: string, title: string, description: string) => {
       saveStoredEndedStreamId(pId);
       setEndedStreamMap((prev) => ({ ...prev, [pId]: true }));
 
@@ -515,8 +533,8 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       // 2. Persist ended status to post-service database so reload & other users see ended immediately
       try {
-        const titleLine = (activeBroadcast.title || '').trim();
-        const updatedContent = `⏹ [ĐÃ KẾT THÚC] ${titleLine}${activeBroadcast.description ? `\n\n${activeBroadcast.description}` : ''}`;
+        const titleLine = (title || '').trim();
+        const updatedContent = `⏹ [ĐÃ KẾT THÚC] ${titleLine}${description ? `\n\n${description}` : ''}`;
         postService.updatePost(pId, { content: updatedContent }).catch((err) => {
           console.warn('[LiveStreamContext] Backend updatePost on end notice:', err);
         });
@@ -534,6 +552,24 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ch.postMessage({ type: 'END_CALL', postId: pId });
         setTimeout(() => ch.close(), 100);
       } catch {}
+    },
+    [user]
+  );
+
+  const stopBroadcast = useCallback((targetPostId?: string) => {
+    const pId = targetPostId || activeBroadcast.postId;
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    // Chủ phòng chủ động kết thúc: không còn gì để chờ nối lại
+    clearHostLiveSession();
+    setResumableLive(null);
+
+    if (pId) {
+      endLivePost(pId, activeBroadcast.title, activeBroadcast.description);
     }
 
     setActiveBroadcast({
@@ -552,7 +588,121 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setIsStudioMinimized(false);
 
     toast.showInfo('Đã kết thúc buổi phát trực tiếp!');
-  }, [activeBroadcast.postId, toast, user]);
+  }, [activeBroadcast.postId, activeBroadcast.title, activeBroadcast.description, endLivePost, toast]);
+
+  // Ghi lại phiên đang phát (kèm nhịp sống) để nếu trang bị tải lại thì nối lại được trong thời gian chờ
+  useEffect(() => {
+    if (!activeBroadcast.isBroadcasting || !activeBroadcast.postId || !user?.id) return;
+    const { postId, title, description, startedAt } = activeBroadcast;
+    const userId = user.id;
+    const save = () =>
+      writeHostLiveSession({ postId, userId, title, description, startedAt: startedAt ?? Date.now(), heartbeatAt: Date.now() });
+    save();
+    const interval = setInterval(save, 5000);
+    window.addEventListener('pagehide', save);
+    window.addEventListener('beforeunload', save);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pagehide', save);
+      window.removeEventListener('beforeunload', save);
+    };
+  }, [activeBroadcast, user?.id]);
+
+  // Chủ phòng phải luôn được đăng ký để trả lời người xem trong suốt buổi phát, kể cả khi thẻ bài không còn trên màn hình
+  // (đang ở trang khác hoặc vừa tải lại trang). Thẻ bài cũng đăng ký cùng luồng này, phiên WebRTC được dùng chung.
+  useEffect(() => {
+    if (!activeBroadcast.isBroadcasting || !activeBroadcast.postId || !activeBroadcast.stream || !user?.id) return;
+    const postId = activeBroadcast.postId;
+    return liveWebRtcService.registerHostStream(postId, user.id, activeBroadcast.stream, (count) =>
+      setActiveBroadcast((prev) => (prev.postId === postId ? { ...prev, viewerCount: count } : prev))
+    );
+  }, [activeBroadcast.isBroadcasting, activeBroadcast.postId, activeBroadcast.stream, user?.id]);
+
+  // Mở lại camera/micro và phát tiếp buổi đang chờ (phòng gọi và bài viết ở máy chủ vẫn còn nên không tạo lại)
+  const startResume = useCallback(
+    async (session: HostLiveSession): Promise<boolean> => {
+      setIsResumingLive(true);
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true }); // micro hỏng vẫn phát được hình
+        } catch {
+          stream = null;
+        }
+      }
+      if (!stream) {
+        setIsResumingLive(false);
+        return false;
+      }
+
+      streamRef.current = stream;
+      setActiveBroadcast({
+        isBroadcasting: true,
+        postId: session.postId,
+        stream,
+        title: session.title,
+        description: session.description,
+        startedAt: session.startedAt,
+        isCameraOn: true,
+        isMicOn: stream.getAudioTracks().length > 0,
+        viewerCount: 0,
+      });
+      setResumableLive(null);
+      setIsResumingLive(false);
+      setIsStudioOpen(true);
+      setIsStudioMinimized(false);
+      toast.showInfo('Đã kết nối lại buổi phát trực tiếp của bạn.');
+      return true;
+    },
+    [toast]
+  );
+
+  // Sau khi tải lại trang: tự thử nối lại ngay (trình duyệt thường đã nhớ quyền camera). Không được thì hiện hộp thoại để bấm tay.
+  useEffect(() => {
+    if (!resumableLive || activeBroadcast.isBroadcasting || !user?.id || autoResumeTriedRef.current) return;
+    if (resumableLive.userId !== user.id) {
+      clearHostLiveSession();
+      setResumableLive(null);
+      return;
+    }
+    autoResumeTriedRef.current = true;
+    void startResume(resumableLive);
+  }, [resumableLive, activeBroadcast.isBroadcasting, user?.id, startResume]);
+
+  // Hết thời gian chờ mà chủ phòng chưa quay lại thì mới kết thúc buổi phát
+  useEffect(() => {
+    if (!resumableLive) return;
+    const timer = setTimeout(() => {
+      clearHostLiveSession();
+      setResumableLive(null);
+      endLivePost(resumableLive.postId, resumableLive.title, resumableLive.description);
+      toast.showWarning('Buổi phát trực tiếp đã kết thúc vì bạn chưa kết nối lại kịp.');
+    }, Math.max(0, hostResumeRemainingMs(resumableLive)));
+    return () => clearTimeout(timer);
+  }, [resumableLive, endLivePost, toast]);
+
+  // Phiên đã quá hạn từ trước khi mở trang: dọn đi (bài viết sẽ được đánh dấu kết thúc khi chủ phòng xem lại bài của mình)
+  useEffect(() => {
+    if (!resumableLive && readHostLiveSession()) clearHostLiveSession();
+  }, [resumableLive]);
+
+  const resumeBroadcast = useCallback(async (): Promise<boolean> => {
+    if (!resumableLive) return false;
+    const ok = await startResume(resumableLive);
+    if (!ok) toast.showError('Không mở được camera hoặc micro. Hãy cho phép trình duyệt dùng camera rồi thử lại.');
+    return ok;
+  }, [resumableLive, startResume, toast]);
+
+  const discardResumableLive = useCallback(() => {
+    if (!resumableLive) return;
+    const session = resumableLive;
+    clearHostLiveSession();
+    setResumableLive(null);
+    endLivePost(session.postId, session.title, session.description);
+    toast.showInfo('Đã kết thúc buổi phát trực tiếp!');
+  }, [resumableLive, endLivePost, toast]);
 
   const openStudio = useCallback(() => {
     setIsStudioOpen(true);
@@ -766,6 +916,10 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         decrementViewerCount,
         updateViewerCount,
         isPostLive,
+        resumableLive,
+        isResumingLive,
+        resumeBroadcast,
+        discardResumableLive,
       }}
     >
       {children}

@@ -17,7 +17,13 @@ export type NotificationType =
   | 'GROUP_JOIN_REQUEST'
   | 'GROUP_JOIN_ACCEPT'
   | 'GROUP_ROLE_CHANGE'
-  | 'GROUP_POST';
+  | 'GROUP_POST'
+  | 'GROUP_POST_PENDING'
+  | 'GROUP_POST_APPROVED'
+  | 'GROUP_POST_REJECTED'
+  | 'GROUP_POST_REMOVED'
+  | 'GROUP_POST_REPORTED'
+  | 'LIVE_STARTED';
 
 export interface NotificationItem {
   id: string;

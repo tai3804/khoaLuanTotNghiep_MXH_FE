@@ -5,11 +5,13 @@ import { SidebarRight } from '../components/layout/SidebarRight';
 import { StoriesBar } from '../components/post/stories-bar';
 import { CreatePostBox } from '../components/post/CreatePostBox';
 import { PostCard } from '../components/post/post-card';
+import { PostCardSkeleton } from '../components/post/post-card/PostCardSkeleton';
+import { SeenTracker } from '../components/post/SeenTracker';
 import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
+import { Flame, Clock, Sparkles, RefreshCw, AlertTriangle, FileQuestion, Loader2, CheckCircle2 } from 'lucide-react';
 import { SystemAnnouncementBanner } from '../components/common/SystemAnnouncementBanner';
 
 interface HomePageProps {
@@ -33,6 +35,9 @@ interface HomePageProps {
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  /** Bảng tin đang gồm cả bài đã xem (mặc định chỉ có bài chưa xem). */
+  includeSeen?: boolean;
+  onShowSeen?: () => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -56,8 +61,10 @@ export const HomePage: React.FC<HomePageProps> = ({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  includeSeen = false,
+  onShowSeen,
 }) => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { isAuthenticated, openLoginModal } = useAuth();
   const observerRef = useRef<HTMLDivElement | null>(null);
 
@@ -161,19 +168,28 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Posts Feed Stream */}
           {loading && posts.length === 0 ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white dark:bg-[#242526] rounded-xl p-4 border border-gray-200 dark:border-[#393a3b] shadow-sm animate-pulse space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#3a3b3c]" />
-                    <div className="space-y-1.5 flex-1">
-                      <div className="h-3.5 bg-gray-200 dark:bg-[#3a3b3c] rounded w-1/3" />
-                      <div className="h-2.5 bg-gray-100 dark:bg-[#3a3b3c]/60 rounded w-1/4" />
-                    </div>
-                  </div>
-                  <div className="h-16 bg-gray-100 dark:bg-[#3a3b3c]/40 rounded-xl" />
-                </div>
+            <div>
+              {[0, 1, 2].map((i) => (
+                <PostCardSkeleton key={i} withMedia={i !== 1} />
               ))}
+            </div>
+          ) : posts.length === 0 && !includeSeen && !backendError ? (
+            <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
+              <div className="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-500 mx-auto">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h4 className="font-bold text-base text-gray-800 dark:text-[#e4e6eb]">Bạn đã xem hết bài viết mới</h4>
+              <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-sm mx-auto">
+                Chưa có bài viết nào chưa xem. Hãy quay lại sau hoặc xem lại những bài bạn đã xem.
+              </p>
+              {onShowSeen && (
+                <button
+                  onClick={onShowSeen}
+                  className="px-4 py-2 rounded-lg bg-[#1877f2] text-white text-xs font-bold hover:bg-[#166fe5] transition cursor-pointer"
+                >
+                  Xem lại bài đã xem
+                </button>
+              )}
             </div>
           ) : posts.length === 0 ? (
             <div className="bg-white dark:bg-[#242526] rounded-2xl p-8 text-center border border-gray-200 dark:border-[#393a3b] shadow-sm space-y-3">
@@ -186,24 +202,20 @@ export const HomePage: React.FC<HomePageProps> = ({
           ) : (
             <>
               {posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onDeletePost={onDeletePost}
-                  onViewProfile={onViewProfile}
-                />
+                <SeenTracker key={post.id} postId={post.id}>
+                  <PostCard
+                    post={post}
+                    onDeletePost={onDeletePost}
+                    onViewProfile={onViewProfile}
+                  />
+                </SeenTracker>
               ))}
 
               {/* Sentinel trigger element for infinite scrolling */}
               <div ref={observerRef} className="h-4 w-full pointer-events-none" />
 
               {/* Loading More Indicator */}
-              {loadingMore && (
-                <div className="flex items-center justify-center py-6 space-x-2.5 text-gray-500 dark:text-[#b0b3b8] bg-white/40 dark:bg-[#242526]/40 rounded-xl my-3">
-                  <Loader2 className="w-5 h-5 border-[#2d88ff] animate-spin text-[#2d88ff]" />
-                  <span className="text-xs font-semibold">Đang tải thêm bài viết...</span>
-                </div>
-              )}
+              {loadingMore && <PostCardSkeleton withMedia />}
 
               {/* End of Feed Message */}
               {!hasMore && posts.length > 0 && !loading && (
@@ -213,6 +225,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
                   <p className="font-semibold text-gray-700 dark:text-[#e4e6eb]">Bạn đã xem hết bài viết mới nhất</p>
                   <p className="text-[11px] text-gray-400 dark:text-[#8a8d91]">Hãy kết bạn thêm hoặc tạo bài viết mới để bảng tin thêm sôi động!</p>
+                  {!includeSeen && onShowSeen && (
+                    <button
+                      onClick={onShowSeen}
+                      className="mt-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-[#3a3b3c] text-gray-700 dark:text-[#e4e6eb] text-[11px] font-bold hover:bg-gray-200 dark:hover:bg-[#4e4f50] transition cursor-pointer"
+                    >
+                      Xem lại bài đã xem
+                    </button>
+                  )}
                 </div>
               )}
             </>

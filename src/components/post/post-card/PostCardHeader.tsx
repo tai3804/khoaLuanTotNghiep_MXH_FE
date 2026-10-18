@@ -19,6 +19,9 @@ import {
   EyeOff,
   Loader2,
   BarChart3,
+  ShieldCheck,
+  ShieldAlert,
+  Flag,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
@@ -30,6 +33,7 @@ import { PostTaggedUsers } from './PostTaggedUsers';
 import { TrendingBadge } from '../common/TrendingBadge';
 import { PostInsightsModal } from '../post-insights/PostInsightsModal';
 import { TimeAgo } from '../../common/TimeAgo';
+import { useGroupPage } from '../../../context/GroupPageContext';
 
 interface PostCardHeaderProps {
   post: Post;
@@ -186,6 +190,14 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
     );
   };
 
+  // Đang xem trong trang của chính nhóm này: tác giả là tiêu đề, kèm huy hiệu vai trò và lệnh điều hành nhóm
+  const groupPage = useGroupPage();
+  const inGroupPage = Boolean(groupPage && post.groupId && groupPage.group.id === post.groupId);
+  const authorRole = inGroupPage ? groupPage?.roleOf(post.userId) ?? null : null;
+  const canModerateHere = Boolean(inGroupPage && groupPage?.canModerate && !post.isOptimistic && post.status === 'PUBLISHED');
+  const [groupBusy, setGroupBusy] = React.useState(false);
+  const showPinnedBadge = inGroupPage ? Boolean(post.groupPinned) : isPinned;
+
   const isGroupPost = Boolean(post.groupId);
   const groupName = groupInfo?.name || post.groupName || 'Nhóm';
   const groupCover = groupInfo?.coverUrl || post.groupAvatar || post.groupCover;
@@ -194,7 +206,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   return (
     <div>
       {/* Pinned post badge if pinned */}
-      {isPinned && (
+      {showPinnedBadge && (
         <div className="px-4 pt-3 pb-0 flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-[#b0b3b8]">
           <Pin className="w-3.5 h-3.5 text-[#1877f2] fill-[#1877f2]" />
           <span>Bài viết đã ghim</span>
@@ -202,7 +214,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
       )}
 
       <div className="p-3.5 pb-2 flex items-center justify-between">
-        {isGroupPost ? (
+        {isGroupPost && !inGroupPage ? (
           <div className="flex items-center space-x-2.5 min-w-0">
             {/* Group thumbnail with Author badge */}
             <div className="relative w-11 h-11 shrink-0">
@@ -309,6 +321,18 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                 >
                   {authorName || post.authorName || 'Thành viên'}
                 </h4>
+                {authorRole && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                      authorRole === 'ADMIN'
+                        ? 'bg-blue-50 text-[#1877f2] dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                    }`}
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    {authorRole === 'ADMIN' ? 'Quản trị viên' : 'Người kiểm duyệt'}
+                  </span>
+                )}
                 <PostTaggedUsers taggedUserIds={post.taggedUserIds} />
               </div>
               <div className="flex items-center space-x-1.5 text-xs text-gray-500 dark:text-[#b0b3b8] mt-0.5">
@@ -321,7 +345,19 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                   <TimeAgo iso={post.createdAtRaw} fallback={post.createdAt} />
                 )}
                 <span>•</span>
-                {renderPrivacyIcon()}
+                {inGroupPage ? (
+                  groupPage?.group.privacy === 'PRIVATE' ? (
+                    <span title="Nhóm riêng tư" className="inline-flex items-center">
+                      <Lock className="w-3 h-3 text-amber-500" />
+                    </span>
+                  ) : (
+                    <span title="Nhóm công khai" className="inline-flex items-center">
+                      <Globe className="w-3 h-3 text-gray-500 dark:text-[#b0b3b8]" />
+                    </span>
+                  )
+                ) : (
+                  renderPrivacyIcon()
+                )}
                 {post.isTrending && <TrendingBadge size="sm" />}
                 {post.status === 'SCHEDULED' && (
                   <span className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
@@ -377,7 +413,7 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                 )}
 
                 {/* 1. Pin / Unpin */}
-                {isOwner && onTogglePin && (
+                {isOwner && onTogglePin && !inGroupPage && (
                   <button
                     type="button"
                     onClick={() => {
@@ -395,6 +431,59 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                       <div>{isPinned ? 'Bỏ ghim bài viết' : 'Ghim bài viết'}</div>
                     </div>
                   </button>
+                )}
+
+                {/* Lệnh điều hành nhóm (quản trị viên / người kiểm duyệt) */}
+                {canModerateHere && groupPage && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={groupBusy}
+                      onClick={async () => {
+                        setGroupBusy(true);
+                        try {
+                          await groupPage.onPinPost(post, !post.groupPinned);
+                        } catch {
+                          /* thông báo lỗi đã hiện ở trang nhóm */
+                        } finally {
+                          setGroupBusy(false);
+                          setShowOptionsMenu(false);
+                        }
+                      }}
+                      className="w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] transition cursor-pointer text-left disabled:opacity-60"
+                    >
+                      {groupBusy ? (
+                        <Loader2 className="w-4 h-4 text-gray-500 shrink-0 animate-spin" />
+                      ) : post.groupPinned ? (
+                        <PinOff className="w-4 h-4 text-gray-500 shrink-0" />
+                      ) : (
+                        <Pin className="w-4 h-4 text-gray-500 shrink-0" />
+                      )}
+                      <div>
+                        <div>{post.groupPinned ? 'Bỏ ghim khỏi đầu nhóm' : 'Ghim lên đầu nhóm'}</div>
+                        <div className="text-[11px] text-gray-400 font-normal">
+                          {post.groupPinned ? 'Bài viết trở lại vị trí thông thường' : 'Hiển thị đầu tiên với mọi thành viên'}
+                        </div>
+                      </div>
+                    </button>
+                    {!isOwner && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          groupPage.onRemovePost(post);
+                          setShowOptionsMenu(false);
+                        }}
+                        className="w-full flex items-center space-x-3 p-2.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-xl text-xs font-semibold transition cursor-pointer text-left"
+                      >
+                        <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
+                        <div>
+                          <div>Xóa bài viết khỏi nhóm</div>
+                          <div className="text-[11px] text-gray-400 font-normal">Gửi thông báo kèm lý do cho tác giả</div>
+                        </div>
+                      </button>
+                    )}
+                    <div className="my-1 border-t border-gray-100 dark:border-[#393a3b]" />
+                  </>
                 )}
 
                 {/* 2. Save / Unsave */}
@@ -556,6 +645,24 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
                       <div className="text-[11px] text-gray-400 font-normal">
                         Ẩn bài viết này khỏi bảng tin của bạn
                       </div>
+                    </div>
+                  </button>
+                )}
+
+                {/* Báo cáo cho quản trị viên nhóm (chỉ trong trang nhóm, dành cho thành viên) */}
+                {!isOwner && inGroupPage && groupPage?.group.isMember && !post.isOptimistic && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      groupPage.onReportPost(post);
+                      setShowOptionsMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-800 dark:text-[#e4e6eb] transition cursor-pointer text-left"
+                  >
+                    <Flag className="w-4 h-4 text-gray-500 shrink-0" />
+                    <div>
+                      <div>Báo cáo cho quản trị viên nhóm</div>
+                      <div className="text-[11px] text-gray-400 font-normal">Chỉ quản trị viên nhóm nhìn thấy báo cáo</div>
                     </div>
                   </button>
                 )}
