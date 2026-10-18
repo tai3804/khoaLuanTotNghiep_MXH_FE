@@ -226,7 +226,7 @@ export const userService = {
             fullName: name,
             avatar: avatar,
             avatarUrl: avatar,
-            online: true,
+            online: false,
             createdAt: connection.createdAt,
           };
         });

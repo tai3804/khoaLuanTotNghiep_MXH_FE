@@ -182,7 +182,9 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-[#e4e6eb] flex items-center space-x-2 tracking-tight">
                     <span>{fullName}</span>
-                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" title={isEn ? 'Active now' : 'Đang hoạt động'} />
+                    {isOwnProfile && (
+                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" title={isEn ? 'Active now' : 'Đang hoạt động'} />
+                    )}
                   </h1>
                   {isProfessionalMode && (
                     <ProfessionalBadge category={creatorCategory} />
@@ -337,7 +339,7 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
                               userId: targetId,
                               name: fullName,
                               avatar: avatarUrl,
-                              online: true,
+                              online: false,
                             });
                           }
                         }}

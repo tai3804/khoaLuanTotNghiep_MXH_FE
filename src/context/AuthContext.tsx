@@ -193,11 +193,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const bufferMs = Math.min(120000, Math.max(10000, timeRemaining * 0.25));
     const delayMs = Math.max(timeRemaining - bufferMs, 5000);
 
+    console.log(
+      `[AuthContext] Proactive refresh scheduled in ${Math.round(delayMs / 1000)}s (token expires in ${Math.round(timeRemaining / 1000)}s)`
+    );
+
     const timer = setTimeout(async () => {
       try {
+        console.log('[AuthContext] Triggering proactive background token refresh...');
         const newToken = await authService.refreshToken();
         if (newToken) {
           dispatch(setAccessToken(newToken));
+          console.log('[AuthContext] Proactive background token refresh succeeded!');
         }
       } catch (err) {
         console.warn('[AuthContext] Background proactive token refresh notice:', err);
@@ -217,12 +223,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!payload || !payload.exp) return;
 
       const timeRemaining = payload.exp * 1000 - Date.now();
-      // If token expires in less than 60 seconds (or is already expired)
-      if (timeRemaining < 60000) {
+      // Proportional threshold: 20% of lifetime or max 60s, min 5s
+      const tokenLifetimeMs = (payload.exp - (payload.iat || payload.exp - 30)) * 1000;
+      const thresholdMs = Math.min(60000, Math.max(5000, tokenLifetimeMs * 0.2));
+
+      if (timeRemaining < thresholdMs) {
         try {
+          console.log('[AuthContext] Focus/Visibility token renewal triggered...');
           const newToken = await authService.refreshToken();
           if (newToken) {
             dispatch(setAccessToken(newToken));
+            console.log('[AuthContext] Focus token renewal succeeded!');
           }
         } catch (err) {
           console.warn('[AuthContext] Focus token renewal notice:', err);

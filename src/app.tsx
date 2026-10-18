@@ -8,6 +8,7 @@ import { useLanguage } from './context/LanguageContext';
 import { useSystemConfig } from './context/SystemConfigContext';
 import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { postService } from './services/api';
+import { chatService } from './services/chatService';
 import { Post, FeedMode } from './types';
 import { Home, Tv, Users, UsersRound } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
@@ -61,8 +62,31 @@ export const App: React.FC = () => {
 
   const handleOpenChatUser = (targetUser: ChatUser | null) => {
     if (!targetUser) return;
+    const targetId = String(targetUser.userId || targetUser.id || targetUser.conversationId);
+
+    // Asynchronously fetch fresh presence if direct chat partner
+    if (!targetUser.isGroup && (targetUser.userId || targetUser.id)) {
+      const uId = String(targetUser.userId || targetUser.id);
+      chatService.getUserPresence(uId).then((pres) => {
+        if (pres) {
+          setActiveChatUsers((prev) =>
+            prev.map((u) => {
+              const currentId = String(u.userId || u.id);
+              if (currentId.toLowerCase() === uId.toLowerCase()) {
+                return {
+                  ...u,
+                  online: Boolean(pres.online),
+                  lastActiveAt: pres.lastActiveAt || u.lastActiveAt,
+                };
+              }
+              return u;
+            })
+          );
+        }
+      }).catch(() => {});
+    }
+
     setActiveChatUsers((prev) => {
-      const targetId = String(targetUser.userId || targetUser.id || targetUser.conversationId);
       const filtered = prev.filter((u) => String(u.userId || u.id || u.conversationId) !== targetId);
       const maxAllowed = window.innerWidth >= 1440 ? 3 : window.innerWidth >= 960 ? 2 : 1;
       return [targetUser, ...filtered].slice(0, maxAllowed);
@@ -72,6 +96,31 @@ export const App: React.FC = () => {
   const handleCloseChatUser = (targetId: string) => {
     setActiveChatUsers((prev) => prev.filter((u) => String(u.userId || u.id || u.conversationId) !== String(targetId)));
   };
+
+  // Real-time synchronization of active chat popups presence
+  useEffect(() => {
+    const handlePresence = (e: any) => {
+      const detail = e.detail;
+      if (!detail || !detail.userId) return;
+      setActiveChatUsers((prev) =>
+        prev.map((u) => {
+          const cId = u.userId || (!u.isGroup ? u.id : null);
+          if (cId && String(cId).toLowerCase() === String(detail.userId).toLowerCase()) {
+            return {
+              ...u,
+              online: Boolean(detail.online),
+              lastActiveAt: detail.lastActiveAt || u.lastActiveAt,
+            };
+          }
+          return u;
+        })
+      );
+    };
+    window.addEventListener('user_presence_updated', handlePresence);
+    return () => {
+      window.removeEventListener('user_presence_updated', handlePresence);
+    };
+  }, []);
 
   useEffect(() => {
     const handleGlobalOpenChat = (e: any) => {

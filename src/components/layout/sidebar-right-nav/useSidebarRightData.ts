@@ -85,7 +85,7 @@ export const useSidebarRightData = () => {
               isGroup: true,
               name: c.name || 'Nhóm chat',
               avatar: c.avatarUrl || '/default-avatar.png',
-              online: true,
+              online: false,
               lastMessageContent: c.lastMessageContent,
               unreadCount: Number(c.unreadCount || 0),
             }));

@@ -83,7 +83,7 @@ export const SidebarRight: React.FC<SidebarRightProps> = ({
               isGroup: true,
               name: conversation.name || 'Nhóm mới',
               avatar: conversation.avatarUrl || '/default-avatar.png',
-              online: true,
+              online: false,
             });
           }
         }}

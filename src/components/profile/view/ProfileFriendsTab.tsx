@@ -61,7 +61,7 @@ export const ProfileFriendsTab: React.FC<ProfileFriendsTabProps> = ({
                       id: friend.userId || friend.id,
                       name: friend.name || `${friend.lastName || ''} ${friend.firstName || ''}`.trim(),
                       avatar: friend.avatar || friend.avatarUrl || '/default-avatar.png',
-                      online: true,
+                      online: Boolean(friend.online),
                     });
                   }
                 }}

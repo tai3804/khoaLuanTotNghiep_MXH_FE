@@ -63,7 +63,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
         isGroup: true,
         name: conversation.name || 'Nhóm mới',
         avatar: conversation.avatarUrl || '/default-avatar.png',
-        online: true,
+        online: false,
       } as any);
     }
     setShowMsgMenu(false);
@@ -145,7 +145,9 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
                 >
                   <div className="relative shrink-0">
                     <UserAvatar src={contact.avatar} alt={contact.name} size="md" />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#242526] rounded-full" />
+                    {Boolean(contact.online) && !contact.isGroup && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#242526] rounded-full" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-xs text-gray-900 dark:text-[#e4e6eb] truncate group-hover:text-blue-600 transition">

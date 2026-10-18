@@ -122,12 +122,10 @@ export const ActiveContactsWidget: React.FC<ActiveContactsWidgetProps> = ({
                     size="sm"
                     className="w-9 h-9 rounded-full"
                   />
-                  {/* Online Indicator (Static) */}
-                  {isOnline ? (
+                  {/* Online Indicator: only display green dot when online; no dot when offline */}
+                  {isOnline && (
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#242526] rounded-full" />
-                  ) : contact.lastActiveAt ? (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-gray-400 border-2 border-white dark:border-[#242526] rounded-full" />
-                  ) : null}
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-gray-900 dark:text-[#e4e6eb] truncate block group-hover:text-[#1877f2] transition-colors">

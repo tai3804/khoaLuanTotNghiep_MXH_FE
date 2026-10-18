@@ -190,12 +190,33 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
                   isGroup: c.type === 'GROUP',
                   name: name || (c.type === 'GROUP' ? 'Nhóm trò chuyện' : 'Người dùng'),
                   avatar: avatar || '/default-avatar.png',
-                  online: c.isOnline || false,
+                  online: c.type === 'GROUP' ? false : Boolean(c.isOnline),
+                  lastActiveAt: c.otherLastActiveAt || null,
                   lastMessageContent: c.lastMessageContent,
                   unreadCount: Number(c.unreadCount || 0),
                 } as any;
               })
             );
+
+            // Fetch latest real-time presence for direct chat partners to ensure 100% synchronization
+            const directUserIds = mapped
+              .filter((item) => !item.isGroup && item.userId)
+              .map((item) => String(item.userId));
+
+            if (directUserIds.length > 0) {
+              try {
+                const presenceMap = await chatService.getBatchPresence(directUserIds);
+                if (presenceMap && typeof presenceMap === 'object') {
+                  for (const item of mapped) {
+                    if (!item.isGroup && item.userId && presenceMap[item.userId]) {
+                      item.online = Boolean(presenceMap[item.userId].online);
+                      item.lastActiveAt = presenceMap[item.userId].lastActiveAt || item.lastActiveAt;
+                    }
+                  }
+                }
+              } catch {}
+            }
+
             // Sort: prioritize conversations with messages
             mapped.sort((a, b) => {
               if (a.lastMessageContent && !b.lastMessageContent) return -1;
@@ -223,7 +244,32 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
         })
         .finally(() => setLoadingChatContacts(false));
     }
-  }, [showMsgMenu, isAuthenticated]);
+  }, [showMsgMenu, isAuthenticated, user?.id]);
+
+  // Real-time synchronization of presence in chatContacts
+  useEffect(() => {
+    const handlePresence = (e: any) => {
+      const detail = e.detail;
+      if (!detail || !detail.userId) return;
+      setChatContacts((prev) =>
+        prev.map((c) => {
+          const cId = c.userId || (!c.isGroup ? c.id : null);
+          if (cId && String(cId).toLowerCase() === String(detail.userId).toLowerCase()) {
+            return {
+              ...c,
+              online: Boolean(detail.online),
+              lastActiveAt: detail.lastActiveAt || c.lastActiveAt,
+            };
+          }
+          return c;
+        })
+      );
+    };
+    window.addEventListener('user_presence_updated', handlePresence);
+    return () => {
+      window.removeEventListener('user_presence_updated', handlePresence);
+    };
+  }, []);
 
   const handleNavClick = (tab: string) => {
     if (onTabChange) onTabChange(tab);

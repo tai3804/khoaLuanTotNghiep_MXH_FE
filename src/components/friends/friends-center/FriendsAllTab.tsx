@@ -99,7 +99,7 @@ export const FriendsAllTab: React.FC<FriendsAllTabProps> = ({
                   id: item.userId || item.id,
                   name: item.name,
                   avatar: item.avatar,
-                  online: true,
+                  online: Boolean(item.online),
                 })
               }
               onUnfriend={() => onUnfriend(item.userId || item.id, item.name)}

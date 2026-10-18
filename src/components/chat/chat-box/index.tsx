@@ -26,6 +26,11 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [currentFriend, setCurrentFriend] = useState<ChatUser>(friend);
+
+  useEffect(() => {
+    setCurrentFriend(friend);
+  }, [friend]);
+
   const [summaryData, setSummaryData] = useState<SummarizeMessagesResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -86,11 +91,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
   };
 
   const effectiveFriend: ChatUser = {
+    ...friend,
     ...currentFriend,
-    id: partnerProfile?.userId || currentFriend.userId || currentFriend.id,
-    userId: partnerProfile?.userId || currentFriend.userId || (!currentFriend.isGroup ? currentFriend.id : undefined),
-    name: partnerProfile?.name || currentFriend.name,
-    avatar: partnerProfile?.avatar || currentFriend.avatar,
+    id: partnerProfile?.userId || currentFriend.userId || friend.userId || currentFriend.id,
+    userId: partnerProfile?.userId || currentFriend.userId || friend.userId || (!currentFriend.isGroup ? currentFriend.id : undefined),
+    name: partnerProfile?.name || currentFriend.name || friend.name,
+    avatar: partnerProfile?.avatar || currentFriend.avatar || friend.avatar,
+    online: friend.online !== undefined ? friend.online : currentFriend.online,
+    lastActiveAt: friend.lastActiveAt !== undefined ? friend.lastActiveAt : currentFriend.lastActiveAt,
     unreadCount,
   };
 

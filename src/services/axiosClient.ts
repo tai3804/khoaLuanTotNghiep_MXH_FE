@@ -74,6 +74,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
+      console.log('[axiosClient] 401 Unauthorized encountered. Automatically refreshing access token...');
+
       const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
 
       try {
@@ -93,6 +95,7 @@ api.interceptors.response.use(
         const newAccessToken = data?.accessToken || data?.token;
 
         if (newAccessToken) {
+          console.log('[axiosClient] Successfully refreshed access token! Retrying original request:', originalRequest.url);
           store.dispatch(setAccessToken(newAccessToken));
           
           api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
@@ -104,6 +107,7 @@ api.interceptors.response.use(
           throw new Error('No access token returned');
         }
       } catch (refreshErr: any) {
+        console.warn('[axiosClient] Failed to refresh access token:', refreshErr);
         processQueue(refreshErr, null);
         // Only trigger session expiration when refresh token is explicitly rejected (401 or 403)
         if (refreshErr?.response && (refreshErr.response.status === 401 || refreshErr.response.status === 403)) {
