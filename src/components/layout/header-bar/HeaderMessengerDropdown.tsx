@@ -76,7 +76,7 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
           setShowNotifMenu(false);
           setShowUserMenu(false);
         }}
-        className={`relative w-10 h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+        className={`relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
           showMsgMenu
             ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
             : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'

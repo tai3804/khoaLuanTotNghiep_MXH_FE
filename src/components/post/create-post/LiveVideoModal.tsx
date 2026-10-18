@@ -4,6 +4,73 @@ import { useToast } from '../../../context/ToastContext';
 import { UserAvatar } from '../../common/UserAvatar';
 import { getApiErrorMessage } from '../../../utils/apiError';
 
+interface MediaProblem {
+  message: string;
+  hint: string;
+}
+
+const VIDEO_CONSTRAINTS = { width: { ideal: 1280 }, height: { ideal: 720 } };
+
+/** Giải thích lỗi getUserMedia bằng tiếng Việt, kèm cách khắc phục. device: thiết bị đang xin quyền. */
+const describeMediaError = (err: unknown, device: 'camera' | 'micro' | 'camera và micro'): MediaProblem => {
+  const name = (err as { name?: string } | null)?.name || '';
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return {
+      message: `Trình duyệt đang chặn quyền dùng ${device}.`,
+      hint: 'Bấm biểu tượng ổ khóa cạnh thanh địa chỉ, chọn Cho phép (Allow) Camera và Micro, rồi bấm "Thử lại".',
+    };
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return {
+      message: `Không tìm thấy ${device}.`,
+      hint: 'Kiểm tra thiết bị đã cắm và bật chưa (Windows: Cài đặt > Quyền riêng tư > Camera/Micrô), rồi bấm "Thử lại".',
+    };
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError') {
+    return {
+      message: `${device.charAt(0).toUpperCase() + device.slice(1)} đang được ứng dụng hoặc tab khác sử dụng.`,
+      hint: 'Đóng các ứng dụng đang dùng camera (Zoom, Teams, Zalo, tab phát trực tiếp khác...). Nếu vừa mở hộp thoại này nhiều lần, hãy tải lại trang (F5) để nhả camera, rồi bấm "Thử lại".',
+    };
+  }
+  return {
+    message: `Không thể mở ${device}.`,
+    hint: `Chi tiết: ${name || 'lỗi không xác định'}${(err as { message?: string } | null)?.message ? ` - ${(err as { message?: string }).message}` : ''}. Bấm "Thử lại" hoặc tải lại trang.`,
+  };
+};
+
+/**
+ * Xin camera + micro. Micro thiếu/bị chặn/đang bận không được làm hỏng cả buổi live: thử lại chỉ với camera,
+ * rồi chỉ với camera không ràng buộc độ phân giải. Trả về luồng (nếu có) và lý do cụ thể khi không được.
+ */
+const acquireMedia = async (): Promise<{ stream: MediaStream | null; micProblem?: MediaProblem; error?: MediaProblem }> => {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    return {
+      stream: null,
+      error: {
+        message: 'Trình duyệt chỉ cho phép dùng camera trên https hoặc localhost.',
+        hint: 'Hãy mở trang bằng http://localhost:5173 (hoặc dùng https) rồi thử lại.',
+      },
+    };
+  }
+  let first: unknown;
+  try {
+    return { stream: await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: true }) };
+  } catch (err) {
+    first = err;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false });
+    return { stream, micProblem: describeMediaError(first, 'micro') };
+  } catch (second) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      return { stream, micProblem: describeMediaError(first, 'micro') };
+    } catch {
+      return { stream: null, error: describeMediaError(second, 'camera') };
+    }
+  }
+};
+
 interface LiveVideoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,7 +93,9 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState<MediaProblem | null>(null);
+  const [micWarning, setMicWarning] = useState<MediaProblem | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     isBroadcastingRef.current = false;
@@ -39,34 +108,45 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
     }
 
     let activeStream: MediaStream | null = null;
+    let cancelled = false;
 
     const startCamera = async () => {
       setPermissionError(null);
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
-        });
-        activeStream = mediaStream;
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-        }
-      } catch (err: any) {
-        console.error('Camera/Mic permission error:', err);
-        setPermissionError('Không thể truy cập Camera hoặc Microphone. Vui lòng cấp quyền trên trình duyệt.');
-        toast.showError('Không thể mở camera. Vui lòng kiểm tra quyền truy cập thiết bị!');
+      setMicWarning(null);
+      const result = await acquireMedia();
+      if (cancelled) {
+        // Hộp thoại đã đóng (hoặc effect chạy lại) trong lúc chờ: phải tắt luồng vừa mở, nếu không camera bị giữ mãi
+        result.stream?.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      if (!result.stream) {
+        const problem = result.error ?? describeMediaError(null, 'camera và micro');
+        console.error('Camera/Mic error:', problem);
+        setPermissionError(problem);
+        toast.showError(problem.message);
+        return;
+      }
+      activeStream = result.stream;
+      setStream(result.stream);
+      if (result.micProblem) {
+        setMicWarning(result.micProblem);
+        setIsMicOn(false);
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = result.stream;
       }
     };
 
     startCamera();
 
     return () => {
+      cancelled = true;
       if (activeStream && !isBroadcastingRef.current) {
         activeStream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, retryKey]);
 
   const toggleCamera = () => {
     if (!stream) return;
@@ -83,6 +163,10 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
   const toggleMic = () => {
     if (!stream) return;
     const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      toast.showWarning(micWarning?.message || 'Không có micro để bật.');
+      return;
+    }
     if (audioTracks.length > 0) {
       const nextState = !isMicOn;
       audioTracks.forEach((track) => {
@@ -103,10 +187,13 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
     let broadcastStream = stream;
     try {
       if (!broadcastStream) {
-        broadcastStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true,
-        });
+        const result = await acquireMedia();
+        if (!result.stream) {
+          toast.showError(result.error?.message || 'Không thể mở camera.');
+          setPermissionError(result.error ?? null);
+          return;
+        }
+        broadcastStream = result.stream;
       }
 
       // Mark broadcasting active so cleanup leaves tracks running for the player
@@ -168,10 +255,15 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
             {permissionError ? (
               <div className="text-center p-6 text-gray-400 text-xs space-y-2">
                 <VideoOff className="w-10 h-10 text-red-500 mx-auto" />
-                <p className="font-semibold text-gray-300">{permissionError}</p>
-                <p className="text-[11px] text-gray-500">
-                  Hãy nhấn Cho phép (Allow) quyền Camera / Micro trên thanh địa chỉ trình duyệt.
-                </p>
+                <p className="font-semibold text-gray-300">{permissionError.message}</p>
+                <p className="text-[11px] text-gray-500 max-w-md mx-auto leading-relaxed">{permissionError.hint}</p>
+                <button
+                  type="button"
+                  onClick={() => setRetryKey((k) => k + 1)}
+                  className="mt-1 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition cursor-pointer"
+                >
+                  Thử lại
+                </button>
               </div>
             ) : !isCameraOn ? (
               <div className="text-center p-6 text-gray-400 text-xs space-y-2">
@@ -219,6 +311,12 @@ export const LiveVideoModal: React.FC<LiveVideoModalProps> = ({
               </button>
             </div>
           </div>
+
+          {micWarning && (
+            <p className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">
+              <span className="font-semibold">{micWarning.message}</span> Bạn vẫn có thể phát hình không có tiếng. {micWarning.hint}
+            </p>
+          )}
 
           {/* Form input */}
           <form onSubmit={handleStart} className="space-y-3">

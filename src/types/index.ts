@@ -107,6 +107,8 @@ export interface Post {
   isLiked?: boolean;
   isSaved?: boolean;
   isPinned?: boolean;
+  /** Bài đang được quản trị viên ghim đầu trang của nhóm (khác isPinned: ghim trên trang cá nhân). */
+  groupPinned?: boolean;
   isArchived?: boolean;
   status?: 'PUBLISHED' | 'PENDING_APPROVAL' | 'REJECTED' | 'PROCESSING' | 'FAILED' | string;
   privacy?: 'PUBLIC' | 'FRIENDS' | 'PRIVATE' | string;

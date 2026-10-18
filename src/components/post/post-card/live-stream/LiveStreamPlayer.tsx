@@ -19,6 +19,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     containerRef,
     isLive,
     isHost,
+    isHostResuming,
     activeBroadcast,
     viewerStream,
     effectiveViewerCount,
@@ -73,6 +74,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
           hostName={post.authorName}
           cleanTitle={cleanTitle}
           onToggleMute={viewerStream.toggleMute}
+          waitingFor={isHostResuming ? 'self' : viewerStream.isReconnecting ? 'host' : undefined}
         />
       )}
 

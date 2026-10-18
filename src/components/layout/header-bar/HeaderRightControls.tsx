@@ -1,6 +1,8 @@
 import React, { RefObject } from 'react';
 import { LayoutGrid, Bell, LogIn, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from '../../notification/NotificationDropdown';
+import { openNotificationTarget } from '../../notification/openNotificationTarget';
 import { HeaderMessengerDropdown } from './HeaderMessengerDropdown';
 import { HeaderUserDropdown } from './HeaderUserDropdown';
 import { ChatUser } from '../../../components/chat/chat-box';
@@ -71,18 +73,18 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   onNavigateSettings,
   onNavigateProfile,
   onNavigateAuth,
-  onTabChange,
 }) => {
   const { setIsCallHistoryOpen, callState } = useCall();
+  const navigate = useNavigate();
 
   return (
-    <div className="flex items-center space-x-2 shrink-0">
+    <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
       {/* Menu (Grid) icon */}
       <button
         onClick={() => {
           if (onNavigateSettings) onNavigateSettings();
         }}
-        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+        className="hidden sm:flex w-10 h-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
         title="Menu"
       >
         <LayoutGrid className="w-5 h-5" />
@@ -93,7 +95,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
           {/* Call History button */}
           <button
             onClick={() => setIsCallHistoryOpen(true)}
-            className="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
             title="Lịch sử cuộc gọi"
           >
             <Phone className="w-5 h-5" />
@@ -126,7 +128,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
                 setShowMsgMenu(false);
                 setShowUserMenu(false);
               }}
-              className={`relative w-10 h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+              className={`relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
                 showNotifMenu
                   ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
                   : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
@@ -146,23 +148,12 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
                 onClose={() => setShowNotifMenu(false)}
                 onNavigateSettings={onNavigateSettings}
                 onNavigateTarget={(url) => {
-                  if (url.startsWith('/profile') && onNavigateProfile) {
-                    const uid = url.split('/profile/')[1];
-                    onNavigateProfile(uid);
-                  } else if (url.startsWith('/posts')) {
-                    if (onTabChange) onTabChange('home');
-                    const postId = url.split('/posts/')[1];
-                    if (postId) {
-                      setTimeout(() => {
-                        const el = document.getElementById(`post-${postId}`) || document.getElementById(postId);
-                        if (el) {
-                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          el.classList.add('ring-2', 'ring-[#1877f2]', 'transition-all');
-                          setTimeout(() => el.classList.remove('ring-2', 'ring-[#1877f2]'), 3000);
-                        }
-                      }, 300);
-                    }
-                  }
+                  void openNotificationTarget(url, {
+                    navigate,
+                    onNavigateProfile,
+                    onSelectChatUser,
+                    currentUserId: user?.id,
+                  });
                 }}
               />
             )}

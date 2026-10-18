@@ -43,7 +43,7 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
           setShowNotifMenu(false);
           setShowMsgMenu(false);
         }}
-        className="flex items-center justify-center w-10 h-10 rounded-full focus:outline-none cursor-pointer hover:ring-2 hover:ring-[#2d88ff]/40 transition overflow-hidden"
+        className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full focus:outline-none cursor-pointer hover:ring-2 hover:ring-[#2d88ff]/40 transition overflow-hidden"
       >
         <UserAvatar src={user?.avatar} alt={user?.fullName || user?.username} size="md" />
       </button>

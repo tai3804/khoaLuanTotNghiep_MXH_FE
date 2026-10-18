@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Users, Globe, Lock, Loader2, UserPlus, Check, Search, Image as ImageIcon } from 'lucide-react';
+import { X, Users, Globe, Lock, Loader2, UserPlus, Check, Search, Plus, Trash2, Image as ImageIcon } from 'lucide-react';
 import { groupService } from '../../services/groupService';
 import { userService } from '../../services/userService';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '../../utils/apiError';
 import { UserAvatar } from '../common/UserAvatar';
 
 const MAX_COVER_SIZE = 10 * 1024 * 1024;
+const MAX_QUESTIONS = 3;
 
 interface CreateCommunityGroupModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
   const [privacy, setPrivacy] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [postApprovalRequired, setPostApprovalRequired] = useState(false);
   const [rules, setRules] = useState('');
+  const [questions, setQuestions] = useState<string[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
   const [friendSearch, setFriendSearch] = useState('');
@@ -44,6 +46,7 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
       setSelectedFriendIds(new Set());
       setPostApprovalRequired(false);
       setRules('');
+      setQuestions([]);
       setFriendSearch('');
       setCoverFile(null);
       loadFriends();
@@ -146,6 +149,8 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
         initialMemberIds: Array.from(selectedFriendIds),
         postApprovalRequired,
         rules: rules.trim(),
+        // Câu hỏi tham gia chỉ áp dụng cho nhóm riêng tư (người xin vào phải trả lời)
+        membershipQuestions: privacy === 'PRIVATE' ? questions.map((q) => q.trim()).filter(Boolean) : undefined,
       });
       toast.showSuccess(`Đã tạo nhóm "${group.name}" thành công!`);
       onClose();
@@ -285,6 +290,50 @@ export const CreateCommunityGroupModal: React.FC<CreateCommunityGroupModalProps>
               </label>
             </div>
           </div>
+
+          {privacy === 'PRIVATE' && (
+            <div className="rounded-xl border border-gray-200 dark:border-[#393a3b] p-3 space-y-2.5">
+              <div>
+                <div className="text-xs font-bold text-gray-700 dark:text-[#b0b3b8]">
+                  Câu hỏi tham gia <span className="font-normal text-gray-400">(tùy chọn)</span>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-0.5">
+                  Người xin vào nhóm phải trả lời trước khi gửi yêu cầu; chỉ quản trị viên xem được câu trả lời.
+                </p>
+              </div>
+              {questions.map((question, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={question}
+                    maxLength={200}
+                    onChange={(e) => setQuestions((prev) => prev.map((q, i) => (i === index ? e.target.value : q)))}
+                    placeholder={`Câu hỏi ${index + 1}, ví dụ: Bạn học trường nào?`}
+                    aria-label={`Câu hỏi tham gia ${index + 1}`}
+                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-[#3a3b3c]/50 border border-gray-200 dark:border-[#393a3b] rounded-lg text-xs text-gray-900 dark:text-[#e4e6eb] placeholder-gray-400 focus:outline-none focus:border-[#1877f2]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuestions((prev) => prev.filter((_, i) => i !== index))}
+                    aria-label={`Xóa câu hỏi ${index + 1}`}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {questions.length < MAX_QUESTIONS && (
+                <button
+                  type="button"
+                  onClick={() => setQuestions((prev) => [...prev, ''])}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#1877f2] hover:underline cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Thêm câu hỏi ({questions.length}/{MAX_QUESTIONS})
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="rounded-xl border border-gray-200 dark:border-[#393a3b] p-3 space-y-3">
             <label className="flex items-start gap-3 cursor-pointer">

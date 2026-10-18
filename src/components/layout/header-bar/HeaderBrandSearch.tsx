@@ -44,7 +44,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
 
   return (
     <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-      <Logo onClick={() => onNavClick('home')} size="sm" />
+      <Logo onClick={() => onNavClick('home')} size="sm" className="max-sm:[&>*:nth-child(2)]:hidden" />
 
       <div ref={searchRef} className="relative">
         <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500 dark:text-[#b0b3b8]" />

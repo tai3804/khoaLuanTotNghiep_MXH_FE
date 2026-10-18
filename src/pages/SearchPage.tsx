@@ -5,6 +5,7 @@ import { ChatBox, ChatUser } from '../components/chat/chat-box';
 import { PostCard } from '../components/post/post-card';
 import { userService, postService } from '../services/api';
 import { groupService, GroupResponse } from '../services/groupService';
+import { useGroupMembership } from '../components/groups/useGroupMembership';
 import { Post } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -227,27 +228,17 @@ export const SearchPage: React.FC<SearchPageProps> = ({
     }
   };
 
-  const handleToggleJoinGroup = async (group: GroupResponse) => {
+  // Tham gia / hủy yêu cầu / chấp nhận lời mời dùng chung với trang Nhóm (nhóm có câu hỏi sẽ mở hộp thoại trả lời)
+  const { busyId: groupBusyId, requestJoin, cancelRequest, respondToInvitation, joinModal } = useGroupMembership((updated, previous) => {
+    if (updated) setGroups((prev) => prev.map((g) => (g.id === previous.id ? updated : g)));
+  });
+
+  const requireLogin = (action: () => void) => {
     if (!currentUser) {
       showWarning('Vui lòng đăng nhập để tham gia nhóm');
       return;
     }
-    setActionLoading((prev) => ({ ...prev, [group.id]: true }));
-    try {
-      const updated = await groupService.toggleJoinGroup(group.id);
-      if (updated) {
-        setGroups((prev) => prev.map((g) => (g.id === group.id ? updated : g)));
-        if (updated.isMember) {
-          showSuccess(`Đã tham gia nhóm "${group.name}"`);
-        } else {
-          showInfo(`Đã rời khỏi nhóm "${group.name}"`);
-        }
-      }
-    } catch (err: any) {
-      showError(err.message || 'Có lỗi xảy ra khi thao tác với nhóm');
-    } finally {
-      setActionLoading((prev) => ({ ...prev, [group.id]: false }));
-    }
+    action();
   };
 
   const renderUsers = () => {
@@ -387,7 +378,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
 
         <div className="space-y-3">
           {(activeFilter === 'all' ? groups.slice(0, 3) : groups).map((group) => {
-            const isLoading = Boolean(actionLoading[group.id]);
+            const isLoading = groupBusyId === group.id;
             const cover = typeof group.coverUrl === 'string' && group.coverUrl.trim() && !group.coverUrl.includes('images.unsplash.com/photo-1522071820081')
               ? group.coverUrl.trim()
               : undefined;
@@ -437,18 +428,52 @@ export const SearchPage: React.FC<SearchPageProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  <button
-                    onClick={() => handleToggleJoinGroup(group)}
-                    disabled={isLoading || group.isAdmin}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60 ${
-                      group.isMember
-                        ? 'bg-gray-200 dark:bg-[#3a3b3c] hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 text-gray-700 dark:text-[#e4e6eb]'
-                        : 'bg-[#1877f2] hover:bg-blue-600 text-white'
-                    }`}
-                  >
-                    {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    <span>{group.isAdmin ? 'Quản trị viên' : group.isMember ? 'Đã tham gia' : 'Tham gia nhóm'}</span>
-                  </button>
+                  {group.isMember ? (
+                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                      {group.isOwner ? 'Chủ nhóm' : group.isAdmin ? 'Quản trị viên' : group.isModerator ? 'Người kiểm duyệt' : 'Đã tham gia'}
+                    </span>
+                  ) : group.joinStatus === 'BANNED' ? (
+                    <span className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 dark:bg-[#3a3b3c] text-gray-500">
+                      Bạn bị cấm khỏi nhóm
+                    </span>
+                  ) : group.joinStatus === 'INVITED' ? (
+                    <>
+                      <button
+                        onClick={() => requireLogin(() => respondToInvitation(group, true))}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60 bg-[#1877f2] hover:bg-blue-600 text-white"
+                      >
+                        {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        <span>Chấp nhận</span>
+                      </button>
+                      <button
+                        onClick={() => requireLogin(() => respondToInvitation(group, false))}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer disabled:opacity-60 bg-gray-200 dark:bg-[#3a3b3c] hover:bg-gray-300 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]"
+                      >
+                        Từ chối
+                      </button>
+                    </>
+                  ) : group.joinStatus === 'PENDING' ? (
+                    <button
+                      onClick={() => requireLogin(() => cancelRequest(group))}
+                      disabled={isLoading}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-200"
+                      title="Bấm để hủy yêu cầu tham gia nhóm"
+                    >
+                      {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>Hủy yêu cầu</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => requireLogin(() => requestJoin(group))}
+                      disabled={isLoading}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60 bg-[#1877f2] hover:bg-blue-600 text-white"
+                    >
+                      {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{isPrivate ? 'Gửi yêu cầu tham gia' : 'Tham gia nhóm'}</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => navigate(`/groups/${group.id}`)}
@@ -667,6 +692,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
           )}
         </div>
       </div>
+      {joinModal}
     </div>
   );
 };

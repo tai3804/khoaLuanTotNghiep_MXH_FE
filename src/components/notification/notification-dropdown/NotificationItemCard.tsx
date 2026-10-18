@@ -15,6 +15,7 @@ import {
   CheckCheck,
   Trash2,
   Tag,
+  Radio,
 } from 'lucide-react';
 import { NotificationItem, NotificationType } from '../../../types/notification';
 import { UserAvatar } from '../../common/UserAvatar';
@@ -93,9 +94,19 @@ const getNotificationIcon = (type: NotificationType) => {
     case 'GROUP_JOIN_ACCEPT':
     case 'GROUP_ROLE_CHANGE':
     case 'GROUP_POST':
+    case 'GROUP_POST_PENDING':
+    case 'GROUP_POST_APPROVED':
+    case 'GROUP_POST_REJECTED':
+    case 'GROUP_POST_REMOVED':
+    case 'GROUP_POST_REPORTED':
       return {
         icon: <Users className="w-3 h-3 text-white" />,
         bg: 'bg-[#1877f2]',
+      };
+    case 'LIVE_STARTED':
+      return {
+        icon: <Radio className="w-3 h-3 text-white" />,
+        bg: 'bg-[#ef4444]',
       };
     case 'SYSTEM':
     default:

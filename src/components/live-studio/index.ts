@@ -5,3 +5,4 @@ export * from './HostStudioChatPanel';
 export * from './HostStudioControlsBar';
 export * from './HostStudioMiniWidget';
 export * from './HostLiveStudioModal';
+export * from './LiveResumePrompt';

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import { userService, type MyReputation } from '../../../services/userService';
+import { ReputationHistoryList } from './ReputationHistoryList';
 
 // Màu theo bậc uy tín (class Tailwind phải là chuỗi cố định để không bị loại khi build)
 const LEVEL_STYLES: Record<string, { bar: string; chip: string; text: string }> = {
@@ -102,6 +103,8 @@ export const ProfileReputationCard: React.FC = () => {
           {nextRecovery ? `. Lần cộng kế tiếp: ${nextRecovery}.` : '.'}
         </p>
       )}
+
+      <ReputationHistoryList />
 
       {tiers.length > 0 && (
         <div className="mt-2">

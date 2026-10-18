@@ -30,6 +30,9 @@ const ICE_SERVERS: RTCConfiguration = {
   ],
 };
 
+/** 'disconnected' thường chỉ là mạng chập chờn và tự hồi phục; chỉ coi là mất kết nối nếu quá lâu không nối lại được. */
+const DISCONNECT_GRACE_MS = 4000;
+
 class LiveWebRtcService {
   private channels: Map<string, BroadcastChannel> = new Map();
   private wsUnsubMap: Map<string, () => void> = new Map();
@@ -44,6 +47,9 @@ class LiveWebRtcService {
       peers: Map<string, RTCPeerConnection>;
       candidateQueues: Map<string, RTCIceCandidateInit[]>;
       onViewerCountChange?: (count: number) => void;
+      /** Số nơi đang cùng dùng phiên này (toàn app + thẻ bài); chỉ dỡ phiên khi không còn ai dùng. */
+      refs: number;
+      unsubWs: () => void;
     }
   > = new Map();
 
@@ -98,21 +104,29 @@ class LiveWebRtcService {
   }
 
   // --- HOST REGISTRATION ---
+  /**
+   * Đăng ký luồng của chủ phòng để trả lời người xem. Gọi nhiều lần với cùng một luồng thì dùng chung một phiên (đếm tham
+   * chiếu): chủ phòng phải luôn được đăng ký trong suốt buổi phát, không phụ thuộc thẻ bài có đang hiện trên màn hình hay không.
+   */
   public registerHostStream(
     postId: string,
     hostUserId: string,
     stream: MediaStream,
     onViewerCountChange?: (count: number) => void
   ): () => void {
-    console.log(`[LiveWebRtc] Registering Host stream for post: ${postId}`);
+    const existing = this.hostSessions.get(postId);
+    if (existing && existing.stream === stream) {
+      existing.refs += 1;
+      existing.onViewerCountChange = onViewerCountChange ?? existing.onViewerCountChange;
+      return () => this.releaseHostStream(postId, existing);
+    }
+    if (existing) {
+      // Luồng khác (vd camera được mở lại): dỡ phiên cũ rồi dựng phiên mới
+      existing.refs = 0;
+      this.releaseHostStream(postId, existing);
+    }
 
-    this.hostSessions.set(postId, {
-      hostUserId,
-      stream,
-      peers: new Map(),
-      candidateQueues: new Map(),
-      onViewerCountChange,
-    });
+    console.log(`[LiveWebRtc] Registering Host stream for post: ${postId}`);
 
     // Subscribe to isolated live topic
     const unsubWs = liveStreamWebSocketService.subscribeRoom(postId, (signal: LiveWebRtcSignal) => {
@@ -126,41 +140,60 @@ class LiveWebRtcService {
         viewerCount: signal.viewerCount,
       });
     });
-    return () => {
-      console.log(`[LiveWebRtc] Unregistering Host stream for post: ${postId}`);
 
-      const host = this.hostSessions.get(postId);
-      if (host) {
-        host.peers.forEach((peer) => {
-          try { peer.close(); } catch { }
-        });
-      }
-      this.hostSessions.delete(postId);
-
-      const unsub = this.wsUnsubMap.get(postId);
-      if (unsub) {
-        unsub();
-        this.wsUnsubMap.delete(postId);
-      }
-
-      const ch = this.channels.get(postId);
-      if (ch) {
-        ch.close();
-        this.channels.delete(postId);
-      }
+    const session = {
+      hostUserId,
+      stream,
+      peers: new Map<string, RTCPeerConnection>(),
+      candidateQueues: new Map<string, RTCIceCandidateInit[]>(),
+      onViewerCountChange,
+      refs: 1,
+      unsubWs,
     };
+    this.hostSessions.set(postId, session);
+    return () => this.releaseHostStream(postId, session);
+  }
+
+  private releaseHostStream(
+    postId: string,
+    session: { peers: Map<string, RTCPeerConnection>; refs: number; unsubWs: () => void }
+  ) {
+    session.refs -= 1;
+    if (session.refs > 0) return;
+
+    console.log(`[LiveWebRtc] Unregistering Host stream for post: ${postId}`);
+    session.peers.forEach((peer) => {
+      try { peer.close(); } catch { }
+    });
+    session.unsubWs();
+    if (this.hostSessions.get(postId) === session) {
+      this.hostSessions.delete(postId);
+    }
+
+    const ch = this.channels.get(postId);
+    if (ch) {
+      ch.close();
+      this.channels.delete(postId);
+    }
   }
 
   // --- VIEWER SUBSCRIPTION ---
+  /**
+   * onEnded: chủ phòng chủ động kết thúc (tín hiệu END_CALL) - kết thúc hẳn.
+   * onInterrupted: kết nối tới chủ phòng bị đứt (chủ phòng tải lại trang, mất mạng...) - có thể nối lại; nếu không truyền thì coi như onEnded.
+   */
   public subscribeViewer(
     postId: string,
     viewerUserId: string,
     onStream: (stream: MediaStream) => void,
     onViewerCount?: (count: number) => void,
-    onEnded?: () => void
+    onEnded?: () => void,
+    onInterrupted?: () => void
   ): () => void {
     console.log(`[LiveWebRtc] Subscribing Viewer to post: ${postId}`);
 
+    let disposed = false;
+    let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
     const peer = new RTCPeerConnection(ICE_SERVERS);
     const candidateQueue: RTCIceCandidateInit[] = [];
     const inboundStream = new MediaStream();
@@ -188,13 +221,27 @@ class LiveWebRtcService {
       onStream(new MediaStream(inboundStream.getTracks()));
     };
 
+    const interrupted = () => {
+      if (disposed) return;
+      (onInterrupted ?? onEnded)?.();
+    };
+
     peer.onconnectionstatechange = () => {
-      if (
-        peer.connectionState === 'disconnected' ||
-        peer.connectionState === 'closed' ||
-        peer.connectionState === 'failed'
-      ) {
-        onEnded?.();
+      const state = peer.connectionState;
+      if (state === 'connected') {
+        clearTimeout(disconnectTimer);
+        return;
+      }
+      if (state === 'disconnected') {
+        clearTimeout(disconnectTimer);
+        disconnectTimer = setTimeout(() => {
+          if (peer.connectionState !== 'connected') interrupted();
+        }, DISCONNECT_GRACE_MS);
+        return;
+      }
+      if (state === 'failed' || state === 'closed') {
+        clearTimeout(disconnectTimer);
+        interrupted();
       }
     };
 
@@ -251,6 +298,8 @@ class LiveWebRtcService {
     }, 1500);
 
     return () => {
+      disposed = true;
+      clearTimeout(disconnectTimer);
       clearTimeout(retryTimer);
 
       this.sendSignal({

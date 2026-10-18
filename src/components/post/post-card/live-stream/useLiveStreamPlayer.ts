@@ -21,6 +21,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     openStudio,
     isPostLive,
     loadPostComments,
+    resumableLive,
   } = useLiveStream();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,17 +33,21 @@ export const useLiveStreamPlayer = (post: Post) => {
 
   const isPostLiveActive = isPostLive(post);
   const isHost = activeBroadcast.isBroadcasting && (activeBroadcast.postId === post.id || user?.id === post.userId);
+  // Chính chủ phòng vừa tải lại trang: buổi phát đang được giữ chờ nối lại, không được coi mình là người xem
+  // (nếu không, không ai trả luồng sẽ bị hiểu là buổi phát đã kết thúc)
+  const isHostResuming = !isHost && resumableLive?.postId === post.id;
 
   // Hook up WebRTC viewer stream when watching someone else's live stream
   const viewerStream = useLiveViewerStream(
-    !isHost && isPostLiveActive ? post.id : '',
+    !isHost && !isHostResuming && isPostLiveActive ? post.id : '',
     post.userId,
     post.content
   );
 
   const isLive = isHost
     ? activeBroadcast.isBroadcasting
-    : isPostLiveActive && !viewerStream.hasEnded && (!viewerStream.isChecking || viewerStream.isConnected);
+    : isHostResuming ||
+      (isPostLiveActive && !viewerStream.hasEnded && (!viewerStream.isChecking || viewerStream.isConnected));
 
   // Auto-subscribe viewer to WebSocket room for real-time comments & reactions
   useEffect(() => {
@@ -128,6 +133,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     inputRef,
     isLive,
     isHost,
+    isHostResuming,
     activeBroadcast,
     viewerStream,
     effectiveViewerCount,

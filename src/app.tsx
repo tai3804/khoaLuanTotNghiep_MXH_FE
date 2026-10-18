@@ -14,7 +14,7 @@ import { AccountLockedScreen } from './components/common/AccountLockedScreen';
 import { Post } from './types';
 import { Home, Tv, Store, Users } from 'lucide-react';
 import { CallManager } from './components/call/CallManager';
-import { HostLiveStudioModal } from './components/live-studio';
+import { HostLiveStudioModal, LiveResumePrompt } from './components/live-studio';
 import { AiSocialChatWidget } from './components/ai/AiSocialChatWidget';
 import { HashtagFeedModal } from './components/post/hashtag';
 
@@ -30,6 +30,7 @@ const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then((m) =>
 const ModeratorPage = lazy(() => import('./pages/ModeratorPage').then((m) => ({ default: m.ModeratorPage })));
 const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage').then((m) => ({ default: m.SupportInboxPage })));
 const SavedPage = lazy(() => import('./pages/SavedPage').then((m) => ({ default: m.SavedPage })));
+const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 
 // Tab của bảng tin -> cách xếp hạng ở máy chủ: Tất cả = độ liên quan, Mới nhất = thời gian, Nổi bật = tốc độ tương tác
 const FEED_MODE_BY_CATEGORY: Record<'all' | 'recent' | 'popular', FeedMode> = {
@@ -529,6 +530,22 @@ export const App: React.FC = () => {
           element={<SupportInboxPage activeNavTab="support" setActiveNavTab={handleTabChange} onNavigateSettings={() => navigate('/settings/profile')} onNavigateProfile={(uid) => handleViewProfile(uid)} onNavigateAuth={() => navigate('/auth')} activeChatUser={activeChatUser} setActiveChatUser={setActiveChatUser} />}
         />
         <Route
+          path="/posts/:postId"
+          element={
+            <PostDetailPage
+              activeNavTab="home"
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateAuth={() => navigate('/auth')}
+              onViewProfile={handleViewProfile}
+              activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
           path="/saved"
           element={
             <SavedPage
@@ -591,6 +608,9 @@ export const App: React.FC = () => {
 
       {/* Dedicated Host Live Stream Studio & Floating Mini Widget */}
       <HostLiveStudioModal />
+
+      {/* Chủ phòng vừa tải lại trang giữa buổi phát: giữ buổi phát chờ nối lại */}
+      <LiveResumePrompt />
 
       {/* Floating AI Social Assistant Widget */}
       <AiSocialChatWidget />
