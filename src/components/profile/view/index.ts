@@ -7,3 +7,4 @@ export * from './ProfileAboutTab';
 export * from './ProfileFriendsTab';
 export * from './ProfilePhotosTab';
 export * from './ProfilePostsTab';
+export * from './ProfileMoreOptionsMenu';

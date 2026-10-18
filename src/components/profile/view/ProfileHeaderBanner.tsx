@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
   Camera,
-  Edit3,
-  HardDrive,
   UserCheck,
   MessageCircle,
   Check,
@@ -11,14 +9,12 @@ import {
   UserPlus,
   MoreHorizontal,
   BarChart3,
-  Sparkles,
-  Archive,
-  Shield,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../../context/LanguageContext';
 import { ChatUser } from '../../../components/chat/chat-box';
 import { ProfessionalBadge } from '../professional/ProfessionalBadge';
+import { ProfileMoreOptionsMenu } from './ProfileMoreOptionsMenu';
 
 interface ProfileHeaderBannerProps {
   coverUrl: string;
@@ -101,10 +97,10 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-[#242526] shadow-sm rounded-2xl border border-gray-200 dark:border-[#393a3b] transition-colors overflow-hidden mb-4">
+    <div className="bg-white dark:bg-[#242526] shadow-sm rounded-2xl border border-gray-200 dark:border-[#393a3b] transition-colors mb-4 relative z-20">
       <div className="w-full">
         {/* Cover Image Container */}
-        <div className="relative h-44 sm:h-64 md:h-72 lg:h-80 w-full overflow-hidden bg-gray-200 dark:bg-[#3a3b3c]">
+        <div className="relative h-44 sm:h-64 md:h-72 lg:h-80 w-full rounded-t-2xl overflow-hidden bg-gray-200 dark:bg-[#3a3b3c]">
           {coverUrl && coverUrl.trim() !== '' && !coverError ? (
             <img
               key={coverUrl}
@@ -241,82 +237,17 @@ export const ProfileHeaderBanner: React.FC<ProfileHeaderBannerProps> = ({
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
 
-                    {showMenu && (
-                      <>
-                        {/* Invisible backdrop to dismiss dropdown on outside click */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowMenu(false)}
-                        />
-
-                        {/* Dropdown Menu anchored right beneath the 3-dots button */}
-                        <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-white dark:bg-[#242526] shadow-2xl border border-gray-200 dark:border-[#393a3b] p-1.5 z-50">
-                          {/* 1. Edit Profile */}
-                          <button
-                            onClick={() => {
-                              setShowMenu(false);
-                              onShowEditModal();
-                            }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-                          >
-                            <Edit3 className="w-4 h-4 text-gray-600 dark:text-[#b0b3b8] shrink-0" />
-                            <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-[#e4e6eb] truncate">
-                              {isEn ? 'Edit Profile' : 'Chỉnh sửa trang cá nhân'}
-                            </span>
-                          </button>
-
-                          {/* 3. Professional Mode */}
-                          {onOpenProfessionalModeModal && (
-                            <button
-                              onClick={() => {
-                                setShowMenu(false);
-                                onOpenProfessionalModeModal();
-                              }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-                            >
-                              <Sparkles className="w-4 h-4 text-gray-600 dark:text-[#b0b3b8] shrink-0" />
-                              <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-[#e4e6eb] truncate">
-                                {isProfessionalMode
-                                  ? isEn ? 'Professional Mode Settings' : 'Cài đặt Chế độ chuyên nghiệp'
-                                  : isEn ? 'Turn on Professional Mode' : 'Bật Chế độ chuyên nghiệp'}
-                              </span>
-                            </button>
-                          )}
-
-                          {/* 4. Archive */}
-                          {(onShowArchive || onShowManagement) && (
-                            <button
-                              onClick={() => {
-                                setShowMenu(false);
-                                if (onShowArchive) onShowArchive();
-                                else if (onShowManagement) onShowManagement();
-                              }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-                            >
-                              <Archive className="w-4 h-4 text-gray-600 dark:text-[#b0b3b8] shrink-0" />
-                              <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-[#e4e6eb] truncate">
-                                {isEn ? 'Archive' : 'Kho lưu trữ'}
-                              </span>
-                            </button>
-                          )}
-
-                          {/* 5. Privacy Settings */}
-                          <button
-                            onClick={() => {
-                              setShowMenu(false);
-                              navigate('/settings/privacy');
-                            }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
-                          >
-                            <Shield className="w-4 h-4 text-gray-600 dark:text-[#b0b3b8] shrink-0" />
-                            <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-[#e4e6eb] truncate">
-                              {isEn ? 'Privacy Settings' : 'Cài đặt quyền riêng tư'}
-                            </span>
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    <ProfileMoreOptionsMenu
+                      isOpen={showMenu}
+                      onClose={() => setShowMenu(false)}
+                      isProfessionalMode={isProfessionalMode}
+                      onShowEditModal={onShowEditModal}
+                      onOpenProfessionalModeModal={onOpenProfessionalModeModal}
+                      onShowArchive={onShowArchive}
+                      onShowManagement={onShowManagement}
+                    />
                   </div>
+
                 </>
               ) : (
                 <>
