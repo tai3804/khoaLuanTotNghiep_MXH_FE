@@ -13,7 +13,7 @@ interface UseNotificationDropdownDataProps {
 
 const loadSavedFriendStatus = (): Record<string, 'accepted' | 'rejected'> => {
   try {
-    const raw = localStorage.getItem('kltn_friend_action_status');
+    const raw = sessionStorage.getItem('friend_action_status');
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -22,7 +22,7 @@ const loadSavedFriendStatus = (): Record<string, 'accepted' | 'rejected'> => {
 
 const saveFriendStatus = (map: Record<string, 'accepted' | 'rejected'>) => {
   try {
-    localStorage.setItem('kltn_friend_action_status', JSON.stringify(map));
+    sessionStorage.setItem('friend_action_status', JSON.stringify(map));
   } catch {}
 };
 

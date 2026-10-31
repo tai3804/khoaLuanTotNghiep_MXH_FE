@@ -35,7 +35,7 @@ export const useSidebarLeftData = ({
   const [showMore, setShowMore] = useState<boolean>(() => {
     try {
       if (isExtendedFilter) return true;
-      const saved = localStorage.getItem('kltn_sidebar_left_show_more');
+      const saved = localStorage.getItem('sidebar_left_show_more');
       if (saved !== null) return saved === 'true';
     } catch {}
     return isExtendedFilter;
@@ -43,7 +43,7 @@ export const useSidebarLeftData = ({
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('kltn_sidebar_left_collapsed') === 'true';
+      return localStorage.getItem('sidebar_left_collapsed') === 'true';
     } catch {
       return false;
     }
@@ -54,7 +54,7 @@ export const useSidebarLeftData = ({
     if (isExtendedFilter && !showMore) {
       setShowMore(true);
       try {
-        localStorage.setItem('kltn_sidebar_left_show_more', 'true');
+        localStorage.setItem('sidebar_left_show_more', 'true');
       } catch {}
     }
   }, [activeFilter, isExtendedFilter]);
@@ -62,10 +62,10 @@ export const useSidebarLeftData = ({
   // Sync across tabs/windows
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'kltn_sidebar_left_collapsed' && e.newValue !== null) {
+      if (e.key === 'sidebar_left_collapsed' && e.newValue !== null) {
         setIsCollapsed(e.newValue === 'true');
       }
-      if (e.key === 'kltn_sidebar_left_show_more' && e.newValue !== null) {
+      if (e.key === 'sidebar_left_show_more' && e.newValue !== null) {
         setShowMore(e.newValue === 'true' || isExtendedFilter);
       }
     };
@@ -77,7 +77,7 @@ export const useSidebarLeftData = ({
     setIsCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('kltn_sidebar_left_collapsed', String(next));
+        localStorage.setItem('sidebar_left_collapsed', String(next));
       } catch {}
       return next;
     });
@@ -87,7 +87,7 @@ export const useSidebarLeftData = ({
     setShowMore((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('kltn_sidebar_left_show_more', String(next));
+        localStorage.setItem('sidebar_left_show_more', String(next));
       } catch {}
       return next;
     });
@@ -106,7 +106,7 @@ export const useSidebarLeftData = ({
 
   const isProfessional = Boolean(
     (user as any)?.isProfessionalMode ||
-    localStorage.getItem('kltn_prof_mode_enabled') === 'true'
+    localStorage.getItem('prof_mode_enabled') === 'true'
   );
 
   // Core navigation items

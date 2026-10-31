@@ -83,7 +83,7 @@ export const GroupReportsTab: React.FC<Props> = ({ group, onNavigateProfile }) =
     Boolean(item && item.post.userId !== group.ownerId);
 
   return (
-    <div className="mx-auto w-full max-w-[680px] space-y-4">
+    <div className="w-full space-y-4">
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-[#393a3b] dark:bg-[#242526]">
         <div className="flex items-center gap-3">
           <div className="rounded-xl bg-red-100 p-3 text-red-600 dark:bg-red-900/30"><Flag size={24} /></div>

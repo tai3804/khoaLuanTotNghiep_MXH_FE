@@ -23,15 +23,12 @@ export const PrivacySettingsTab: React.FC = () => {
           }
           if (data.friendRequestPrivacy) {
             setFriendRequestPrivacy(data.friendRequestPrivacy);
-            localStorage.setItem('privacy_friend_request', data.friendRequestPrivacy);
           }
           if (data.friendListPrivacy) {
             setFriendListPrivacy(data.friendListPrivacy);
-            localStorage.setItem('privacy_friend_list', data.friendListPrivacy);
           }
           if (data.searchPrivacy) {
             setSearchPrivacy(data.searchPrivacy);
-            localStorage.setItem('privacy_search', data.searchPrivacy);
           }
         }
       } catch (err) {
@@ -66,7 +63,6 @@ export const PrivacySettingsTab: React.FC = () => {
 
   const handleFriendRequestChange = async (val: string) => {
     setFriendRequestPrivacy(val);
-    localStorage.setItem('privacy_friend_request', val);
     try {
       await userService.updatePrivacySettings({ friendRequestPrivacy: val });
       toast.showSuccess('Đã lưu cài đặt lời mời kết bạn!');
@@ -77,7 +73,6 @@ export const PrivacySettingsTab: React.FC = () => {
 
   const handleFriendListChange = async (val: string) => {
     setFriendListPrivacy(val);
-    localStorage.setItem('privacy_friend_list', val);
     try {
       await userService.updatePrivacySettings({ friendListPrivacy: val });
       toast.showSuccess('Đã lưu quyền xem danh sách bạn bè!');
@@ -88,7 +83,6 @@ export const PrivacySettingsTab: React.FC = () => {
 
   const handleSearchPrivacyChange = async (val: string) => {
     setSearchPrivacy(val);
-    localStorage.setItem('privacy_search', val);
     try {
       await userService.updatePrivacySettings({ searchPrivacy: val });
       toast.showSuccess('Đã lưu quyền tìm kiếm tài khoản!');

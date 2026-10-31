@@ -70,7 +70,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
   const [history, setHistory] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('kltn_search_history') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('search_history') || '[]'); } catch { return []; }
   });
 
   useEffect(() => {
@@ -163,7 +163,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
     if (!keyword) return;
     setHistory((previous) => {
       const next = [keyword, ...previous.filter((item) => item.toLocaleLowerCase() !== keyword.toLocaleLowerCase())].slice(0, 10);
-      localStorage.setItem('kltn_search_history', JSON.stringify(next));
+      localStorage.setItem('search_history', JSON.stringify(next));
       return next;
     });
   }, [query]);
@@ -171,7 +171,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const removeHistoryItem = (keyword: string) => {
     setHistory((previous) => {
       const next = previous.filter((item) => item !== keyword);
-      localStorage.setItem('kltn_search_history', JSON.stringify(next));
+      localStorage.setItem('search_history', JSON.stringify(next));
       return next;
     });
   };

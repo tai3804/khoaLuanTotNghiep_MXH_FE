@@ -9,6 +9,7 @@ import { GroupAboutTab } from '../components/groups/GroupAboutTab';
 import { GroupMembersTab } from '../components/groups/GroupMembersTab';
 import { GroupMediaTab } from '../components/groups/GroupMediaTab';
 import { GroupSettingsTab } from '../components/groups/GroupSettingsTab';
+import { GroupManagementLayout, isManagementTab } from '../components/groups/GroupManagementLayout';
 import { GroupManagementTab } from '../components/groups/GroupManagementTab';
 import { GroupPendingPostsTab } from '../components/groups/GroupPendingPostsTab';
 import { GroupAppealsTab } from '../components/groups/GroupAppealsTab';
@@ -144,22 +145,23 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
       { key: 'members', label: 'Thành viên' },
     ];
     if (!isPrivateLocked) list.push({ key: 'media', label: 'Ảnh & video' });
-    if (group.isMember) list.push({ key: 'appeals', label: 'Kháng nghị', badge: canModerate ? modCounts?.pendingAppeals : undefined });
-    if (canModerate && group.postApprovalRequired) list.push({ key: 'pending-posts', label: 'Bài chờ duyệt', badge: modCounts?.pendingPosts });
-    if (canModerate) list.push({ key: 'reports', label: 'Nội dung bị báo cáo', badge: modCounts?.reportedPosts });
+    if (group.isMember && !canModerate) list.push({ key: 'appeals', label: 'Kháng nghị' });
     if (canModerate) {
       const todo = (group.pendingRequestCount ?? 0) + (modCounts?.pendingPosts ?? 0) + (modCounts?.pendingAppeals ?? 0) + (modCounts?.reportedPosts ?? 0);
-      list.push({ key: 'management', label: 'Quản trị nhóm', badge: todo });
+      list.push({ key: 'management', label: 'Quản lý nhóm', badge: todo });
+      if (group.postApprovalRequired) list.push({ key: 'pending-posts', label: 'Bài chờ duyệt', badge: modCounts?.pendingPosts });
+      list.push({ key: 'reports', label: 'Nội dung bị báo cáo', badge: modCounts?.reportedPosts });
+      list.push({ key: 'appeals', label: 'Kháng nghị', badge: modCounts?.pendingAppeals });
+      if (group.isAdmin) list.push({ key: 'settings', label: 'Cài đặt nhóm' });
     }
     return list;
   }, [group, isPrivateLocked, canModerate, modCounts]);
 
   const requestedTab = searchParams.get('tab') as GroupTab | null;
   const activeTab: GroupTab = useMemo(() => {
-    if (requestedTab === 'settings' && group?.isAdmin) return 'settings';
     if (requestedTab && tabs.some((t) => t.key === requestedTab)) return requestedTab;
     return 'discussion';
-  }, [requestedTab, tabs, group?.isAdmin]);
+  }, [requestedTab, tabs]);
 
   useEffect(() => {
     if (!group?.id || !canModerate) {
@@ -254,7 +256,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
       <div className="flex flex-col min-h-screen bg-[#f0f2f5] dark:bg-[#18191a]">
         {header}
         <div className="flex-1 pt-14 flex flex-col items-center" aria-busy="true">
-          <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] rounded-b-xl shadow mb-4">
+          <div className="w-full max-w-[1140px] xl:max-w-[1240px] 2xl:max-w-[1280px] bg-white dark:bg-[#242526] rounded-b-xl shadow mb-4">
             <Skeleton className="w-full h-48 sm:h-[370px] rounded-none" />
             <div className="px-4 sm:px-6 pb-4 pt-4 space-y-3">
               <Skeleton variant="text" width="60%" height="2rem" />
@@ -266,7 +268,7 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
               <Skeleton width="80px" height="1.5rem" />
             </div>
           </div>
-          <div className="flex w-full max-w-[1000px] mx-auto px-4 pb-16 gap-4">
+          <div className="flex w-full max-w-[1140px] xl:max-w-[1240px] 2xl:max-w-[1280px] mx-auto px-3 sm:px-4 lg:px-6 pb-16 gap-5 lg:gap-6">
             <div className="flex-1 space-y-4">
               <Skeleton width="100%" height="120px" />
               <Skeleton width="100%" height="260px" />
@@ -336,9 +338,9 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
         />
       </div>
 
-      <GroupTabsBar tabs={tabs} activeTab={activeTab === 'settings' ? 'management' : activeTab} setActiveTab={setActiveTab} />
+      <GroupTabsBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="flex-1 w-full max-w-[1000px] mx-auto pt-4 px-3 sm:px-4 pb-16">
+      <div className="flex-1 w-full max-w-[1140px] xl:max-w-[1240px] 2xl:max-w-[1280px] mx-auto pt-4 px-3 sm:px-4 lg:px-6 pb-16">
         {invited && (
           <section
             aria-label="Lời mời tham gia nhóm"
@@ -409,16 +411,26 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = (props) => {
           />
         )}
         {activeTab === 'media' && <GroupMediaTab group={group} />}
-        {activeTab === 'appeals' && <GroupAppealsTab group={group} />}
-        {activeTab === 'management' && <GroupManagementTab group={group} onNavigate={setActiveTab} />}
-        {activeTab === 'pending-posts' && <GroupPendingPostsTab group={group} />}
-        {activeTab === 'reports' && <GroupReportsTab group={group} onNavigateProfile={(userId) => props.onNavigateProfile(userId)} />}
-        {activeTab === 'settings' && (
-          <GroupSettingsTab
+        {activeTab === 'appeals' && !canModerate && <GroupAppealsTab group={group} />}
+        {canModerate && isManagementTab(activeTab) && (
+          <GroupManagementLayout
             group={group}
-            onUpdated={(updated) => setGroup((current) => (current ? { ...current, ...updated, memberPreview: current.memberPreview, pendingRequestCount: current.pendingRequestCount } : updated))}
-            onDeleted={() => navigate('/groups')}
-          />
+            activeTab={activeTab}
+            onNavigate={setActiveTab}
+            modCounts={modCounts}
+          >
+            {activeTab === 'management' && <GroupManagementTab group={group} onNavigate={setActiveTab} />}
+            {activeTab === 'pending-posts' && <GroupPendingPostsTab group={group} />}
+            {activeTab === 'reports' && <GroupReportsTab group={group} onNavigateProfile={(userId) => props.onNavigateProfile(userId)} />}
+            {activeTab === 'appeals' && <GroupAppealsTab group={group} />}
+            {activeTab === 'settings' && (
+              <GroupSettingsTab
+                group={group}
+                onUpdated={(updated) => setGroup((current) => (current ? { ...current, ...updated, memberPreview: current.memberPreview, pendingRequestCount: current.pendingRequestCount } : updated))}
+                onDeleted={() => navigate('/groups')}
+              />
+            )}
+          </GroupManagementLayout>
         )}
       </div>
 

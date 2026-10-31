@@ -6,7 +6,30 @@ import { useConfirm } from '../../../context/ConfirmContext';
 import { userService, postService } from '../../../services/api';
 import { mediaService } from '../../../services/mediaService';
 import { Post, UserProfile } from '../../../types';
+import { isLivePost } from '../../post/post-card/PostCardContent';
 
+
+export const isImageUrl = (url?: string, mediaType?: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (mediaType && (mediaType.toUpperCase() === 'VIDEO' || mediaType.toLowerCase() === 'video')) return false;
+  if (trimmed.startsWith('data:video/') || trimmed.startsWith('data:audio/')) return false;
+  if (trimmed.match(/\.(mp4|webm|ogg|mov|m4v|mkv|avi|flv|wmv)(\?.*)?$/i)) return false;
+  if (trimmed.match(/\.(mp3|wav|ogg|aac|flac|m4a)(\?.*)?$/i)) return false;
+  if (trimmed.includes('/video/') || trimmed.includes('format=mp4') || trimmed.includes('mediaType=VIDEO')) return false;
+  if (
+    !trimmed.startsWith('http://') &&
+    !trimmed.startsWith('https://') &&
+    !trimmed.startsWith('/') &&
+    !trimmed.startsWith('./') &&
+    !trimmed.startsWith('blob:') &&
+    !trimmed.startsWith('data:image/')
+  ) {
+    return false;
+  }
+  return true;
+};
 interface UseProfileViewDataProps {
   userId?: string | null;
 }
@@ -140,7 +163,7 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
           const gallery = await mediaService.getUserMediaGallery(postOwnerId || 'me', 0, 50);
           if (isMounted && gallery && Array.isArray(gallery.content)) {
             const galleryPhotos = gallery.content
-              .filter((m) => (m.mediaType === 'IMAGE' || !m.mediaType) && m.fileUrl)
+              .filter((m) => m && m.fileUrl && isImageUrl(m.fileUrl, m.mediaType))
               .map((m) => m.fileUrl);
             setUserMediaPhotos(galleryPhotos);
           }
@@ -537,18 +560,34 @@ export const useProfileViewData = ({ userId }: UseProfileViewDataProps) => {
   const addedSet = new Set<string>();
 
   const addPhoto = (url?: string) => {
-    if (url && typeof url === 'string' && url.trim().length > 0 && !addedSet.has(url)) {
-      addedSet.add(url);
-      allPostPhotos.push(url);
+    if (url && typeof url === 'string') {
+      const trimmed = url.trim();
+      if (trimmed.length > 0 && isImageUrl(trimmed) && !addedSet.has(trimmed)) {
+        addedSet.add(trimmed);
+        allPostPhotos.push(trimmed);
+      }
     }
   };
 
-  if (coverUrl) addPhoto(coverUrl);
-  if (avatarUrl) addPhoto(avatarUrl);
+  if (coverUrl && isImageUrl(coverUrl)) addPhoto(coverUrl);
+  if (avatarUrl && isImageUrl(avatarUrl)) addPhoto(avatarUrl);
   userMediaPhotos.forEach((url) => addPhoto(url));
   posts.forEach((p) => {
-    if (p.mediaUrls && p.mediaUrls.length > 0) {
-      p.mediaUrls.forEach((m) => addPhoto(m));
+    // Exclude live stream posts from photo galleries
+    if (isLivePost(p)) return;
+
+    if (p.mediaList && p.mediaList.length > 0) {
+      p.mediaList.forEach((m) => {
+        if (m.fileUrl && isImageUrl(m.fileUrl, m.mediaType)) {
+          addPhoto(m.fileUrl);
+        }
+      });
+    } else if (p.mediaUrls && p.mediaUrls.length > 0) {
+      p.mediaUrls.forEach((m) => {
+        if (isImageUrl(m)) {
+          addPhoto(m);
+        }
+      });
     }
   });
 

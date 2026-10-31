@@ -356,9 +356,9 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({
 
   return (
     <GroupPageContext.Provider value={pageContext}>
-      <div className="flex w-full gap-4 lg:items-start">
+      <div className="flex w-full justify-between gap-5 lg:gap-6 lg:items-start">
         {/* Cột chính */}
-        <div className="mx-auto min-w-0 w-full max-w-[680px] flex-1 lg:mx-0">
+        <div className="mx-auto min-w-0 w-full max-w-[740px] xl:max-w-[780px] flex-1 lg:mx-0">
           {isPrivateLocked ? (
             <div className="space-y-5 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-[#393a3b] dark:bg-[#242526]">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-600 dark:bg-[#3a3b3c] dark:text-[#b0b3b8]">
@@ -459,55 +459,59 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({
 
               {/* Thanh sắp xếp + tìm kiếm trong nhóm */}
               {!loadError && (posts.length > 0 || loading || keyword || searchOpen) && (
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-[#e4e6eb]">Bài viết</h2>
-                  <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    aria-label="Tìm bài viết trong nhóm"
-                    aria-pressed={searchOpen}
-                    onClick={() => {
-                      if (searchOpen) { setSearchInput(''); setKeyword(''); }
-                      setSearchOpen((o) => !o);
-                    }}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full cursor-pointer ${searchOpen ? 'bg-blue-50 text-[#1877f2] dark:bg-blue-900/30' : 'text-gray-600 hover:bg-gray-200 dark:text-[#b0b3b8] dark:hover:bg-[#3a3b3c]'}`}
-                  >
-                    <Search className="h-5 w-5" />
-                  </button>
-                  <div className="relative" ref={sortRef}>
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm dark:border-[#393a3b] dark:bg-[#242526]">
+                  <h2 className="text-[16px] font-bold text-gray-900 dark:text-[#e4e6eb]">Bài viết</h2>
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      aria-haspopup="menu"
-                      aria-expanded={sortOpen}
-                      onClick={() => setSortOpen((o) => !o)}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:text-[#e4e6eb] dark:hover:bg-[#3a3b3c] cursor-pointer"
+                      aria-label="Tìm bài viết trong nhóm"
+                      aria-pressed={searchOpen}
+                      onClick={() => {
+                        if (searchOpen) { setSearchInput(''); setKeyword(''); }
+                        setSearchOpen((o) => !o);
+                      }}
+                      className={`flex h-8.5 w-8.5 items-center justify-center rounded-full transition cursor-pointer ${
+                        searchOpen
+                          ? 'bg-blue-50 text-[#1877f2] dark:bg-blue-900/30'
+                          : 'text-gray-600 hover:bg-gray-100 dark:text-[#b0b3b8] dark:hover:bg-[#3a3b3c]'
+                      }`}
                     >
-                      <span className="text-gray-500 dark:text-[#b0b3b8]">Sắp xếp:</span> {currentSort.label}
-                      <ChevronDown className="h-4 w-4" />
+                      <Search className="h-4.5 w-4.5" />
                     </button>
-                    {sortOpen && (
-                      <div role="menu" className="absolute right-0 z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white py-1.5 shadow-xl dark:border-[#4e4f50] dark:bg-[#3a3b3c]">
-                        {SORT_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={sort === option.value}
-                            onClick={() => changeSort(option.value)}
-                            className="flex w-full items-start gap-3 px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-[#4e4f50] cursor-pointer"
-                          >
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[#1877f2]">
-                              {sort === option.value && <Check className="h-4 w-4" />}
-                            </span>
-                            <span>
-                              <span className="block text-sm font-semibold text-gray-900 dark:text-[#e4e6eb]">{option.label}</span>
-                              <span className="block text-xs text-gray-500 dark:text-[#b0b3b8]">{option.hint}</span>
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    <div className="relative" ref={sortRef}>
+                      <button
+                        type="button"
+                        aria-haspopup="menu"
+                        aria-expanded={sortOpen}
+                        onClick={() => setSortOpen((o) => !o)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:bg-[#3a3b3c] dark:text-[#e4e6eb] dark:hover:bg-[#4e4f50] transition cursor-pointer"
+                      >
+                        <span className="text-gray-500 dark:text-[#b0b3b8]">Sắp xếp:</span> {currentSort.label}
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                      {sortOpen && (
+                        <div role="menu" className="absolute right-0 z-30 mt-1.5 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white py-1.5 shadow-xl dark:border-[#4e4f50] dark:bg-[#3a3b3c]">
+                          {SORT_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={sort === option.value}
+                              onClick={() => changeSort(option.value)}
+                              className="flex w-full items-start gap-3 px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-[#4e4f50] cursor-pointer"
+                            >
+                              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[#1877f2]">
+                                {sort === option.value && <Check className="h-4 w-4" />}
+                              </span>
+                              <span>
+                                <span className="block text-sm font-semibold text-gray-900 dark:text-[#e4e6eb]">{option.label}</span>
+                                <span className="block text-xs text-gray-500 dark:text-[#b0b3b8]">{option.hint}</span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -615,7 +619,7 @@ export const GroupDiscussionTab: React.FC<GroupDiscussionTabProps> = ({
         </div>
 
         {/* Cột bên phải: giới thiệu, nội quy, quản trị viên (ẩn trên màn hình nhỏ vì đã có tab Giới thiệu) */}
-        <aside className="hidden w-[360px] shrink-0 space-y-4 lg:block lg:sticky lg:top-[124px] lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto no-scrollbar">
+        <aside className="hidden w-[340px] xl:w-[360px] shrink-0 space-y-4 lg:block lg:sticky lg:top-[124px] lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto no-scrollbar">
           <GroupAboutCard group={group} />
           {!isPrivateLocked && <GroupActivityCard group={group} />}
           <GroupRulesCard rules={group.rules} />

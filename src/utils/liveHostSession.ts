@@ -3,7 +3,7 @@
 // Chủ phòng có HOST_RESUME_GRACE_MS để quay lại và phát tiếp; quá hạn thì buổi phát mới bị kết thúc.
 // Dùng sessionStorage (riêng từng tab, sống qua lần tải lại) nên mở thêm một tab khác không bị tranh quyền phát.
 
-const STORAGE_KEY = 'kltn_live_host_session';
+const STORAGE_KEY = 'live_host_session';
 
 /** Thời gian chờ chủ phòng quay lại sau khi tải lại trang / mất kết nối. */
 export const HOST_RESUME_GRACE_MS = 120_000;

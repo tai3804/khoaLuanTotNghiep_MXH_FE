@@ -1,8 +1,8 @@
 import React from 'react';
-import { Logo } from '../components/common/Logo';
-import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon, Globe } from 'lucide-react';
-import { AuthHero } from './auth-components/AuthHero';
+import { AuthHeaderNav } from './auth-components/AuthHeaderNav';
+import { AuthCardHeader } from './auth-components/AuthCardHeader';
+import { AuthTabs } from './auth-components/AuthTabs';
+import { AuthFooter } from './auth-components/AuthFooter';
 import { useAuthPageData } from './auth-components/useAuthPageData';
 import { MfaVerificationForm } from './auth-components/MfaVerificationForm';
 import { ForgotPasswordForm } from './auth-components/ForgotPasswordForm';
@@ -10,232 +10,254 @@ import { LoginForm } from '../components/common/login-modal/LoginForm';
 import { RegisterStep1Email } from '../components/common/login-modal/RegisterStep1Email';
 import { RegisterStep2Otp } from '../components/common/login-modal/RegisterStep2Otp';
 import { RegisterStep3Profile } from '../components/common/login-modal/RegisterStep3Profile';
+import { CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface AuthPageProps {
   onGoHome?: () => void;
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
-  const { theme, toggleTheme } = useTheme();
-
   const data = useAuthPageData(onGoHome);
 
+  const isSubFlow = data.mfaRequired || data.isForgotPasswordMode;
+
   return (
-    <div className="min-h-screen bg-white dark:bg-[#18191a] relative flex items-center justify-center p-2 sm:p-4 md:p-8 font-sans overflow-hidden">
-      {/* Background Graphic */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-900 dark:from-slate-900 dark:to-[#18191a] opacity-90"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-        <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-20"></div>
-        <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-500 rounded-full blur-[150px] opacity-20"></div>
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#18191a] text-[#050505] dark:text-[#e4e6eb] relative flex flex-col justify-between font-sans overflow-x-hidden selection:bg-[#1877f2] selection:text-white transition-colors duration-150">
+      {/* Subtle Radial Ambient Lighting */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-500/5 dark:bg-blue-600/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Main Container */}
-      <div className="relative z-10 w-full max-w-[1000px] bg-white/10 dark:bg-[#242526]/80 backdrop-blur-xl border border-white/20 dark:border-[#393a3b] rounded-[2rem] shadow-2xl p-4 sm:p-6 lg:p-8 flex flex-col">
+      {/* Top Header Navigation */}
+      <AuthHeaderNav
+        language={data.language}
+        onToggleLanguage={() => data.setLanguage(data.language === 'en' ? 'vi' : 'en')}
+        onGoHome={onGoHome}
+      />
 
-        {/* Header (Logo + Controls) */}
-        <div className="flex items-center justify-between mb-6 lg:mb-10 relative z-20">
-          <Logo />
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => data.setLanguage(data.language === 'en' ? 'vi' : 'en')}
-              className="p-2 sm:px-3 sm:py-2 rounded-full sm:rounded-xl bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 text-white transition flex items-center space-x-1 sm:space-x-2 shadow-sm backdrop-blur-md cursor-pointer"
-              title={data.language === 'en' ? 'Switch to Vietnamese' : 'Chuyển sang Tiếng Anh'}
-            >
-              <Globe className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">
-                {data.language}
-              </span>
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="p-2 sm:p-2.5 rounded-full bg-white/20 dark:bg-white/5 hover:bg-white/30 dark:hover:bg-white/10 text-white transition shadow-sm backdrop-blur-md cursor-pointer"
-              title="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Hero & Form Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-11 gap-8 lg:gap-12 items-center">
-          <AuthHero t={data.t} />
-
-          {/* Form Section */}
-          <div className="lg:col-span-5 bg-white dark:bg-[#242526] p-5 sm:p-7 rounded-[1.5rem] shadow-xl border border-gray-100 dark:border-[#393a3b] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-
-            {data.errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs rounded-xl font-medium animate-fade-in shadow-sm">
-                {data.errorMessage}
-              </div>
-            )}
-            {data.successMessage && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-xs rounded-xl font-medium animate-fade-in shadow-sm">
-                {data.successMessage}
-              </div>
-            )}
-
-            {data.mfaRequired ? (
-              <MfaVerificationForm
-                otpCode={data.otpCode}
-                setOtpCode={data.setOtpCode}
-                loading={data.loading}
-                errorMessage={data.errorMessage}
-                onVerify={data.handleVerifyMfaOtp}
-                onCancel={() => {
-                  data.setMfaRequired(false);
-                  data.setMfaToken('');
-                  data.setPassword('');
-                }}
-              />
-            ) : data.isForgotPasswordMode ? (
-              <ForgotPasswordForm
+      {/* Centered Minimalist Auth Main Container */}
+      <main className="w-full flex-1 flex items-center justify-center px-4 py-8 sm:py-12 relative z-10">
+        <div className="w-full max-w-[460px] sm:max-w-[480px]">
+          {/* Main Card */}
+          <div className="bg-white dark:bg-[#242526] border border-gray-200/90 dark:border-[#393a3b] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.5)] transition-all duration-200 ease-out p-6 sm:p-8 min-h-[490px] flex flex-col justify-between">
+            <div>
+              {/* Header: Logo, Title, Subtitle */}
+              <AuthCardHeader
+                isMfa={data.mfaRequired}
+                isForgotPassword={data.isForgotPasswordMode}
+                isLogin={data.isLoginMode}
                 forgotStep={data.forgotStep}
-                setForgotStep={data.setForgotStep}
-                email={data.email}
-                setEmail={data.setEmail}
-                resetOtp={data.resetOtp}
-                setResetOtp={data.setResetOtp}
-                newPassword={data.newPassword}
-                setNewPassword={data.setNewPassword}
-                confirmNewPassword={data.confirmNewPassword}
-                setConfirmNewPassword={data.setConfirmNewPassword}
-                showPassword={data.showPassword}
-                setShowPassword={data.setShowPassword}
-                loading={data.loading}
-                onSendOtp={data.handleSendForgotPasswordOtp}
-                onResetPassword={data.handleResetPassword}
-                onBackToLogin={() => {
-                  data.setIsForgotPasswordMode(false);
-                  data.setIsLoginMode(true);
-                  data.setErrorMessage(null);
-                  data.setSuccessMessage(null);
-                  data.setForgotStep(1);
-                }}
+                registerStep={data.registerStep}
+                onGoHome={onGoHome}
               />
-            ) : data.isLoginMode ? (
-              <>
-                <div className="mb-6">
-                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                    Chào mừng trở lại!
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
-                    Đăng nhập để tiếp tục kết nối với cộng đồng.
-                  </p>
+
+              {/* Error Alert */}
+              {data.errorMessage && (
+                <div className="mb-4 p-3.5 bg-[#ffebe8] dark:bg-red-950/40 border border-[#dd3c10]/40 dark:border-red-900/60 text-[#c72800] dark:text-red-300 text-xs font-semibold rounded-xl flex items-start space-x-2.5 animate-shake shadow-2xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#dd3c10] dark:text-red-400" />
+                  <span className="leading-relaxed">{data.errorMessage}</span>
                 </div>
-                <LoginForm
-                  email={data.email}
-                  setEmail={data.setEmail}
-                  password={data.password}
-                  setPassword={data.setPassword}
-                  showPassword={data.showPassword}
-                  setShowPassword={data.setShowPassword}
-                  loading={data.loading}
-                  onSubmit={data.handleSubmitLogin}
-                  onQuickLogin={data.handleQuickLogin}
-                  onForgotPassword={() => {
-                    data.setIsForgotPasswordMode(true);
+              )}
+
+              {/* Success Alert */}
+              {data.successMessage && (
+                <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold rounded-xl flex items-start space-x-2.5 shadow-2xs">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
+                  <span className="leading-relaxed">{data.successMessage}</span>
+                </div>
+              )}
+
+              {/* Mode Switcher Tabs (Login / Register) */}
+              {!isSubFlow && (
+                <AuthTabs
+                  isLoginMode={data.isLoginMode}
+                  disabled={data.loading}
+                  onSelectTab={(isLogin) => {
+                    data.setIsLoginMode(isLogin);
                     data.setErrorMessage(null);
                     data.setSuccessMessage(null);
-                    data.setForgotStep(1);
+                    if (!isLogin) {
+                      data.setRegisterStep(1);
+                    }
                   }}
                 />
+              )}
 
-                <div className="mt-5 pt-5 border-t border-gray-100 dark:border-[#393a3b] text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Chưa có tài khoản?</p>
-                  <button
-                    type="button"
-                    onClick={() => {
+              {/* Form Views Area */}
+              <div className="min-h-[280px] flex flex-col justify-center transition-opacity duration-150">
+                {data.mfaRequired ? (
+                  <MfaVerificationForm
+                    otpCode={data.otpCode}
+                    setOtpCode={data.setOtpCode}
+                    loading={data.loading}
+                    errorMessage={data.errorMessage}
+                    onVerify={data.handleVerifyMfaOtp}
+                    onCancel={() => {
+                      data.setMfaRequired(false);
+                      data.setMfaToken('');
+                      data.setPassword('');
+                    }}
+                  />
+                ) : data.isForgotPasswordMode ? (
+                  <ForgotPasswordForm
+                    forgotStep={data.forgotStep}
+                    setForgotStep={data.setForgotStep}
+                    email={data.email}
+                    setEmail={data.setEmail}
+                    resetOtp={data.resetOtp}
+                    setResetOtp={data.setResetOtp}
+                    newPassword={data.newPassword}
+                    setNewPassword={data.setNewPassword}
+                    confirmNewPassword={data.confirmNewPassword}
+                    setConfirmNewPassword={data.setConfirmNewPassword}
+                    showPassword={data.showPassword}
+                    setShowPassword={data.setShowPassword}
+                    loading={data.loading}
+                    onSendOtp={data.handleSendForgotPasswordOtp}
+                    onResetPassword={data.handleResetPassword}
+                    onBackToLogin={() => {
+                      data.setIsForgotPasswordMode(false);
+                      data.setIsLoginMode(true);
+                      data.setErrorMessage(null);
+                      data.setSuccessMessage(null);
+                      data.setForgotStep(1);
+                    }}
+                  />
+                ) : data.isLoginMode ? (
+                  <LoginForm
+                    email={data.email}
+                    setEmail={data.setEmail}
+                    password={data.password}
+                    setPassword={data.setPassword}
+                    showPassword={data.showPassword}
+                    setShowPassword={data.setShowPassword}
+                    loading={data.loading}
+                    onSubmit={data.handleSubmitLogin}
+                    onQuickLogin={data.handleQuickLogin}
+                    onForgotPassword={() => {
+                      data.setIsForgotPasswordMode(true);
+                      data.setErrorMessage(null);
+                      data.setSuccessMessage(null);
+                      data.setForgotStep(1);
+                    }}
+                    onCreateAccount={() => {
                       data.setIsLoginMode(false);
                       data.setIsForgotPasswordMode(false);
                       data.setErrorMessage(null);
                       data.setSuccessMessage(null);
-                    }}
-                    className="w-full bg-[#42b72a] hover:bg-[#36a420] text-white font-bold text-xs py-3 rounded-xl shadow-sm transition cursor-pointer"
-                  >
-                    Tạo Tài Khoản Mới
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mb-5 border-b border-gray-100 dark:border-[#393a3b] pb-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-black text-gray-900 dark:text-white">Đăng Ký Tài Khoản</h2>
-                    <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-1 font-medium">Nhanh chóng và dễ dàng.</p>
-                  </div>
-                  <div className="bg-gray-100 dark:bg-[#3a3b3c] text-gray-600 dark:text-gray-300 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-inner tracking-wider">
-                    BƯỚC {data.registerStep} / 3
-                  </div>
-                </div>
-
-                {data.registerStep === 1 && (
-                  <RegisterStep1Email
-                    email={data.email}
-                    setEmail={data.setEmail}
-                    loading={data.loading}
-                    onSendOtp={data.handleSendRegisterOtp}
-                  />
-                )}
-                {data.registerStep === 2 && (
-                  <RegisterStep2Otp
-                    email={data.email}
-                    registerOtp={data.registerOtp}
-                    setRegisterOtp={data.setRegisterOtp}
-                    loading={data.loading}
-                    onVerifyOtp={data.handleVerifyRegisterOtp}
-                    onResendOtp={data.handleSendRegisterOtp}
-                    onChangeEmail={() => data.setRegisterStep(1)}
-                  />
-                )}
-                {data.registerStep === 3 && (
-                  <RegisterStep3Profile
-                    lastName={data.lastName}
-                    setLastName={data.setLastName}
-                    firstName={data.firstName}
-                    setFirstName={data.setFirstName}
-                    dateOfBirth={data.dateOfBirth}
-                    setDateOfBirth={data.setDateOfBirth}
-                    gender={data.gender}
-                    setGender={data.setGender}
-                    password={data.password}
-                    setPassword={data.setPassword}
-                    confirmPassword={data.confirmPassword}
-                    setConfirmPassword={data.setConfirmPassword}
-                    showPassword={data.showPassword}
-                    setShowPassword={data.setShowPassword}
-                    loading={data.loading}
-                    onComplete={data.handleCompleteRegistration}
-                  />
-                )}
-
-                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#393a3b] text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      data.setIsLoginMode(true);
-                      data.setErrorMessage(null);
-                      data.setSuccessMessage(null);
                       data.setRegisterStep(1);
                     }}
-                    className="text-xs font-bold text-[#1877f2] hover:underline"
-                  >
-                    Đã có tài khoản? Đăng nhập ngay
-                  </button>
-                </div>
-              </>
-            )}
+                  />
+                ) : (
+                  /* Register Flow View */
+                  <div>
+                    {/* 3-Step Progress Indicator */}
+                    <div className="mb-5 pb-3 border-b border-gray-100 dark:border-[#393a3b]">
+                      <div className="flex items-center justify-between">
+                        {[
+                          { step: 1, label: 'Email' },
+                          { step: 2, label: 'Mã OTP' },
+                          { step: 3, label: 'Thông tin' },
+                        ].map((item, idx) => (
+                          <div key={item.step} className="flex items-center space-x-1.5 sm:space-x-2">
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${
+                                data.registerStep >= item.step
+                                  ? 'bg-[#1877f2] text-white shadow-xs'
+                                  : 'bg-gray-100 dark:bg-[#18191a] text-gray-400'
+                              }`}
+                            >
+                              {item.step}
+                            </div>
+                            <span
+                              className={`text-xs ${
+                                data.registerStep >= item.step
+                                  ? 'text-[#1877f2] dark:text-[#4599ff] font-bold'
+                                  : 'text-gray-400 font-medium'
+                              }`}
+                            >
+                              {item.label}
+                            </span>
+                            {idx < 2 && (
+                              <div
+                                className={`w-8 sm:w-12 h-0.5 mx-1 transition-all ${
+                                  data.registerStep > item.step
+                                    ? 'bg-[#1877f2]'
+                                    : 'bg-gray-200 dark:bg-[#383a3d]'
+                                }`}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Registration Step Components */}
+                    {data.registerStep === 1 && (
+                      <RegisterStep1Email
+                        email={data.email}
+                        setEmail={data.setEmail}
+                        loading={data.loading}
+                        onSendOtp={data.handleSendRegisterOtp}
+                      />
+                    )}
+                    {data.registerStep === 2 && (
+                      <RegisterStep2Otp
+                        email={data.email}
+                        registerOtp={data.registerOtp}
+                        setRegisterOtp={data.setRegisterOtp}
+                        loading={data.loading}
+                        onVerifyOtp={data.handleVerifyRegisterOtp}
+                        onResendOtp={data.handleSendRegisterOtp}
+                        onChangeEmail={() => data.setRegisterStep(1)}
+                      />
+                    )}
+                    {data.registerStep === 3 && (
+                      <RegisterStep3Profile
+                        lastName={data.lastName}
+                        setLastName={data.setLastName}
+                        firstName={data.firstName}
+                        setFirstName={data.setFirstName}
+                        dateOfBirth={data.dateOfBirth}
+                        setDateOfBirth={data.setDateOfBirth}
+                        gender={data.gender}
+                        setGender={data.setGender}
+                        password={data.password}
+                        setPassword={data.setPassword}
+                        confirmPassword={data.confirmPassword}
+                        setConfirmPassword={data.setConfirmPassword}
+                        showPassword={data.showPassword}
+                        setShowPassword={data.setShowPassword}
+                        loading={data.loading}
+                        onComplete={data.handleCompleteRegistration}
+                      />
+                    )}
+
+                    {/* Back to Login Link */}
+                    <div className="pt-4 text-center border-t border-gray-100 dark:border-[#393a3b] mt-5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          data.setIsLoginMode(true);
+                          data.setErrorMessage(null);
+                          data.setSuccessMessage(null);
+                        }}
+                        className="inline-flex items-center space-x-1.5 text-xs font-semibold text-gray-500 dark:text-[#b0b3b8] hover:text-[#1877f2] dark:hover:text-[#4599ff] hover:underline cursor-pointer transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Quay lại Đăng nhập</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      </main>
 
-        {/* Footer */}
-        <div className="mt-6 lg:mt-8 pt-4 border-t border-white/10 text-center relative z-20">
-          <p className="text-[10px] sm:text-xs font-medium text-white/60">
-            Khóa Luận Tốt Nghiệp 2026 ©
-          </p>
-        </div>
-      </div>
+      {/* Footer */}
+      <AuthFooter />
     </div>
   );
 };

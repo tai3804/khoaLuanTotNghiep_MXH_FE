@@ -29,13 +29,13 @@ export const PostMediaGrid: React.FC<PostMediaGridProps> = ({
       );
     }
     return (
-      <div className="w-full bg-black/5 dark:bg-black/40 overflow-hidden">
+      <div className="w-full max-h-[560px] bg-black/5 dark:bg-black/30 flex items-center justify-center overflow-hidden">
         <img
           src={url}
           loading="lazy"
           decoding="async"
           alt="Post media"
-          className="w-full max-h-[560px] object-cover hover:opacity-95 transition cursor-pointer"
+          className="w-auto h-auto max-w-full max-h-[560px] object-contain hover:opacity-95 transition cursor-pointer"
           onClick={() => onMediaClick(0)}
           onError={(e) => {
             (e.currentTarget as HTMLElement).style.display = 'none';

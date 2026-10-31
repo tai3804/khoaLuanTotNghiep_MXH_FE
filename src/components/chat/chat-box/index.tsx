@@ -71,7 +71,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
   const emojiKey = conversationId ? `chat_emoji_${conversationId}` : `chat_emoji_${friend.id}`;
   const [quickEmoji, setQuickEmoji] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(emojiKey) || '👍';
+      return sessionStorage.getItem(emojiKey) || '👍';
     }
     return '👍';
   });

@@ -91,7 +91,7 @@ export const GroupBanner: React.FC<GroupBannerProps> = ({
   const joinedRoleLabel = group.isOwner ? 'Chủ nhóm' : group.isAdmin ? 'Quản trị viên' : group.isModerator ? 'Người kiểm duyệt' : null;
 
   return (
-    <div className="w-full max-w-[1000px] bg-white dark:bg-[#242526] shadow-sm">
+    <div className="w-full max-w-[1140px] xl:max-w-[1240px] 2xl:max-w-[1280px] bg-white dark:bg-[#242526] shadow-sm">
       {/* Ảnh bìa */}
       <div className="relative h-48 sm:h-auto sm:aspect-[2.7/1] w-full overflow-hidden">
         <GroupCover
@@ -300,7 +300,7 @@ interface GroupTabsBarProps {
 }
 
 /** Các tab dành cho việc điều hành: khi có từ 3 tab trở lên thì gom vào menu "Quản lý nhóm" để thanh tab không quá dài. */
-const MANAGE_TAB_KEYS: GroupTab[] = ['appeals', 'pending-posts', 'reports', 'management'];
+const MANAGE_TAB_KEYS: GroupTab[] = ['management', 'pending-posts', 'reports', 'appeals', 'settings'];
 
 const tabClass = (active: boolean) =>
   `relative shrink-0 whitespace-nowrap px-4 py-3.5 font-semibold text-[15px] border-b-[3px] transition cursor-pointer flex items-center gap-1.5 ${
@@ -323,8 +323,8 @@ export const GroupTabsBar: React.FC<GroupTabsBarProps> = ({ tabs, activeTab, set
   const collapseManage = manageTabs.length >= 3;
   const inlineTabs = collapseManage ? tabs.filter((t) => !MANAGE_TAB_KEYS.includes(t.key)) : tabs;
   const manageActive = manageTabs.some((t) => t.key === activeTab);
-  const manageBadge = manageTabs.reduce((sum, t) => sum + (t.key === 'management' ? 0 : t.badge ?? 0), 0)
-    + (manageTabs.find((t) => t.key === 'management')?.badge ?? 0);
+  const manageBadge = manageTabs.find((t) => t.key === 'management')?.badge
+    ?? manageTabs.reduce((sum, t) => sum + (t.badge ?? 0), 0);
 
   const renderTab = (tab: GroupTabItem) => (
     <button
@@ -345,7 +345,7 @@ export const GroupTabsBar: React.FC<GroupTabsBarProps> = ({ tabs, activeTab, set
       <div
         role="tablist"
         aria-label="Nội dung nhóm"
-        className="no-scrollbar flex w-full max-w-[1000px] overflow-x-auto border-t border-gray-200 bg-white px-2 shadow-sm sm:overflow-visible sm:rounded-b-xl sm:px-4 dark:border-[#393a3b] dark:bg-[#242526]"
+        className="no-scrollbar flex w-full max-w-[1140px] xl:max-w-[1240px] 2xl:max-w-[1280px] overflow-x-auto border-t border-gray-200 bg-white px-2 shadow-sm sm:overflow-visible sm:rounded-b-xl sm:px-4 dark:border-[#393a3b] dark:bg-[#242526]"
       >
         {inlineTabs.map(renderTab)}
 
@@ -380,7 +380,7 @@ export const GroupTabsBar: React.FC<GroupTabsBarProps> = ({ tabs, activeTab, set
                         activeTab === tab.key ? 'text-[#1877f2]' : 'text-gray-900 dark:text-[#e4e6eb]'
                       }`}
                     >
-                      {tab.label}
+                      {tab.key === 'management' ? 'Tổng quan quản lý' : tab.label}
                       <Badge value={tab.badge} />
                     </button>
                   ))}

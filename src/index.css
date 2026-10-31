@@ -18,6 +18,10 @@
   --fb-text-secondary: #b0b3b8;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 html, body {
   margin: 0;
   padding: 0;

@@ -22,7 +22,6 @@ interface ForgotPasswordFormProps {
 
 export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
   forgotStep,
-  setForgotStep,
   email,
   setEmail,
   resetOtp,
@@ -40,36 +39,24 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      {/* Step Header */}
-      <div className="mb-4">
-        <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-          <span>Quên Mật Khẩu</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full">
-            Bước {forgotStep}/2
-          </span>
-        </h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
-          {forgotStep === 1
-            ? 'Nhập địa chỉ email tài khoản của bạn để nhận mã OTP khôi phục.'
-            : `Nhập mã OTP đã được gửi tới ${email} và đặt mật khẩu mới.`}
-        </p>
-      </div>
-
       {forgotStep === 1 ? (
-        <form onSubmit={onSendOtp} className="space-y-3.5">
+        <form onSubmit={onSendOtp} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-800 dark:text-[#e4e6eb] mb-1.5">
-              Email tài khoản <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
+              Địa chỉ Email tài khoản <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-3 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-[#b0b3b8] group-focus-within:text-[#1877f2] transition-colors">
+                <Mail className="w-4 h-4" />
+              </div>
               <input
                 type="email"
                 required
+                autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nhap-email-cua-ban@gmail.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#4e4f50] focus:outline-none focus:ring-2 focus:ring-[#1877f2] text-xs font-medium placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
+                placeholder="example@gmail.com"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#3e4042] focus:outline-none focus:border-[#1877f2] focus:ring-4 focus:ring-[#1877f2]/15 text-sm placeholder-gray-400 dark:placeholder-gray-500 transition-all shadow-2xs"
               />
             </div>
           </div>
@@ -77,13 +64,13 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
           <button
             type="submit"
             disabled={loading || !email.trim()}
-            className="w-full bg-[#1877f2] hover:bg-[#166fe5] text-white font-bold text-xs py-3 rounded-xl shadow-sm disabled:opacity-50 transition flex items-center justify-center space-x-2 cursor-pointer mt-2"
+            className="w-full h-11 sm:h-12 rounded-xl font-bold text-sm sm:text-base text-white bg-[#1877f2] hover:bg-[#166fe5] active:scale-[0.99] shadow-sm disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <span>Gửi Mã OTP Khôi Phục</span>
+                <span>Gửi Mã Xác Thực OTP</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -91,106 +78,104 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
         </form>
       ) : (
         <form onSubmit={onResetPassword} className="space-y-3.5">
-          {/* OTP Code */}
+          <div className="p-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl text-xs text-blue-800 dark:text-blue-300 truncate">
+            Mã OTP đã gửi tới: <strong className="font-semibold">{email}</strong>
+          </div>
+
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-gray-800 dark:text-[#e4e6eb]">
-                Mã OTP (6 số) <span className="text-red-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setForgotStep(1)}
-                className="text-[11px] font-semibold text-[#1877f2] hover:underline cursor-pointer"
-              >
-                Đổi email
-              </button>
-            </div>
-            <div className="relative">
-              <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
+            <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
+              Mã OTP 6 số <span className="text-red-500">*</span>
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-[#b0b3b8] group-focus-within:text-[#1877f2] transition-colors">
+                <KeyRound className="w-4 h-4" />
+              </div>
               <input
                 type="text"
-                required
                 maxLength={6}
+                required
+                autoFocus
                 value={resetOtp}
                 onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#4e4f50] focus:outline-none focus:ring-2 focus:ring-[#1877f2] text-xs font-bold tracking-widest placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
+                placeholder="••••••"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#3e4042] focus:outline-none focus:border-[#1877f2] focus:ring-4 focus:ring-[#1877f2]/15 text-base font-mono font-bold tracking-[0.3em] text-center shadow-2xs"
               />
             </div>
           </div>
 
-          {/* New Password */}
-          <div>
-            <label className="block text-xs font-bold text-gray-800 dark:text-[#e4e6eb] mb-1.5">
-              Mật khẩu mới <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={6}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="•••••••• (Tối thiểu 6 ký tự)"
-                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#4e4f50] focus:outline-none focus:ring-2 focus:ring-[#1877f2] text-xs font-medium placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3.5 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
+                Mật khẩu mới <span className="text-red-500">*</span>
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-[#b0b3b8] group-focus-within:text-[#1877f2] transition-colors">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mật khẩu mới"
+                  className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#3e4042] focus:outline-none focus:border-[#1877f2] focus:ring-4 focus:ring-[#1877f2]/15 text-xs sm:text-sm shadow-2xs"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             </div>
-          </div>
 
-          {/* Confirm New Password */}
-          <div>
-            <label className="block text-xs font-bold text-gray-800 dark:text-[#e4e6eb] mb-1.5">
-              Xác nhận mật khẩu mới <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-400 dark:text-[#b0b3b8]" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={6}
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#4e4f50] focus:outline-none focus:ring-2 focus:ring-[#1877f2] text-xs font-medium placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
-              />
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] mb-1.5">
+                Nhập lại mật khẩu <span className="text-red-500">*</span>
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-[#b0b3b8] group-focus-within:text-[#1877f2] transition-colors">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="Xác nhận lại"
+                  className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-[#18191a] text-gray-900 dark:text-[#e4e6eb] rounded-xl border border-gray-300 dark:border-[#3e4042] focus:outline-none focus:border-[#1877f2] focus:ring-4 focus:ring-[#1877f2]/15 text-xs sm:text-sm shadow-2xs"
+                />
+              </div>
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={loading || !resetOtp.trim() || !newPassword.trim() || !confirmNewPassword.trim()}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl shadow-sm disabled:opacity-50 transition flex items-center justify-center space-x-2 cursor-pointer mt-2"
+            disabled={loading || !newPassword || newPassword !== confirmNewPassword || resetOtp.length < 6}
+            className="w-full h-11 sm:h-12 rounded-xl font-bold text-sm sm:text-base text-white bg-[#1877f2] hover:bg-[#166fe5] active:scale-[0.99] shadow-sm disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 cursor-pointer mt-2"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Xác Nhận & Đặt Lại Mật Khẩu</span>
+                <span>Đặt Lại Mật Khẩu</span>
               </>
             )}
           </button>
         </form>
       )}
 
-      {/* Back to login */}
-      <div className="pt-3 border-t border-gray-100 dark:border-[#393a3b] text-center">
+      <div className="pt-2 text-center">
         <button
           type="button"
           onClick={onBackToLogin}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:text-[#1877f2] dark:hover:text-[#1877f2] transition cursor-pointer"
+          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-gray-500 dark:text-[#b0b3b8] hover:text-[#1877f2] dark:hover:text-[#4599ff] hover:underline transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Quay lại đăng nhập</span>
+          <span>Quay lại Đăng nhập</span>
         </button>
       </div>
     </div>

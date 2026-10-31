@@ -40,8 +40,8 @@ const SearchBox: React.FC<{ value: string; onChange: (v: string) => void }> = ({
   </div>
 );
 
-const RowsSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) => (
-  <div aria-busy="true" className="space-y-1">
+const RowsSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => (
+  <div aria-busy="true" className="grid grid-cols-1 md:grid-cols-2 gap-2">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="flex items-center gap-3 px-2 py-2.5">
         <Skeleton variant="circular" width="48px" height="48px" />
@@ -245,7 +245,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
   const memberCountLabel = group.memberCount;
 
   return (
-    <div className="mx-auto w-full max-w-[760px] space-y-4">
+    <div className="w-full space-y-4">
       <TabCard className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -369,7 +369,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                 {showInvited ? <ChevronUp className="h-5 w-5 text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-500" />}
               </button>
               {showInvited && (
-                <div className="mt-2">
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                   {invited.items.map((member) => (
                     <MemberRow
                       key={member.id}
@@ -395,19 +395,21 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
               ) : staffError ? (
                 <ErrorState message={staffError} onRetry={() => void loadStaff()} />
               ) : (
-                visibleStaff.map((s) => (
-                  <MemberRow
-                    key={s.id}
-                    id={s.id}
-                    name={s.name}
-                    avatar={s.avatar}
-                    isOwner={s.isOwner}
-                    role={s.role}
-                    busy={busyId === s.id}
-                    menuItems={menuFor({ id: s.id, name: s.name, role: s.role })}
-                    onOpenProfile={onNavigateProfile}
-                  />
-                ))
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {visibleStaff.map((s) => (
+                    <MemberRow
+                      key={s.id}
+                      id={s.id}
+                      name={s.name}
+                      avatar={s.avatar}
+                      isOwner={s.isOwner}
+                      role={s.role}
+                      busy={busyId === s.id}
+                      menuItems={menuFor({ id: s.id, name: s.name, role: s.role })}
+                      onOpenProfile={onNavigateProfile}
+                    />
+                  ))}
+                </div>
               )}
             </TabCard>
           )}
@@ -430,20 +432,22 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
               />
             ) : (
               <>
-                {members.items.map((member) => (
-                  <MemberRow
-                    key={member.id}
-                    id={member.id}
-                    name={member.name}
-                    avatar={member.avatar}
-                    subtitle={joinedLabel(member.joinedAt)}
-                    busy={busyId === member.id}
-                    menuItems={menuFor({ id: member.id, name: member.name, role: member.role })}
-                    onOpenProfile={onNavigateProfile}
-                  />
-                ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {members.items.map((member) => (
+                    <MemberRow
+                      key={member.id}
+                      id={member.id}
+                      name={member.name}
+                      avatar={member.avatar}
+                      subtitle={joinedLabel(member.joinedAt)}
+                      busy={busyId === member.id}
+                      menuItems={menuFor({ id: member.id, name: member.name, role: member.role })}
+                      onOpenProfile={onNavigateProfile}
+                    />
+                  ))}
+                </div>
                 <div ref={sentinel} className="h-1" aria-hidden="true" />
-                {members.loadingMore && <RowsSkeleton count={2} />}
+                {members.loadingMore && <RowsSkeleton count={4} />}
                 {members.error && <p className="px-2 py-2 text-center text-xs text-red-500">{members.error}</p>}
                 {!members.last && !members.loadingMore && <LoadMoreButton loading={false} onClick={() => void members.loadMore()} />}
               </>
@@ -466,7 +470,7 @@ export const GroupMembersTab: React.FC<GroupMembersTabProps> = ({ group, onInvit
                 {showBanned ? <ChevronUp className="h-5 w-5 text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-500" />}
               </button>
               {showBanned && (
-                <div className="mt-2">
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                   {banned.items.map((member) => (
                     <MemberRow
                       key={member.id}

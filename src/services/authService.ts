@@ -8,10 +8,9 @@ export const authService = {
   refreshToken: async (): Promise<string | null> => {
     try {
       const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-
       const res = await axios.post(
         BASE_URL + '/auth/refresh',
-        {}, // Carried strictly via HttpOnly cookie
+        {},
         {
           withCredentials: true,
           headers: {

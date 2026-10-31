@@ -89,7 +89,7 @@ api.interceptors.response.use(
       try {
         const res = await axios.post(
           BASE_URL + '/auth/refresh',
-          {}, // Carried strictly via HttpOnly cookie
+          {},
           {
             withCredentials: true,
             headers: {

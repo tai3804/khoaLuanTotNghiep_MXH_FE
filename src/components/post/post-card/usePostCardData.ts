@@ -80,7 +80,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const [translationDisabled, setTranslationDisabled] = useState<boolean>(() => localStorage.getItem(`post_translation_disabled_${post.id}`) === 'true');
   const [isPinned, setIsPinned] = useState<boolean>(() => {
     try {
-      const pins = JSON.parse(localStorage.getItem('kltn_pinned_posts') || '[]');
+      const pins = JSON.parse(localStorage.getItem('pinned_posts') || '[]');
       return pins.includes(post.id);
     } catch {
       return false;
@@ -88,7 +88,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   });
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     try {
-      const mutes = JSON.parse(localStorage.getItem('kltn_muted_posts') || '[]');
+      const mutes = JSON.parse(localStorage.getItem('muted_posts') || '[]');
       return mutes.includes(post.id);
     } catch {
       return false;
@@ -443,9 +443,9 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     } catch (e) {
       console.error(e);
       // local fallback
-      const pins: string[] = JSON.parse(localStorage.getItem('kltn_pinned_posts') || '[]');
+      const pins: string[] = JSON.parse(localStorage.getItem('pinned_posts') || '[]');
       const updated = nextPinned ? [post.id, ...pins] : pins.filter((id) => id !== post.id);
-      localStorage.setItem('kltn_pinned_posts', JSON.stringify(updated));
+      localStorage.setItem('pinned_posts', JSON.stringify(updated));
       toast.showSuccess(nextPinned ? 'Đã ghim bài viết lên đầu!' : 'Đã bỏ ghim bài viết.');
     }
   };
@@ -472,7 +472,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
 
   const handleToggleMute = () => {
     try {
-      const mutes: string[] = JSON.parse(localStorage.getItem('kltn_muted_posts') || '[]');
+      const mutes: string[] = JSON.parse(localStorage.getItem('muted_posts') || '[]');
       let updated: string[];
       if (mutes.includes(post.id)) {
         updated = mutes.filter((id) => id !== post.id);
@@ -483,7 +483,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
         setIsMuted(true);
         toast.showSuccess('Đã tắt thông báo về bài viết này.');
       }
-      localStorage.setItem('kltn_muted_posts', JSON.stringify(updated));
+      localStorage.setItem('muted_posts', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }

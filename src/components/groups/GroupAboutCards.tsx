@@ -90,10 +90,11 @@ interface StaffCardProps {
   /** Hiện nút "Xem tất cả" dẫn sang tab thành viên. */
   onSeeAll?: () => void;
   title?: string;
+  columns?: 1 | 2;
 }
 
 /** Thẻ "Quản trị viên và người kiểm duyệt": ai cũng xem được, kể cả nhóm riêng tư. */
-export const GroupStaffCard: React.FC<StaffCardProps> = ({ staff, onNavigateProfile, onSeeAll, title = 'Quản trị viên' }) => {
+export const GroupStaffCard: React.FC<StaffCardProps> = ({ staff, onNavigateProfile, onSeeAll, title = 'Quản trị viên', columns = 1 }) => {
   if (staff.length === 0) return null;
   return (
     <section className={cardClass}>
@@ -105,8 +106,8 @@ export const GroupStaffCard: React.FC<StaffCardProps> = ({ staff, onNavigateProf
           </button>
         )}
       </div>
-      <ul className="space-y-1">
-        {staff.slice(0, 6).map((member) => (
+      <ul className={columns === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-1.5' : 'space-y-1'}>
+        {staff.slice(0, columns === 2 ? 8 : 6).map((member) => (
           <li key={member.id}>
             <button
               type="button"

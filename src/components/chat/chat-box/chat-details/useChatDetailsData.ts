@@ -21,7 +21,7 @@ export const useChatDetailsData = ({ messages, conversationId, friend }: UseChat
   const emojiStorageKey = conversationId ? `chat_emoji_${conversationId}` : `chat_emoji_${friend.id}`;
   const [quickEmoji, setQuickEmojiState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(emojiStorageKey) || '👍';
+      return sessionStorage.getItem(emojiStorageKey) || '👍';
     }
     return '👍';
   });
@@ -29,7 +29,7 @@ export const useChatDetailsData = ({ messages, conversationId, friend }: UseChat
   const setQuickEmoji = useCallback((emoji: string) => {
     setQuickEmojiState(emoji);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(emojiStorageKey, emoji);
+      sessionStorage.setItem(emojiStorageKey, emoji);
       window.dispatchEvent(new CustomEvent('chat_quick_emoji_changed', {
         detail: { conversationId, emoji }
       }));

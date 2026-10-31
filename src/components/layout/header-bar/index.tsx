@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
         language={language}
         t={t}
         onNavClick={handleNavClick}
-        isProfessionalMode={Boolean((user as any)?.isProfessionalMode || localStorage.getItem('kltn_prof_mode_enabled') === 'true')}
+        isProfessionalMode={Boolean((user as any)?.isProfessionalMode || localStorage.getItem('prof_mode_enabled') === 'true')}
       />
 
       <HeaderRightControls

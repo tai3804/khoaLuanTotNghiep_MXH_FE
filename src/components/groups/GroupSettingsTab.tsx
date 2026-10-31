@@ -123,7 +123,7 @@ export const GroupSettingsTab: React.FC<GroupSettingsTabProps> = ({ group, onUpd
   }
 
   return (
-    <div className="mx-auto w-full max-w-[720px] space-y-4 pb-40 md:pb-24">
+    <div className="w-full space-y-4 pb-40 md:pb-24">
       <TabCard className="p-4 sm:p-5">
         <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">Cài đặt nhóm</h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-[#b0b3b8]">Thông tin, quyền riêng tư, câu hỏi tham gia và quy tắc của nhóm.</p>

@@ -97,7 +97,31 @@ export const normalizePost = (p: any): Post => {
   const groupCover = p.groupCover || cachedGroup?.coverUrl || undefined;
   const groupPrivacy = p.groupPrivacy || cachedGroup?.privacy || undefined;
 
+  const contentStr = typeof p.content === 'string' ? p.content : '';
+  const isLivePostFlag = Boolean(
+    p.isLive ||
+    p.liveStatus === 'LIVE' ||
+    p.liveStatus === 'ENDED' ||
+    (contentStr && (
+      contentStr.includes('[ĐANG PHÁT TRỰC TIẾP]') ||
+      contentStr.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]') ||
+      contentStr.includes('[ĐÃ KẾT THÚC]') ||
+      contentStr.includes('⏹ [ĐÃ KẾT THÚC]') ||
+      /\[(?:ĐANG PHÁT TRỰC TIẾP|ĐÃ KẾT THÚC)\]/i.test(contentStr)
+    ))
+  );
+
+  const liveStatus = p.liveStatus || (
+    contentStr.includes('[ĐANG PHÁT TRỰC TIẾP]') || contentStr.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]')
+      ? 'LIVE'
+      : contentStr.includes('[ĐÃ KẾT THÚC]') || contentStr.includes('⏹ [ĐÃ KẾT THÚC]')
+      ? 'ENDED'
+      : undefined
+  );
+
   return {
+    isLive: isLivePostFlag,
+    liveStatus,
     id: p.id ? String(p.id) : 'post-' + Date.now(),
     userId: authorId,
     authorName: authorName || 'Thành viên KLTN',
@@ -599,7 +623,7 @@ export const postService = {
       id: String(m.id),
       postId: String(m.postId),
       url: String(m.url),
-      type: m.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+      type: (m.type === 'VIDEO' || (typeof m.url === 'string' && m.url.match(/\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i))) ? 'VIDEO' : 'IMAGE',
       authorId: m.authorId ? String(m.authorId) : '',
       createdAt: m.createdAt ? String(m.createdAt) : '',
     }));
@@ -746,21 +770,9 @@ export const postService = {
   savePost: async (postId: string, collectionName?: string) => {
     try {
       const res = await api.post('/posts/saved', { postId, collectionName });
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        if (!saved.includes(String(postId))) {
-          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
-        }
-      } catch {}
       window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: true } }));
       return res.data;
-    } catch (err) {
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        if (!saved.includes(String(postId))) {
-          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
-        }
-      } catch {}
+    } catch {
       window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: true } }));
       return { success: true };
     }
@@ -769,17 +781,9 @@ export const postService = {
   unsavePost: async (postId: string) => {
     try {
       const res = await api.delete(`/posts/saved/${postId}`);
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
-      } catch {}
       window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: false } }));
       return res.data;
-    } catch (err) {
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
-      } catch {}
+    } catch {
       window.dispatchEvent(new CustomEvent('saved_posts_changed', { detail: { postId, isSaved: false } }));
       return { success: true };
     }
@@ -788,23 +792,9 @@ export const postService = {
   isPostSaved: async (postId: string): Promise<boolean> => {
     try {
       const res = await api.get(`/posts/saved/${postId}/status`);
-      const status = Boolean(res.data?.data ?? res.data?.result ?? res.data);
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        if (status && !saved.includes(String(postId))) {
-          localStorage.setItem('kltn_saved_post_ids', JSON.stringify([...saved, String(postId)]));
-        } else if (!status && saved.includes(String(postId))) {
-          localStorage.setItem('kltn_saved_post_ids', JSON.stringify(saved.filter((id: string) => id !== String(postId))));
-        }
-      } catch {}
-      return status;
+      return Boolean(res.data?.data ?? res.data?.result ?? res.data);
     } catch {
-      try {
-        const saved = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        return saved.includes(String(postId));
-      } catch {
-        return false;
-      }
+      return false;
     }
   },
 
@@ -827,26 +817,7 @@ export const postService = {
       }
       return [];
     } catch (e) {
-      console.warn('Failed to fetch saved posts from server, checking local cache:', e);
-      try {
-        const savedIds: string[] = JSON.parse(localStorage.getItem('kltn_saved_post_ids') || '[]');
-        if (savedIds.length > 0) {
-          const slice = savedIds.slice((page - 1) * size, page * size);
-          const posts = (
-            await Promise.all(
-              slice.map(async (id) => {
-                try {
-                  const p = await postService.getPostById(id);
-                  return p ? ({ ...p, isSaved: true } as Post) : null;
-                } catch {
-                  return null;
-                }
-              })
-            )
-          ).filter((p): p is Post => p !== null);
-          return posts;
-        }
-      } catch {}
+      console.warn('Failed to fetch saved posts from server:', e);
       return [];
     }
   },

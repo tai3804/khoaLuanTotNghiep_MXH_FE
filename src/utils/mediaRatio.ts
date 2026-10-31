@@ -1,7 +1,7 @@
 // Nhớ tỉ lệ khung hình (rộng / cao) của ảnh và video theo URL để lần hiển thị sau dành đúng chỗ ngay từ đầu,
-// không bị bài viết bên dưới xô lệch khi ảnh tải xong. Lưu trong bộ nhớ và localStorage (giới hạn số mục).
-const STORAGE_KEY = 'kltn_media_ratio_v1';
-const MAX_ENTRIES = 400;
+// không bị bài viết bên dưới xô lệch khi ảnh tải xong. Lưu trong bộ nhớ và sessionStorage (giới hạn số mục).
+const STORAGE_KEY = 'media_ratio_cache';
+const MAX_ENTRIES = 200;
 
 /** Khung ảnh đơn không hẹp hơn 4:5 (dọc) và không rộng hơn ~16:9, giống bảng tin Facebook. */
 export const MIN_RATIO = 0.8;
@@ -18,14 +18,14 @@ function load() {
   if (loaded) return;
   loaded = true;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null;
     if (!raw) return;
     const entries = JSON.parse(raw) as [string, number][];
     for (const [url, ratio] of entries) {
       if (typeof url === 'string' && typeof ratio === 'number' && ratio > 0) memory.set(url, ratio);
     }
   } catch {
-    // bộ nhớ trình duyệt bị chặn hoặc hỏng: bỏ qua, dùng tỉ lệ mặc định
+    // Bỏ qua nếu sessionStorage hỏng hoặc bị chặn
   }
 }
 
@@ -34,9 +34,11 @@ function scheduleSave() {
   saveTimer = setTimeout(() => {
     saveTimer = undefined;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...memory.entries()].slice(-MAX_ENTRIES)));
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...memory.entries()].slice(-MAX_ENTRIES)));
+      }
     } catch {
-      // đầy bộ nhớ hoặc bị chặn: bỏ qua
+      // Đầy bộ nhớ hoặc bị chặn: bỏ qua
     }
   }, 800);
 }
@@ -48,12 +50,10 @@ export function getKnownRatio(url: string): number | undefined {
   return memory.get(url);
 }
 
-export function rememberRatio(url: string, width: number, height: number) {
-  if (!url || !(width > 0) || !(height > 0)) return;
-  load();
-  const ratio = Math.round((width / height) * 1000) / 1000;
-  if (memory.get(url) === ratio) return;
-  memory.delete(url); // đẩy lên cuối để mục cũ nhất bị cắt trước
+export function rememberRatio(url: string, naturalWidth: number, naturalHeight: number): number {
+  if (!url || naturalWidth <= 0 || naturalHeight <= 0) return DEFAULT_IMAGE_RATIO;
+  const ratio = clampRatio(naturalWidth / naturalHeight);
   memory.set(url, ratio);
   scheduleSave();
+  return ratio;
 }

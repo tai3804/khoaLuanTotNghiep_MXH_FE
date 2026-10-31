@@ -94,6 +94,9 @@ export const useArchiveData = ({ userId, isOpen, onPostRestored }: UseArchiveDat
       // Aggregate all media from posts (both active and archived)
       const allPosts = [...userPosts, ...combinedArchived];
       allPosts.forEach((p) => {
+        if (p.isLive || p.liveStatus === 'LIVE' || p.liveStatus === 'ENDED' || (p.content && (p.content.includes('[ĐANG PHÁT TRỰC TIẾP]') || p.content.includes('[ĐÃ KẾT THÚC]')))) {
+          return;
+        }
         const pMediaUrls = p.mediaUrls || (p.mediaList ? p.mediaList.map((m: any) => m.fileUrl || m.url) : []);
         if (Array.isArray(pMediaUrls)) {
           pMediaUrls.forEach((url, idx) => {

@@ -89,7 +89,7 @@ export const GroupManagementTab: React.FC<Props> = ({ group, onNavigate }) => {
   const requests = group.pendingRequestCount ?? 0;
 
   return (
-    <div className="mx-auto w-full max-w-[760px] space-y-4">
+    <div className="w-full space-y-4">
       <TabCard className="p-4 sm:p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-[#1877f2] dark:bg-blue-900/30"><ShieldCheck className="h-6 w-6" /></div>
@@ -102,7 +102,7 @@ export const GroupManagementTab: React.FC<Props> = ({ group, onNavigate }) => {
         </div>
       </TabCard>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           icon={<Users className="h-6 w-6" />}
           tone="blue"
@@ -149,6 +149,16 @@ export const GroupManagementTab: React.FC<Props> = ({ group, onNavigate }) => {
           highlight
           onClick={() => onNavigate('appeals')}
         />
+        {isAdmin && (
+          <StatCard
+            icon={<Settings className="h-6 w-6" />}
+            tone="blue"
+            label="Cài đặt nhóm"
+            hint="Tên, quyền riêng tư, câu hỏi và nội quy"
+            value={null}
+            onClick={() => onNavigate('settings')}
+          />
+        )}
       </div>
 
       <TabCard className="p-4 sm:p-5">

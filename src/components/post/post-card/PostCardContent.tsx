@@ -22,14 +22,16 @@ interface PostCardContentProps {
   setShowCommentModal: (val: boolean) => void;
 }
 
-export const isLivePost = (post: Post) => {
+export const isLivePost = (post?: Post | null) => {
+  if (!post) return false;
   if (post.isLive || post.liveStatus === 'LIVE' || post.liveStatus === 'ENDED') return true;
   if (
     post.content &&
     (post.content.includes('[ĐANG PHÁT TRỰC TIẾP]') ||
       post.content.includes('🔴 [ĐANG PHÁT TRỰC TIẾP]') ||
       post.content.includes('[ĐÃ KẾT THÚC]') ||
-      post.content.includes('⏹ [ĐÃ KẾT THÚC]'))
+      post.content.includes('⏹ [ĐÃ KẾT THÚC]') ||
+      /\[(?:ĐANG PHÁT TRỰC TIẾP|ĐÃ KẾT THÚC)\]/i.test(post.content))
   ) {
     return true;
   }

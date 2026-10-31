@@ -27,7 +27,7 @@ export const useSecuritySettingsData = () => {
   // MFA 2FA States
   const storageKey = `mfa_enabled_${user?.id || user?.email || 'me'}`;
   const [isMfaEnabled, setIsMfaEnabled] = useState<boolean>(() => {
-    return localStorage.getItem(storageKey) === 'true';
+    return sessionStorage.getItem(storageKey) === 'true';
   });
   const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
   const [mfaSecret, setMfaSecret] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export const useSecuritySettingsData = () => {
         setRevokingId(deviceId);
         try {
           await authService.revokeDevice(deviceId);
-          localStorage.setItem('lastRevokedAt', Date.now().toString());
+          try { localStorage.setItem('lastRevokedAt', Date.now().toString()); setTimeout(() => { try { localStorage.removeItem('lastRevokedAt'); } catch {} }, 300); } catch {}
           setDevices((prev) =>
             prev.map((d) => (d.id === deviceId ? { ...d, status: 'REVOKED' } : d))
           );
@@ -98,7 +98,7 @@ export const useSecuritySettingsData = () => {
         setRevokingAll(true);
         try {
           await Promise.all(activeOtherDevices.map((d) => authService.revokeDevice(d.id).catch(() => null)));
-          localStorage.setItem('lastRevokedAt', Date.now().toString());
+          try { localStorage.setItem('lastRevokedAt', Date.now().toString()); setTimeout(() => { try { localStorage.removeItem('lastRevokedAt'); } catch {} }, 300); } catch {}
           toast.showSuccess(`Đã đăng xuất từ xa thành công khỏi ${activeOtherDevices.length} thiết bị.`);
           fetchDevices();
         } catch (err: any) {
@@ -136,7 +136,7 @@ export const useSecuritySettingsData = () => {
       await authService.enableMfa(otpCode.trim());
       setIsMfaEnabled(true);
       try {
-        localStorage.setItem(storageKey, 'true');
+        sessionStorage.setItem(storageKey, 'true');
       } catch {}
       setMfaStatusMsg({
         type: 'success',
@@ -167,7 +167,7 @@ export const useSecuritySettingsData = () => {
       await authService.disableMfa(code.trim());
       setIsMfaEnabled(false);
       try {
-        localStorage.removeItem(storageKey);
+        sessionStorage.removeItem(storageKey);
       } catch {}
       setMfaStatusMsg({
         type: 'success',

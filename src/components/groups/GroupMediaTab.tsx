@@ -33,7 +33,7 @@ const MediaTile: React.FC<{ item: GroupMediaItem; onOpen: () => void }> = ({ ite
       type="button"
       onClick={onOpen}
       aria-label={isVideo ? 'Xem video' : 'Xem ảnh'}
-      className="group relative aspect-square overflow-hidden bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2] dark:bg-[#3a3b3c] cursor-pointer"
+      className="group relative aspect-square overflow-hidden rounded-lg bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2] dark:bg-[#3a3b3c] cursor-pointer"
     >
       {isVideo ? (
         <>
@@ -136,7 +136,7 @@ export const GroupMediaTab: React.FC<{ group: GroupResponse }> = ({ group }) => 
 
   if (isPrivateLocked) {
     return (
-      <TabCard className="mx-auto w-full max-w-[760px]">
+      <TabCard className="w-full">
         <EmptyState
           icon={<Lock className="h-7 w-7" />}
           title="Ảnh và video ở chế độ riêng tư"
@@ -147,7 +147,7 @@ export const GroupMediaTab: React.FC<{ group: GroupResponse }> = ({ group }) => 
   }
 
   return (
-    <TabCard className="mx-auto w-full max-w-[760px] p-3 sm:p-4">
+    <TabCard className="w-full p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
         <h2 className="text-xl font-extrabold text-gray-900 dark:text-[#e4e6eb]">
           Ảnh và video{!loading && !error ? <span className="text-gray-500 dark:text-[#b0b3b8]"> · {total}</span> : null}
@@ -173,7 +173,7 @@ export const GroupMediaTab: React.FC<{ group: GroupResponse }> = ({ group }) => 
       </div>
 
       {loading ? (
-        <div aria-busy="true" className="grid grid-cols-2 gap-1 overflow-hidden rounded-xl sm:grid-cols-3 md:grid-cols-4">
+        <div aria-busy="true" className="grid grid-cols-2 gap-2 overflow-hidden rounded-xl sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-square w-full rounded-none" />)}
         </div>
       ) : error && items.length === 0 ? (
@@ -182,7 +182,7 @@ export const GroupMediaTab: React.FC<{ group: GroupResponse }> = ({ group }) => 
         <EmptyState icon={filter === 'video' ? <Video className="h-7 w-7" /> : <ImageIcon className="h-7 w-7" />} title={EMPTY_TEXT[filter].title} hint={EMPTY_TEXT[filter].hint} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-1 overflow-hidden rounded-xl sm:grid-cols-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 overflow-hidden rounded-xl sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {items.map((item, index) => (
               <MediaTile key={item.id} item={item} onOpen={() => setLightboxIndex(index)} />
             ))}

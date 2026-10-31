@@ -101,7 +101,7 @@ export const GroupAppealsTab = ({ group }: { group: GroupResponse }) => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[680px] space-y-4">
+    <div className="w-full space-y-4">
       <TabCard className="p-4 sm:p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-900/30">

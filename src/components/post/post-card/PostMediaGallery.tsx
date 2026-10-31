@@ -18,6 +18,8 @@ interface MediaCellProps {
   ratio?: number;
   /** Ghi nhớ tỉ lệ thật của ảnh sau khi tải xong. */
   remember?: boolean;
+  /** Chế độ 1 ảnh đơn lẻ trong bài viết: giới hạn max-h, cân bằng tỷ lệ, tránh tràn màn hình. */
+  isSingle?: boolean;
 }
 
 /** Một ô ảnh/video trong bài viết: giữ chỗ cố định, hiệu ứng tải, bấm để mở trình xem ảnh. */
@@ -29,6 +31,7 @@ const MediaCell: React.FC<MediaCellProps> = ({
   className = '',
   ratio: initialRatio,
   remember,
+  isSingle = false,
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -54,6 +57,46 @@ const MediaCell: React.FC<MediaCellProps> = ({
     if (img && img.complete && img.naturalWidth > 0) markLoaded(img);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.url]);
+
+  if (isSingle && !item.video) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Xem ảnh 1"
+        onClick={() => onOpen(0)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpen(0);
+          }
+        }}
+        className={`w-full relative flex items-center justify-center bg-black/5 dark:bg-black/30 max-h-[560px] overflow-hidden cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1877f2] ${className}`}
+      >
+        <img
+          ref={imgRef}
+          src={item.url}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          alt=""
+          onLoad={(e) => markLoaded(e.currentTarget)}
+          onError={() => setFailed(true)}
+          className={`w-auto h-auto max-w-full max-h-[560px] object-contain transition-opacity duration-300 group-hover:opacity-95 ${
+            loaded && !failed ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+        {!loaded && !failed && (
+          <span className="w-full h-80 animate-pulse bg-gray-200/80 dark:bg-[#3a3b3c]/80 flex items-center justify-center" />
+        )}
+        {failed && (
+          <span className="flex items-center justify-center py-12 text-center text-xs text-gray-500 dark:text-[#b0b3b8]">
+            Không tải được ảnh
+          </span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -150,7 +193,7 @@ export const PostMediaGallery: React.FC<PostMediaGalleryProps> = ({ urls, mediaL
     const single = items[0];
     if (single.video) {
       body = (
-        <div className={compact ? 'w-full max-h-[480px] overflow-hidden' : 'w-full'}>
+        <div className={`w-full ${compact ? 'max-h-[480px]' : 'max-h-[560px]'} overflow-hidden flex items-center justify-center bg-black`}>
           <VideoPlayer src={single.url} reserveSpace />
         </div>
       );
@@ -163,16 +206,11 @@ export const PostMediaGallery: React.FC<PostMediaGalleryProps> = ({ urls, mediaL
           onOpen={open}
           ratio={ratio}
           remember
-          className="w-full"
+          isSingle
+          className={compact ? 'max-h-[480px]' : 'max-h-[560px]'}
         />
       );
-      body = compact ? (
-        <div className="w-full max-h-[520px] overflow-hidden">
-          {cell}
-        </div>
-      ) : (
-        cell
-      );
+      body = cell;
     }
   } else {
     const tiles = items.slice(0, MAX_TILES);

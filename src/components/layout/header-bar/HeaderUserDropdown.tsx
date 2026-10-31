@@ -69,7 +69,7 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
             </div>
           </div>
 
-          {Boolean((user as any)?.isProfessionalMode || localStorage.getItem('kltn_prof_mode_enabled') === 'true') && (
+          {Boolean((user as any)?.isProfessionalMode || localStorage.getItem('prof_mode_enabled') === 'true') && (
             <button
               onClick={() => {
                 navigate('/profile/creator-dashboard');
