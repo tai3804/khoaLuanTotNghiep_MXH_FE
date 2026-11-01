@@ -378,13 +378,13 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderId: sId,
                 senderName: isCurrentUser ? 'Bạn' : prof?.name || resolvedPartnerProf?.name || partnerProfile?.name || friend.name,
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : resolvedPartnerProf?.avatar || partnerProfile?.avatar || friend.avatar),
-                text: m.content || '',
+                text: (m.deleted || (m as any).isDeleted) ? '' : (m.content || ''),
                 time: formatMessageTime(m.createdAt),
                 status: isCurrentUser ? 'SENT' : 'DELIVERED',
                 type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
-                mediaUrl: m.mediaUrl || null,
+                mediaUrl: (m.deleted || (m as any).isDeleted) ? null : (m.mediaUrl || null),
                 edited: Boolean(m.edited),
-                deleted: Boolean(m.deleted),
+                deleted: Boolean(m.deleted || (m as any).isDeleted),
               };
             })
           );
@@ -501,13 +501,14 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                   .filter((m) => !(m.id.startsWith('msg-') && m.text === incomingContent))
                   .map((m) => {
                     if (m.id === incomingId) {
+                      const isRecalled = Boolean(incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED');
                       return {
                         ...m,
-                        text: incomingContent,
+                        text: isRecalled ? '' : (incomingContent !== undefined ? incomingContent : m.text),
                         edited: incoming.edited !== undefined ? incoming.edited : m.edited,
-                        deleted: incoming.deleted !== undefined ? incoming.deleted : m.deleted,
+                        deleted: isRecalled ? true : (incoming.deleted !== undefined ? incoming.deleted : m.deleted),
                         type: incoming.type || m.type,
-                        mediaUrl: incoming.mediaUrl !== undefined ? incoming.mediaUrl : m.mediaUrl,
+                        mediaUrl: isRecalled ? null : (incoming.mediaUrl !== undefined ? incoming.mediaUrl : m.mediaUrl),
                       };
                     }
                     return m;
@@ -525,13 +526,13 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderId: incomingSender,
                 senderName: isCurrentUser ? 'Bạn' : prof?.name || friend.name,
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
-                text: incomingContent,
+                text: (incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED') ? '' : incomingContent,
                 time: formatMessageTime(incoming.createdAt),
                 status: isCurrentUser ? 'SENT' : 'DELIVERED',
                 type: incoming.type || (incoming.mediaUrl ? 'IMAGE' : 'TEXT'),
-                mediaUrl: incoming.mediaUrl || null,
+                mediaUrl: (incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED') ? null : (incoming.mediaUrl || null),
                 edited: Boolean(incoming.edited),
-                deleted: Boolean(incoming.deleted),
+                deleted: Boolean(incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED'),
               };
 
               if (!isCurrentUser && incomingId) {
@@ -580,12 +581,12 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderId: sId,
                 senderName: isCurrentUser ? 'Bạn' : prof?.name || friend.name,
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
-                text: m.content || '',
+                text: (m.deleted || (m as any).isDeleted) ? '' : (m.content || ''),
                 time: formatMessageTime(m.createdAt),
                 type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
-                mediaUrl: m.mediaUrl || null,
+                mediaUrl: (m.deleted || (m as any).isDeleted) ? null : (m.mediaUrl || null),
                 edited: Boolean(m.edited),
-                deleted: Boolean(m.deleted),
+                deleted: Boolean(m.deleted || (m as any).isDeleted),
               };
             })
           );

@@ -177,32 +177,37 @@ export const useNotificationDropdownData = ({
     });
   }, [notifications]);
 
-  // Sync with existing friends from localStorage
+  // Sync with existing friends from in-memory cache and warm up if needed
   useEffect(() => {
-    try {
-      const rawFriends = localStorage.getItem('my_friend_ids');
-      const friendIds: string[] = rawFriends ? JSON.parse(rawFriends) : [];
-      if (friendIds.length > 0) {
-        setFriendActionStatus((prev) => {
-          let changed = false;
-          const next = { ...prev };
-          notifications.forEach((n) => {
-            if (n.type === 'FRIEND_REQUEST' && n.actorId && friendIds.includes(n.actorId)) {
-              if (next[n.id] !== 'accepted') {
-                next[n.id] = 'accepted';
-                next[n.actorId] = 'accepted';
-                changed = true;
-              }
+    const syncWithCache = () => {
+      if (myFriendIdsMemoryCache.size === 0) return;
+      setFriendActionStatus((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        notifications.forEach((n) => {
+          if (n.type === 'FRIEND_REQUEST' && n.actorId && myFriendIdsMemoryCache.has(n.actorId.toLowerCase())) {
+            if (next[n.id] !== 'accepted') {
+              next[n.id] = 'accepted';
+              next[n.actorId] = 'accepted';
+              changed = true;
             }
-          });
-          if (changed) {
-            saveFriendStatus(next);
-            return next;
           }
-          return prev;
         });
-      }
-    } catch {}
+        if (changed) {
+          saveFriendStatus(next);
+          return next;
+        }
+        return prev;
+      });
+    };
+
+    if (myFriendIdsMemoryCache.size > 0) {
+      syncWithCache();
+    } else {
+      userService.getFriends().then(() => {
+        syncWithCache();
+      }).catch(() => {});
+    }
   }, [notifications]);
 
   const filteredNotifications = notifications.filter((item) => {

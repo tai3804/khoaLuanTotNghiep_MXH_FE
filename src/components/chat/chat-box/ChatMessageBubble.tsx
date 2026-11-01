@@ -6,6 +6,7 @@ import { ChatFileAttachment } from './ChatFileAttachment';
 import { ChatInlineEditor } from './ChatInlineEditor';
 import { ChatSharedPostCard } from './ChatSharedPostCard';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { mediaService } from '../../../services/mediaService';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface ChatMessageBubbleProps {
@@ -79,31 +80,40 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const isRecalled = Boolean(msg.deleted);
-  const isUrl = msg.text.startsWith('http://') || msg.text.startsWith('https://');
-  const mediaUrl = msg.mediaUrl || (isUrl ? msg.text : '');
+  const isRecalled = Boolean(msg.deleted || (msg as any).isDeleted || (msg as any).type === 'MESSAGE_RECALLED');
+  const rawText = msg.text || '';
+  const isUrl = rawText.startsWith('http://') || rawText.startsWith('https://');
+  const rawMediaUrl = msg.mediaUrl || (isUrl ? rawText : '');
+  const mediaUrl = mediaService.getMediaUrl(rawMediaUrl);
 
   // Detect shared post link
-  const postMatch = msg.text ? msg.text.match(POST_URL_REGEX) : null;
+  const postMatch = rawText ? rawText.match(POST_URL_REGEX) : null;
   const sharedPostId = postMatch ? postMatch[1] : null;
-  const textWithoutPostUrl = postMatch ? msg.text.replace(postMatch[0], '').trim() : msg.text;
+  const textWithoutPostUrl = postMatch ? rawText.replace(postMatch[0], '').trim() : rawText;
   const isSolelyPostUrl = Boolean(sharedPostId && !textWithoutPostUrl);
 
   // Detect type accurately
   const isAudio =
     msg.type === 'AUDIO' ||
-    (isUrl && isAudioExtension(msg.text)) ||
+    (isUrl && isAudioExtension(rawText)) ||
     (Boolean(mediaUrl) && isAudioExtension(mediaUrl));
-  const isFile =
-    !isAudio &&
-    (msg.type === 'FILE' ||
-    (isUrl && !isMediaExtension(msg.text) && !isVideoExtension(msg.text) && !imageError && /\.[a-z0-9]{2,5}(\?.*)?$/i.test(msg.text)));
   const isVideo =
     !isAudio &&
     (msg.type === 'VIDEO' ||
-    (isUrl && isVideoExtension(msg.text)));
+    (isUrl && isVideoExtension(rawText)) ||
+    (Boolean(mediaUrl) && isVideoExtension(mediaUrl)));
   const isImage =
-    !isAudio && !isFile && !isVideo && (msg.type === 'IMAGE' || (isUrl && isMediaExtension(msg.text)));
+    !isAudio &&
+    !isVideo &&
+    (msg.type === 'IMAGE' ||
+    (isUrl && isMediaExtension(rawText)) ||
+    (Boolean(mediaUrl) && isMediaExtension(mediaUrl)));
+  const isFile =
+    !isAudio &&
+    !isVideo &&
+    !isImage &&
+    (msg.type === 'FILE' ||
+    (isUrl && /.[a-z0-9]{2,5}(\?.*)?$/i.test(rawText)));
 
   const handleSaveEdit = async (newContent: string) => {
     await onEdit(msg.id, newContent);
