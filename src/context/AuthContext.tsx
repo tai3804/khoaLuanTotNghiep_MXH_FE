@@ -109,12 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isGuestUser = localStorage.getItem('isGuest') === 'true';
 
       if (!isGuestUser) {
-        const storedAccessToken = localStorage.getItem('accessToken');
-        if (storedAccessToken) {
-          dispatch(setAccessToken(storedAccessToken));
-          setIsGuest(false);
-        }
-
         try {
           const token = await authService.refreshToken();
           if (token) {
@@ -137,38 +131,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             await refreshUserProfile();
           } else {
-            let isTokenValid = false;
-            if (storedAccessToken) {
-              const payload = parseTokenPayload(storedAccessToken);
-              if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
-                isTokenValid = true;
-              }
-            }
-            if (!isTokenValid) {
-              localStorage.removeItem('user');
-              try { localStorage.removeItem('refreshToken'); } catch {}
-              try { localStorage.removeItem('accessToken'); } catch {}
-              setUser(null);
-              dispatch(clearAuth());
-              setIsGuest(true);
-            }
-          }
-        } catch {
-          let isTokenValid = false;
-          if (storedAccessToken) {
-            const payload = parseTokenPayload(storedAccessToken);
-            if (payload && payload.exp && payload.exp * 1000 > Date.now()) {
-              isTokenValid = true;
-            }
-          }
-          if (!isTokenValid) {
             localStorage.removeItem('user');
-            try { localStorage.removeItem('refreshToken'); } catch {}
-            try { localStorage.removeItem('accessToken'); } catch {}
             setUser(null);
             dispatch(clearAuth());
             setIsGuest(true);
           }
+        } catch {
+          localStorage.removeItem('user');
+          setUser(null);
+          dispatch(clearAuth());
+          setIsGuest(true);
         }
       } else {
         setIsGuest(true);
@@ -295,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentDev && currentDev.status === 'REVOKED') {
             console.warn('[AuthContext] Session has been revoked remotely.');
             localStorage.removeItem('user');
-            localStorage.removeItem('refreshToken');
+            
             dispatch(clearAuth());
             setUser(null);
             setIsGuest(true);
@@ -375,11 +347,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               avatar: '',
               roles: rolesFromToken(accToken),
             };
-        const refToken = result.refreshToken;
-        if (refToken) {
-          localStorage.setItem('refreshToken', refToken);
-        }
-        localStorage.setItem('accessToken', accToken);
+        
+        
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.removeItem('isGuest');
         setUser(userData);
@@ -425,11 +394,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               avatar: '',
               roles: rolesFromToken(accToken),
             };
-        const refToken = result.refreshToken;
-        if (refToken) {
-          localStorage.setItem('refreshToken', refToken);
-        }
-        localStorage.setItem('accessToken', accToken);
+        
+        
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.removeItem('isGuest');
         setUser(userData);
@@ -471,8 +437,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout().catch(() => null);
     localStorage.removeItem('user');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('accessToken');
+    
+    
     localStorage.setItem('isGuest', 'true');
     setUser(null);
     dispatch(clearAuth());

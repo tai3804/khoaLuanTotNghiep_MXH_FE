@@ -63,7 +63,7 @@ class WebSocketService {
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
       // Try to connect through API gateway (port 8080) where CORS is configured
-      const wsUrl = import.meta.env.VITE_CHAT_WS_URL || 'http://localhost:8080/ws-chat';
+      const wsUrl = getWebSocketUrl('/ws-chat', import.meta.env.VITE_CHAT_WS_URL);
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),

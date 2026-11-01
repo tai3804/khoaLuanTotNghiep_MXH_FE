@@ -8,10 +8,9 @@ export const authService = {
   refreshToken: async (): Promise<string | null> => {
     try {
       const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-      const storedRefreshToken = localStorage.getItem('refreshToken') || '';
       const res = await axios.post(
         BASE_URL + '/auth/refresh',
-        storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
+        {},
         {
           withCredentials: true,
           headers: {
@@ -22,14 +21,9 @@ export const authService = {
       );
       const data = res.data?.data || res.data?.result || res.data;
       const newAccessToken = data?.accessToken || data?.token || null;
-      const newRefreshToken = data?.refreshToken || null;
 
       if (newAccessToken) {
-        localStorage.setItem('accessToken', newAccessToken);
         api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-      }
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
       }
 
       return newAccessToken;
@@ -96,7 +90,6 @@ export const authService = {
     } finally {
       localStorage.removeItem('user');
       localStorage.removeItem('refreshToken');
-      localStorage.removeItem('accessToken');
     }
   },
 

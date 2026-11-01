@@ -43,7 +43,7 @@ const setAuthHeader = (config: any, token: string) => {
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = store.getState().auth.accessToken || localStorage.getItem('accessToken');
+    const token = store.getState().auth.accessToken;
     if (token) {
       setAuthHeader(config, token);
     }
@@ -85,12 +85,11 @@ api.interceptors.response.use(
       console.log('[axiosClient] 401 Unauthorized encountered. Automatically refreshing access token...');
 
       const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-      const storedRefreshToken = localStorage.getItem('refreshToken') || '';
 
       try {
         const res = await axios.post(
           BASE_URL + '/auth/refresh',
-          storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
+          {},
           {
             withCredentials: true,
             headers: {
@@ -102,16 +101,10 @@ api.interceptors.response.use(
 
         const data = res.data?.data || res.data?.result || res.data;
         const newAccessToken = data?.accessToken || data?.token;
-        const newRefreshToken = data?.refreshToken;
 
         if (newAccessToken) {
           console.log('[axiosClient] Successfully refreshed access token! Retrying original request:', originalRequest.url);
           store.dispatch(setAccessToken(newAccessToken));
-          localStorage.setItem('accessToken', newAccessToken);
-
-          if (newRefreshToken) {
-            localStorage.setItem('refreshToken', newRefreshToken);
-          }
           
           api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
           setAuthHeader(originalRequest, newAccessToken);
@@ -129,7 +122,6 @@ api.interceptors.response.use(
           store.dispatch(clearAuth());
           localStorage.removeItem('user');
           try { localStorage.removeItem('refreshToken'); } catch {}
-          try { localStorage.removeItem('accessToken'); } catch {}
           window.dispatchEvent(new Event('auth_session_expired'));
         }
         return Promise.reject(refreshErr);

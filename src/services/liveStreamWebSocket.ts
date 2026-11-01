@@ -1,6 +1,7 @@
 import { Client, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { store } from '../store/store';
+import { getWebSocketUrl } from '../utils/wsUrl';
 import { setAccessToken } from '../store/slices/authSlice';
 import { api } from './axiosClient';
 import { authService } from './authService';
@@ -58,7 +59,7 @@ class LiveStreamWebSocketService {
     if (!token) return false;
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
-      const wsUrl = import.meta.env.VITE_CALL_WS_URL || 'http://localhost:8080/ws-call';
+      const wsUrl = getWebSocketUrl('/ws-call', import.meta.env.VITE_CALL_WS_URL);
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),

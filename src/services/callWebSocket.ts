@@ -4,6 +4,7 @@ import { WebRtcSignal } from './callService';
 import { api } from './axiosClient';
 import { authService } from './authService';
 import { store } from '../store/store';
+import { getWebSocketUrl } from '../utils/wsUrl';
 import { setAccessToken } from '../store/slices/authSlice';
 
 type SignalCallback = (signal: WebRtcSignal) => void;
@@ -85,7 +86,7 @@ class CallWebSocketService {
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
       // Connect through API gateway (port 8080) or configured URL
-      const wsUrl = import.meta.env.VITE_CALL_WS_URL || 'http://localhost:8080/ws-call';
+      const wsUrl = getWebSocketUrl('/ws-call', import.meta.env.VITE_CALL_WS_URL);
 
       this.client = new Client({
         webSocketFactory: () => new SockJS(wsUrl),

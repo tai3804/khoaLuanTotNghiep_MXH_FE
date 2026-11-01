@@ -6,6 +6,7 @@ import { useToast } from './ToastContext';
 import { NotificationItem, NotificationSetting } from '../types/notification';
 import { notificationService } from '../services/notificationService';
 import { store } from '../store/store';
+import { getWebSocketUrl } from '../utils/wsUrl';
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -144,7 +145,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!isAuthenticated || !userId || !token) return;
 
     // Connect through API gateway (port 8080) where CORS is configured
-    const wsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL || 'http://localhost:8080/ws-notifications';
+    const wsUrl = getWebSocketUrl('/ws-notifications', import.meta.env.VITE_NOTIFICATION_WS_URL);
 
     let isSubscribed = true;
     const client = new Client({
