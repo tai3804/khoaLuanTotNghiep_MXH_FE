@@ -162,7 +162,13 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
   // Keyboard navigation: Left/Right arrows, Space to pause/next, ESC to close
   useEffect(() => {
+    if (!selectedStory) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
       if (e.key === 'ArrowLeft') {
         if (storyIndex > 0) moveTo(storyIndex - 1);
       } else if (e.key === 'ArrowRight') {
@@ -177,7 +183,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [storyIndex, stories.length, moveTo, onClose]);
+  }, [selectedStory, storyIndex, stories.length, moveTo, onClose]);
 
   // Record view count
   useEffect(() => {

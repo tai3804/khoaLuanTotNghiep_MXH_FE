@@ -79,11 +79,13 @@ export const StoriesBar: React.FC = () => {
         handleCreateStorySubmit={data.handleCreateStorySubmit}
       />
 
-      <StoryViewerModal
-        selectedStory={data.selectedStory}
-        onClose={() => data.setSelectedStory(null)}
-        onStoryDeleted={data.loadStories}
-      />
+      {data.selectedStory && (
+        <StoryViewerModal
+          selectedStory={data.selectedStory}
+          onClose={() => data.setSelectedStory(null)}
+          onStoryDeleted={data.loadStories}
+        />
+      )}
     </div>
   );
 };
