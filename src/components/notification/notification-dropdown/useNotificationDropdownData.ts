@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { NotificationItem } from '../../../types/notification';
 import { useNotification } from '../../../context/NotificationContext';
 import { useLanguage } from '../../../context/LanguageContext';
+import { useToast } from '../../../context/ToastContext';
 import { fetchAuthorProfile, authorProfileCache, userService, myFriendIdsMemoryCache } from '../../../services/userService';
 import { postService } from '../../../services/postService';
 
@@ -34,6 +35,7 @@ export const useNotificationDropdownData = ({
   const { notifications, unreadCount, markAsRead, markAllAsRead, dismissNotification, loading } = useNotification();
   const { language } = useLanguage();
   const isEn = language === 'en';
+  const toast = useToast();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'unread'>('all');
   const [actorProfiles, setActorProfiles] = useState<Record<string, { name: string; avatar: string }>>({});
@@ -224,6 +226,7 @@ export const useNotificationDropdownData = ({
     if (!item.actorId) return;
     try {
       await userService.acceptFriendRequest(item.actorId);
+      toast.showSuccess(isEn ? 'Friend request accepted!' : 'Đã chấp nhận lời mời kết bạn!');
       setFriendActionStatus((prev) => {
         const next = { ...prev, [item.id]: 'accepted' as const, [item.actorId!]: 'accepted' as const };
         saveFriendStatus(next);
@@ -233,8 +236,9 @@ export const useNotificationDropdownData = ({
         myFriendIdsMemoryCache.add(item.actorId.toLowerCase());
       }
       if (!item.isRead) markAsRead(item.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to accept friend request:', err);
+      toast.showError(err.response?.data?.message || err.message || (isEn ? 'Failed to accept friend request' : 'Không thể chấp nhận lời mời kết bạn'));
     }
   };
 
@@ -243,14 +247,16 @@ export const useNotificationDropdownData = ({
     if (!item.actorId) return;
     try {
       await userService.rejectFriendRequest(item.actorId);
+      toast.showInfo(isEn ? 'Friend request removed' : 'Đã xóa lời mời kết bạn');
       setFriendActionStatus((prev) => {
         const next = { ...prev, [item.id]: 'rejected' as const, [item.actorId!]: 'rejected' as const };
         saveFriendStatus(next);
         return next;
       });
       if (!item.isRead) markAsRead(item.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to reject friend request:', err);
+      toast.showError(err.response?.data?.message || err.message || (isEn ? 'Failed to remove friend request' : 'Không thể xóa lời mời kết bạn'));
     }
   };
 
