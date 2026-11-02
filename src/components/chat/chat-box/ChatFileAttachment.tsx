@@ -50,7 +50,24 @@ export const ChatFileAttachment: React.FC<ChatFileAttachmentProps> = ({
   const displayName = getFileNameFromUrl(fileUrl, fileName, defaultLabel);
   const ext = displayName.split('.').pop()?.toLowerCase() || '';
 
+  const isImageAttachment =
+    /^(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(ext) ||
+    (!/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|7z|tar|gz|csv)$/i.test(displayName) &&
+     (displayName.length === 36 || fileUrl.includes('/chats/') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i.test(displayName)));
+
   const renderIcon = () => {
+    if (isImageAttachment) {
+      return (
+        <img
+          src={fileUrl}
+          alt={displayName}
+          className="w-full h-full object-cover rounded-xl"
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = 'none';
+          }}
+        />
+      );
+    }
     switch (ext) {
       case 'pdf':
         return <FileText className="w-6 h-6 text-red-500" />;

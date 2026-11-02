@@ -112,13 +112,19 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     (msg.type === 'IMAGE' ||
     (isUrl && isMediaExtension(rawText)) ||
     (Boolean(mediaUrl) && isMediaExtension(mediaUrl)) ||
-    (Boolean(mediaUrl) && !isDocumentExtension(mediaUrl) && !isDocumentExtension(rawText) && (rawText.length === 36 || mediaUrl.includes('/chats/'))));
+    (Boolean(mediaUrl) && !isDocumentExtension(mediaUrl) && !isDocumentExtension(rawText) && (
+      rawText.length === 36 ||
+      mediaUrl.includes('/chats/') ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(rawText) ||
+      /\/chats\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(mediaUrl)
+    )));
   const isFile =
     !isAudio &&
     !isVideo &&
     !isImage &&
     (msg.type === 'FILE' ||
-    (isUrl && /.[a-z0-9]{2,5}(\?.*)?$/i.test(rawText)));
+    isDocumentExtension(mediaUrl) ||
+    (isUrl && /\.[a-z0-9]{2,5}(\?.*)?$/i.test(rawText)));
 
   const handleSaveEdit = async (newContent: string) => {
     await onEdit(msg.id, newContent);

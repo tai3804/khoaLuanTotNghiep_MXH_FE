@@ -158,6 +158,38 @@ export const userService = {
     return res.data?.data || res.data?.result || res.data;
   },
 
+  getProfilesBatch: async (userIds: string[]): Promise<Record<string, { name: string; avatar: string }>> => {
+    if (!userIds || userIds.length === 0) return {};
+    const validIds = Array.from(new Set(userIds.filter((id) => Boolean(id && id !== 'me'))));
+    if (validIds.length === 0) return {};
+
+    try {
+      const res = await api.post('/users/profile/batch', validIds);
+      const data = res.data?.data || res.data?.result || res.data || [];
+      const result: Record<string, { name: string; avatar: string }> = {};
+
+      if (Array.isArray(data)) {
+        data.forEach((profile: any) => {
+          const uid = String(profile.userId || profile.id);
+          const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
+          let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
+          if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
+            if (profile.username) name = profile.username;
+            else if (profile.email) name = profile.email.split('@')[0];
+          }
+          if (!name) name = 'Thành viên KLTN';
+          const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
+          const cached = { name, avatar };
+          authorProfileCache[uid] = cached;
+          result[uid] = cached;
+        });
+      }
+      return result;
+    } catch (err) {
+      console.warn('[userService] Failed to batch load profiles:', err);
+      return {};
+    }
+  },
   getUserProfile: async (userId: string) => {
     if (!userId || userId === 'me') {
       return userService.getMyProfile();

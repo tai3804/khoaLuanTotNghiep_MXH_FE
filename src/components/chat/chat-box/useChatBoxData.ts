@@ -281,25 +281,34 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
         setGroupDetail(detail);
         if (Array.isArray(detail.members)) {
           const profiles: Record<string, { name: string; avatar: string }> = {};
-          await Promise.all(
-            detail.members.map(async (m: any) => {
-              const uid = String(m.userId);
-              try {
-                const prof = await userService.getUserProfile(uid);
-                profiles[uid] = {
-                  name:
-                    prof.fullName ||
-                    [prof.lastName, prof.middleName, prof.firstName].filter(Boolean).join(' ') ||
-                    prof.username ||
-                    m.nickname ||
-                    'Thành viên',
-                  avatar: prof.avatarUrl || prof.avatar || '/default-avatar.png',
-                };
-              } catch {
-                profiles[uid] = { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
-              }
-            })
-          );
+          const missingUids: string[] = [];
+
+          detail.members.forEach((m: any) => {
+            const uid = String(m.userId);
+            const cached = authorProfileCache[uid];
+            if (cached) {
+              profiles[uid] = cached;
+            } else {
+              missingUids.push(uid);
+            }
+          });
+
+          // Batch fetch all uncached group member profiles in 1 single query
+          if (missingUids.length > 0) {
+            const batchLoaded = await userService.getProfilesBatch(missingUids);
+            Object.assign(profiles, batchLoaded);
+          }
+
+          detail.members.forEach((m: any) => {
+            const uid = String(m.userId);
+            if (!profiles[uid]) {
+              profiles[uid] = authorProfileCache[uid] || {
+                name: m.nickname || 'Thành viên',
+                avatar: '/default-avatar.png',
+              };
+            }
+          });
+
           memberProfilesRef.current = { ...memberProfilesRef.current, ...profiles };
           return profiles;
         }
@@ -682,18 +691,17 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
 
     try {
       if (conversationId) {
-        const sentViaWs = websocketService.sendMessage(conversationId, textToSend);
+        // 1. Send via WebSocket for immediate real-time frame
+        websocketService.sendMessage(conversationId, textToSend);
+        setIsWsLive(true);
 
-        if (sentViaWs) {
-          setIsWsLive(true);
-        } else {
-          const res = await chatService.sendMessage(conversationId, textToSend);
-          if (res && (res.messageId || res.id)) {
-            const actualId = String(res.messageId || res.id);
-            setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, id: actualId, status: 'SENT' } : m))
-            );
-          }
+        // 2. Persist via REST for guaranteed delivery & server broadcast
+        const res = await chatService.sendMessage(conversationId, textToSend);
+        if (res && (res.messageId || res.id)) {
+          const actualId = String(res.messageId || res.id);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, id: actualId, status: 'SENT' } : m))
+          );
         }
       }
     } catch (err) {

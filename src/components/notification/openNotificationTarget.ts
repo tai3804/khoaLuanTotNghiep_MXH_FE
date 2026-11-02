@@ -20,47 +20,85 @@ export const openNotificationTarget = async (url: string, actions: NotificationT
   const { navigate, onNavigateProfile, onSelectChatUser, currentUserId } = actions;
   if (!url) return;
 
-  if (url.startsWith('/posts/') || url.startsWith('/groups') || url.startsWith('/support-inbox')) {
-    navigate(url);
-    return;
-  }
-
-  if (url.startsWith('/profile')) {
-    onNavigateProfile?.(url.split('/profile/')[1] || undefined);
-    return;
-  }
-
-  if (url.startsWith('/chat')) {
-    const conversationId = new URLSearchParams(url.split('?')[1] || '').get('conversationId');
-    if (!conversationId || !onSelectChatUser) return;
-    const detail = await chatService.getConversationDetail(conversationId);
-    if (!detail) return;
-
-    if (detail.type === 'GROUP') {
-      onSelectChatUser({
-        id: conversationId,
-        conversationId,
-        isGroup: true,
-        name: detail.name || 'Nhóm trò chuyện',
-        avatar: detail.avatarUrl || '/default-avatar.png',
-        online: true,
-      });
+  try {
+    if (
+      url.startsWith('/posts/') ||
+      url.startsWith('/groups') ||
+      url.startsWith('/support-inbox') ||
+      url.startsWith('/friends') ||
+      url.startsWith('/watch') ||
+      url.startsWith('/search') ||
+      url.startsWith('/settings')
+    ) {
+      navigate(url);
       return;
     }
 
-    const partner = Array.isArray(detail.members)
-      ? detail.members.find((m: { userId: string }) => String(m.userId) !== String(currentUserId))
-      : null;
-    if (!partner) return;
-    const profile = await fetchAuthorProfile(String(partner.userId)).catch(() => null);
-    onSelectChatUser({
-      id: String(partner.userId),
-      userId: String(partner.userId),
-      conversationId,
-      isGroup: false,
-      name: profile?.name || partner.nickname || 'Người dùng',
-      avatar: profile?.avatar || '/default-avatar.png',
-      online: false,
-    });
+    if (url.startsWith('/profile')) {
+      const parts = url.split('/profile/');
+      const targetUserId = parts[1]?.split('?')[0];
+      if (onNavigateProfile) {
+        onNavigateProfile(targetUserId || undefined);
+      } else {
+        navigate(targetUserId ? `/profile/${targetUserId}` : '/profile');
+      }
+      return;
+    }
+
+    if (url.startsWith('/chat')) {
+      const conversationId = new URLSearchParams(url.split('?')[1] || '').get('conversationId');
+      if (!conversationId) {
+        navigate('/chat');
+        return;
+      }
+      if (!onSelectChatUser) {
+        navigate(url);
+        return;
+      }
+
+      try {
+        const detail = await chatService.getConversationDetail(conversationId);
+        if (detail) {
+          if (detail.type === 'GROUP') {
+            onSelectChatUser({
+              id: conversationId,
+              conversationId,
+              isGroup: true,
+              name: detail.name || 'Nhóm trò chuyện',
+              avatar: detail.avatarUrl || '/default-avatar.png',
+              online: true,
+            });
+            return;
+          }
+
+          const partner = Array.isArray(detail.members)
+            ? detail.members.find((m: { userId: string }) => String(m.userId) !== String(currentUserId))
+            : null;
+          if (partner) {
+            const profile = await fetchAuthorProfile(String(partner.userId)).catch(() => null);
+            onSelectChatUser({
+              id: String(partner.userId),
+              userId: String(partner.userId),
+              conversationId,
+              isGroup: false,
+              name: profile?.name || partner.nickname || 'Người dùng',
+              avatar: profile?.avatar || '/default-avatar.png',
+              online: false,
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[openNotificationTarget] chat detail error, navigating fallback:', err);
+      }
+
+      navigate('/chat');
+      return;
+    }
+
+    // Default safe fallback for any other valid URL
+    navigate(url);
+  } catch (err) {
+    console.error('[openNotificationTarget] Error opening notification target:', err);
   }
 };

@@ -125,7 +125,19 @@ export const mediaService = {
       }
     }
 
-    // 2. Localhost / internal IP URL transformation when client runs from remote / custom domain
+    // 2. Relative file keys or raw UUID keys (e.g. chats/uuid.png, posts/uuid, or just uuid)
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      const clean = url.replace(/^\/+/, '');
+      if (clean.startsWith('api/v1/')) {
+        return `${resolvedApiBase}/${clean.substring('api/v1/'.length)}`;
+      }
+      if (clean.startsWith('media/files/')) {
+        return `${resolvedApiBase}/${clean}`;
+      }
+      return `${resolvedApiBase}/media/files/${clean}`;
+    }
+
+    // 3. Localhost / internal IP URL transformation when client runs from remote / custom domain
     if (url.includes('localhost:') || url.includes('127.0.0.1:') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
       if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         const pathPart = url.replace(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, '');
@@ -137,7 +149,7 @@ export const mediaService = {
       }
     }
 
-    // 3. Ensure HTTPS when page is served over HTTPS to avoid Mixed Content
+    // 4. Ensure HTTPS when page is served over HTTPS to avoid Mixed Content
     if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
       return url.replace(/^http:\/\//i, 'https://');
     }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Inbox } from 'lucide-react';
 import { NotificationItem } from '../../../types/notification';
 import { NotificationItemCard } from './NotificationItemCard';
+import { myFriendIdsMemoryCache } from '../../../services/userService';
 
 interface NotificationListContentProps {
   loading: boolean;
