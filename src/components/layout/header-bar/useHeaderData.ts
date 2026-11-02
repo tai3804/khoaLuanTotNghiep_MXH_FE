@@ -154,7 +154,9 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   // Fetch chat contacts (conversations) when messenger dropdown opens
   useEffect(() => {
     if (showMsgMenu && isAuthenticated) {
-      setLoadingChatContacts(true);
+      if (chatContacts.length === 0 && cachedHeaderChatContacts.length === 0) {
+        setLoadingChatContacts(true);
+      }
       chatService
         .getConversations()
         .then(async (convs) => {

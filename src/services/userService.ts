@@ -254,6 +254,16 @@ export const userService = {
 
         const friendIds = Array.from(friendIdSet);
         friendIds.forEach((id) => myFriendIdsMemoryCache.add(id.toLowerCase()));
+        data.forEach((c: any) => {
+          if (c.id) myFriendIdsMemoryCache.add(String(c.id).toLowerCase());
+          if (c.userId) myFriendIdsMemoryCache.add(String(c.userId).toLowerCase());
+          if (c.requesterId && String(c.requesterId).toLowerCase() !== currentUserId) {
+            myFriendIdsMemoryCache.add(String(c.requesterId).toLowerCase());
+          }
+          if (c.targetId && String(c.targetId).toLowerCase() !== currentUserId) {
+            myFriendIdsMemoryCache.add(String(c.targetId).toLowerCase());
+          }
+        });
         try { localStorage.removeItem('my_friend_ids'); } catch {}
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));

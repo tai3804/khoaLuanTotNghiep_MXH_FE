@@ -69,11 +69,16 @@ export const NotificationListContent: React.FC<NotificationListContentProps> = (
         filteredNotifications.map((item) => {
           const profile = item.actorId ? actorProfiles[item.actorId] : undefined;
           const isMenuOpen = activeMenuId === item.id;
+          let cleanUrlId = '';
+          if (item.targetUrl) {
+            const match = item.targetUrl.match(/\/profile\/([a-zA-Z0-9_-]+)/);
+            if (match) cleanUrlId = match[1];
+          }
           const candidateIds = [
             item.id,
             item.actorId,
             item.targetId,
-            item.targetUrl ? item.targetUrl.replace('/profile/', '').trim() : undefined,
+            cleanUrlId || undefined,
           ].filter(Boolean) as string[];
 
           const isAcceptedInCache = candidateIds.some((id) => myFriendIdsMemoryCache.has(id.toLowerCase()));
@@ -82,7 +87,8 @@ export const NotificationListContent: React.FC<NotificationListContentProps> = (
             (isAcceptedInCache ? 'accepted' : undefined) ||
             friendActionStatus[item.id] ||
             (item.actorId ? friendActionStatus[item.actorId] : undefined) ||
-            (item.targetId ? friendActionStatus[item.targetId] : undefined);
+            (item.targetId ? friendActionStatus[item.targetId] : undefined) ||
+            (cleanUrlId ? friendActionStatus[cleanUrlId] : undefined);
           const detectedReaction =
             actorReactions?.[item.id] ||
             (item.targetId && item.actorId ? actorReactions?.[`${item.targetId}_${item.actorId}`] : undefined);

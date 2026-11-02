@@ -28,6 +28,20 @@ const saveFriendStatus = (map: Record<string, 'accepted' | 'rejected'>) => {
   } catch {}
 };
 
+const extractCandidateIds = (item: NotificationItem): string[] => {
+  let cleanUrlId = '';
+  if (item.targetUrl) {
+    const match = item.targetUrl.match(/\/profile\/([a-zA-Z0-9_-]+)/);
+    if (match) cleanUrlId = match[1];
+  }
+  return [
+    item.actorId,
+    item.targetId,
+    cleanUrlId,
+    item.id,
+  ].filter((id): id is string => Boolean(id && id !== 'me'));
+};
+
 export const useNotificationDropdownData = ({
   onClose,
   onNavigateSettings,
@@ -187,7 +201,7 @@ export const useNotificationDropdownData = ({
         const next = { ...prev };
         notifications.forEach((n) => {
           if (n.type === 'FRIEND_REQUEST') {
-            const ids = [n.id, n.actorId, n.targetId, n.targetUrl ? n.targetUrl.replace('/profile/', '').trim() : undefined].filter(Boolean) as string[];
+            const ids = extractCandidateIds(n);
             if (ids.some((id) => myFriendIdsMemoryCache.has(id.toLowerCase()))) {
               ids.forEach((id) => {
                 if (next[id] !== 'accepted') {
@@ -233,51 +247,73 @@ export const useNotificationDropdownData = ({
 
   const handleAcceptFriend = async (e: React.MouseEvent, item: NotificationItem) => {
     e.stopPropagation();
-    const targetUserId = item.actorId || item.targetId || (item.targetUrl ? item.targetUrl.replace('/profile/', '').trim() : '');
+    const candidateIds = extractCandidateIds(item);
+    const targetUserId = candidateIds[0];
     if (!targetUserId) {
       console.warn('Cannot accept friend request: no actorId or targetId found', item);
       return;
     }
-    try {
-      await userService.acceptFriendRequest(targetUserId);
-      toast.showSuccess(isEn ? 'Friend request accepted!' : 'Đã chấp nhận lời mời kết bạn!');
-      setFriendActionStatus((prev) => {
-        const next = { ...prev, [item.id]: 'accepted' as const, [targetUserId]: 'accepted' as const };
-        if (item.actorId) next[item.actorId] = 'accepted';
-        if (item.targetId) next[item.targetId] = 'accepted';
-        saveFriendStatus(next);
-        return next;
+
+    // Optimistically mark as accepted in UI & memory caches immediately
+    setFriendActionStatus((prev) => {
+      const next = { ...prev, [item.id]: 'accepted' as const };
+      candidateIds.forEach((id) => {
+        next[id] = 'accepted';
       });
-      myFriendIdsMemoryCache.add(targetUserId.toLowerCase());
-      if (item.actorId) myFriendIdsMemoryCache.add(item.actorId.toLowerCase());
-      if (item.targetId) myFriendIdsMemoryCache.add(item.targetId.toLowerCase());
-      if (!item.isRead) markAsRead(item.id);
-    } catch (err: any) {
-      console.error('Failed to accept friend request:', err);
-      toast.showError(err.response?.data?.message || err.message || (isEn ? 'Failed to accept friend request' : 'Không thể chấp nhận lời mời kết bạn'));
+      saveFriendStatus(next);
+      return next;
+    });
+    candidateIds.forEach((id) => myFriendIdsMemoryCache.add(id.toLowerCase()));
+    if (!item.isRead) markAsRead(item.id);
+
+    let success = false;
+    for (const candidateId of candidateIds) {
+      try {
+        await userService.acceptFriendRequest(candidateId);
+        success = true;
+        break;
+      } catch (err: any) {
+        const msg = String(err.response?.data?.message || err.message || '').toLowerCase();
+        if (msg.includes('already') || msg.includes('đã') || msg.includes('exist')) {
+          success = true;
+          break;
+        }
+      }
+    }
+
+    if (success) {
+      toast.showSuccess(isEn ? 'Friend request accepted!' : 'Đã chấp nhận lời mời kết bạn!');
+      window.dispatchEvent(new CustomEvent('friend_status_updated'));
+    } else {
+      toast.showError(isEn ? 'Failed to accept friend request' : 'Không thể chấp nhận lời mời kết bạn');
     }
   };
 
   const handleRejectFriend = async (e: React.MouseEvent, item: NotificationItem) => {
     e.stopPropagation();
-    const targetUserId = item.actorId || item.targetId || (item.targetUrl ? item.targetUrl.replace('/profile/', '').trim() : '');
+    const candidateIds = extractCandidateIds(item);
+    const targetUserId = candidateIds[0];
     if (!targetUserId) return;
-    try {
-      await userService.rejectFriendRequest(targetUserId);
-      toast.showInfo(isEn ? 'Friend request removed' : 'Đã xóa lời mời kết bạn');
-      setFriendActionStatus((prev) => {
-        const next = { ...prev, [item.id]: 'rejected' as const, [targetUserId]: 'rejected' as const };
-        if (item.actorId) next[item.actorId] = 'rejected';
-        if (item.targetId) next[item.targetId] = 'rejected';
 
-        saveFriendStatus(next);
-        return next;
+    // Optimistically mark as rejected in UI
+    setFriendActionStatus((prev) => {
+      const next = { ...prev, [item.id]: 'rejected' as const };
+      candidateIds.forEach((id) => {
+        next[id] = 'rejected';
       });
-      if (!item.isRead) markAsRead(item.id);
-    } catch (err: any) {
-      console.error('Failed to reject friend request:', err);
-      toast.showError(err.response?.data?.message || err.message || (isEn ? 'Failed to remove friend request' : 'Không thể xóa lời mời kết bạn'));
+      saveFriendStatus(next);
+      return next;
+    });
+    if (!item.isRead) markAsRead(item.id);
+
+    for (const candidateId of candidateIds) {
+      try {
+        await userService.rejectFriendRequest(candidateId);
+        break;
+      } catch {}
     }
+    toast.showInfo(isEn ? 'Friend request removed' : 'Đã xóa lời mời kết bạn');
+    window.dispatchEvent(new CustomEvent('friend_status_updated'));
   };
 
   return {

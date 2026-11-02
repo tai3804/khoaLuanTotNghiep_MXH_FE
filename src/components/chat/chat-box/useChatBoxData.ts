@@ -45,14 +45,30 @@ interface UseChatBoxDataProps {
   friend: ChatUser;
 }
 
+export const chatMessagesMemoryCache = new Map<string, Message[]>();
+export const chatConvIdMemoryCache = new Map<string, string>();
+export const chatProfilesMemoryCache = new Map<string, { name: string; avatar: string }>();
+
 export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const { user } = useAuth();
   const toast = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
+
+  const cacheKey = String(friend.conversationId || friend.userId || friend.id || '');
+  const initialCached = cacheKey
+    ? chatMessagesMemoryCache.get(cacheKey) || (friend.conversationId ? chatMessagesMemoryCache.get(friend.conversationId) : null)
+    : null;
+
+  const [messages, setMessages] = useState<Message[]>(() => initialCached || []);
   const [inputText, setInputText] = useState('');
   const [isMinimized, setIsMinimized] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [conversationId, setConversationId] = useState<string | null>(() => (cacheKey ? chatConvIdMemoryCache.get(cacheKey) : null) || friend.conversationId || null);
+  const [loading, setLoading] = useState<boolean>(() => !initialCached || initialCached.length === 0);
+
+  const syncChatCache = useCallback((newMsgs: Message[]) => {
+    if (cacheKey) chatMessagesMemoryCache.set(cacheKey, newMsgs);
+    if (conversationId) chatMessagesMemoryCache.set(conversationId, newMsgs);
+    if (friend.conversationId) chatMessagesMemoryCache.set(friend.conversationId, newMsgs);
+  }, [cacheKey, conversationId, friend.conversationId]);
   const [isWsLive, setIsWsLive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [groupDetail, setGroupDetail] = useState<any>(null);
@@ -275,9 +291,12 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     let isMounted = true;
 
     const initChat = async () => {
-      setLoading(true);
+      const hasCached = initialCached && initialCached.length > 0;
+      if (!hasCached) {
+        setLoading(true);
+      }
       try {
-        let convId: string | null = friend.conversationId || null;
+        let convId: string | null = friend.conversationId || (cacheKey ? chatConvIdMemoryCache.get(cacheKey) : null) || null;
         let directTargetId: string | null = friend.userId || (!friend.isGroup && !friend.conversationId ? friend.id : null);
 
         if (!convId && directTargetId) {
@@ -336,15 +355,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
         setHasMoreMessages(true);
 
         // 1. Detect unread messages count
-        let detectedUnread = Number(friend.unreadCount || 0);
-        if (detectedUnread <= 0 && convId) {
-          try {
-            const convs = await chatService.getConversations();
-            const found = convs.find((c: any) => String(c.conversationId || c.id) === String(convId));
-            if (found && found.unreadCount) {
-              detectedUnread = Number(found.unreadCount);
-            }
-          } catch {}
+        const detectedUnread = Number(friend.unreadCount || 0);
+        if (cacheKey && convId) {
+          chatConvIdMemoryCache.set(cacheKey, convId);
+          chatConvIdMemoryCache.set(convId, convId);
         }
 
         const rawMsgs = await chatService.getMessages(convId, 0, 30);
@@ -368,27 +382,27 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
             setUnreadCount(0);
           }
 
-          setMessages(
-            sorted.map((m: any) => {
-              const sId = String(m.senderId);
-              const isCurrentUser = sId === String(user?.id);
-              const prof = profilesMap[sId] || memberProfilesRef.current[sId];
-              return {
-                id: String(m.messageId || m.id),
-                senderId: sId,
-                senderName: isCurrentUser ? 'Bạn' : prof?.name || resolvedPartnerProf?.name || partnerProfile?.name || friend.name,
-                senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : resolvedPartnerProf?.avatar || partnerProfile?.avatar || friend.avatar),
-                text: (m.deleted || (m as any).isDeleted) ? '' : (m.content || ''),
-                time: formatMessageTime(m.createdAt),
-                status: isCurrentUser ? 'SENT' : 'DELIVERED',
-                type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
-                mediaUrl: (m.deleted || (m as any).isDeleted) ? null : (m.mediaUrl || null),
-                edited: Boolean(m.edited),
-                deleted: Boolean(m.deleted || (m as any).isDeleted),
-              };
-            })
-          );
-        } else if (isMounted) {
+          const mapped = sorted.map((m: any) => {
+            const sId = String(m.senderId);
+            const isCurrentUser = sId === String(user?.id);
+            const prof = profilesMap[sId] || memberProfilesRef.current[sId];
+            return {
+              id: String(m.messageId || m.id),
+              senderId: sId,
+              senderName: isCurrentUser ? 'Bạn' : prof?.name || resolvedPartnerProf?.name || partnerProfile?.name || friend.name,
+              senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : resolvedPartnerProf?.avatar || partnerProfile?.avatar || friend.avatar),
+              text: (m.deleted || (m as any).isDeleted) ? '' : (m.content || ''),
+              time: formatMessageTime(m.createdAt),
+              status: isCurrentUser ? 'SENT' : 'DELIVERED',
+              type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
+              mediaUrl: (m.deleted || (m as any).isDeleted) ? null : (m.mediaUrl || null),
+              edited: Boolean(m.edited),
+              deleted: Boolean(m.deleted || (m as any).isDeleted),
+            };
+          });
+          setMessages(mapped);
+          syncChatCache(mapped);
+        } else if (isMounted && (!hasCached || messages.length === 0)) {
           setMessages([]);
           setFirstUnreadId(null);
           setUnreadCount(0);
@@ -399,7 +413,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
         }
       } catch (err) {
         console.error('[ChatBox] Error initializing chat conversation:', err);
-        if (isMounted) {
+        if (isMounted && (!hasCached || messages.length === 0)) {
           setMessages([]);
           setFirstUnreadId(null);
           setUnreadCount(0);
