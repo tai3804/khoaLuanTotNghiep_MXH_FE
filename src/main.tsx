@@ -10,6 +10,7 @@ import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { CallProvider } from './context/CallContext';
 import { LiveStreamProvider } from './context/LiveStreamContext';
+import { ChatProvider } from './context/ChatContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { SystemConfigProvider } from './context/SystemConfigContext';
 
@@ -33,7 +34,9 @@ createRoot(document.getElementById('root')!).render(
                     <NotificationProvider>
                       <CallProvider>
                         <LiveStreamProvider>
-                          <App />
+                          <ChatProvider>
+                            <App />
+                          </ChatProvider>
                         </LiveStreamProvider>
                       </CallProvider>
                     </NotificationProvider>

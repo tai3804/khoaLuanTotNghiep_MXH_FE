@@ -564,6 +564,17 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       streamRef.current = null;
     }
 
+    // 2. Dừng tất cả MediaStream tracks trên activeBroadcast.stream nếu khác đối tượng
+    if (activeBroadcast.stream) {
+      activeBroadcast.stream.getTracks().forEach((track) => {
+        try { track.stop(); } catch {}
+      });
+    }
+
+    // 3. Giải phóng phiên WebRTC chủ phòng và dừng track trên RTCPeerConnection
+    if (pId) {
+      liveWebRtcService.endHostSession(pId);
+    }
     // Chủ phòng chủ động kết thúc: không còn gì để chờ nối lại
     clearHostLiveSession();
     setResumableLive(null);

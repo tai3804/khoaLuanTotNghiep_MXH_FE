@@ -4,7 +4,8 @@ export interface ChatUser {
   name: string;
   avatar: string;
   online: boolean;
-  lastActiveAt?: string;
+  lastActiveAt?: string | null;
+  lastMessageAt?: string | null;
   isGroup?: boolean;
   conversationId?: string;
   lastMessageContent?: string;

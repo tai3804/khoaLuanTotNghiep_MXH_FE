@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Check, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { postService } from '../../../services/postService';
-import { fetchAuthorProfile, userService, myFriendIdsMemoryCache } from '../../../services/userService';
+import { fetchAuthorProfile, authorProfileCache, userService, myFriendIdsMemoryCache } from '../../../services/userService';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { UserAvatar } from '../../common/UserAvatar';

@@ -298,7 +298,10 @@ export const userService = {
         });
         try { localStorage.removeItem('my_friend_ids'); } catch {}
 
-        await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
+        const missingFriendIds = friendIds.filter((id) => !authorProfileCache[id]);
+        if (missingFriendIds.length > 0) {
+          await userService.getProfilesBatch(missingFriendIds);
+        }
 
         const friendsList = friendIds.map((fid) => {
           const connection = data.find((item: any) =>
@@ -321,6 +324,7 @@ export const userService = {
             createdAt: connection.createdAt,
           };
         });
+        return friendsList;
       }
       return [];
     } catch {
@@ -358,7 +362,10 @@ export const userService = {
         return { connection, friendId };
       }).filter(({ friendId }) => Boolean(friendId));
 
-      await Promise.all(normalized.map(({ friendId }) => fetchAuthorProfile(friendId).catch(() => null)));
+      const missingFriendIds = normalized.map(({ friendId }) => friendId).filter((id) => !authorProfileCache[id]);
+      if (missingFriendIds.length > 0) {
+        await userService.getProfilesBatch(missingFriendIds);
+      }
 
       return normalized.map(({ connection, friendId }) => {
         const profile = authorProfileCache[friendId];
@@ -389,7 +396,10 @@ export const userService = {
           new Set(data.map((c: any) => (c.requesterId ? String(c.requesterId) : null)).filter(Boolean))
         ) as string[];
 
-        await Promise.all(followerIds.map((id) => fetchAuthorProfile(id)));
+        const missingFollowerIds = followerIds.filter((id) => !authorProfileCache[id]);
+        if (missingFollowerIds.length > 0) {
+          await userService.getProfilesBatch(missingFollowerIds);
+        }
 
         const reqsList = data.map((c: any) => {
           const fid = String(c.requesterId || c.userId || c.id);
@@ -404,6 +414,7 @@ export const userService = {
             createdAt: c.createdAt,
           };
         });
+        return reqsList;
       }
       return [];
     } catch {
@@ -420,7 +431,10 @@ export const userService = {
           new Set(data.map((c: any) => (c.targetId ? String(c.targetId) : null)).filter(Boolean))
         ) as string[];
 
-        await Promise.all(followingIds.map((id) => fetchAuthorProfile(id)));
+        const missingFollowingIds = followingIds.filter((id) => !authorProfileCache[id]);
+        if (missingFollowingIds.length > 0) {
+          await userService.getProfilesBatch(missingFollowingIds);
+        }
 
         return data.map((c: any) => {
           const fid = String(c.targetId || c.userId || c.id);
@@ -451,7 +465,10 @@ export const userService = {
           new Set(data.map((c: any) => (c.requesterId ? String(c.requesterId) : null)).filter(Boolean))
         ) as string[];
 
-        await Promise.all(requesterIds.map((id) => fetchAuthorProfile(id)));
+        const missingReqIds = requesterIds.filter((id) => !authorProfileCache[id]);
+        if (missingReqIds.length > 0) {
+          await userService.getProfilesBatch(missingReqIds);
+        }
 
         return data.map((c: any) => {
           const reqId = String(c.requesterId || c.userId || c.id);

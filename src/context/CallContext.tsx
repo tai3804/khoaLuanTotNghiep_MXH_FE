@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
-import { callService, CallSession, MediaType, WebRtcSignal } from '../services/callService';
+import { callService, CallSession, MediaType, WebRtcSignal, CallHistoryItem, CallStatus, ParticipantStatus } from '../services/callService';
 import { callWebSocketService } from '../services/callWebSocket';
 import { callAudio } from '../utils/callAudio';
 import { userService } from '../services/userService';
@@ -44,6 +44,10 @@ interface CallContextType {
   toggleScreenShare: () => Promise<void>;
   setIsMinimized: (val: boolean) => void;
   setIsCallHistoryOpen: (val: boolean) => void;
+  callHistory: CallHistoryItem[];
+  loadingCallHistory: boolean;
+  callUserProfiles: Record<string, any>;
+  refreshCallHistory: (silent?: boolean) => Promise<void>;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -74,6 +78,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [callDuration, setCallDuration] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isCallHistoryOpen, setIsCallHistoryOpen] = useState(false);
+  const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
+  const [loadingCallHistory, setLoadingCallHistory] = useState(false);
+  const [callUserProfiles, setCallUserProfiles] = useState<Record<string, any>>({});
+  const callHistoryRef = useRef<CallHistoryItem[]>([]);
+  callHistoryRef.current = callHistory;
+  const callUserProfilesRef = useRef<Record<string, any>>({});
+  callUserProfilesRef.current = callUserProfiles;
+  const hasLoadedCallHistoryRef = useRef(false);
+  const callStartTimeRef = useRef<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   // A group call is a small WebRTC mesh: one peer connection per member.
@@ -151,6 +164,127 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [toast, user?.id]);
 
+  // Record call to history locally (Single Source of Truth, no extra fetch needed)
+  const recordCallToHistory = useCallback(
+    (finalStatus: CallStatus, myFinalStatus: ParticipantStatus, duration = 0) => {
+      const session = callSessionRef.current;
+      if (!session || !session.callSessionId) return;
+
+      const sessionId = session.callSessionId;
+      const isHost = session.hostUserId === user?.id;
+      const remoteId = remoteUserRef.current?.id;
+      const otherParticipants =
+        session.participants?.map((p) => p.userId).filter((id) => id !== user?.id) || [];
+      if (remoteId && !otherParticipants.includes(remoteId) && !remoteId.startsWith('group:')) {
+        otherParticipants.push(remoteId);
+      }
+
+      if (remoteId && remoteUserRef.current && !remoteId.startsWith('group:')) {
+        setCallUserProfiles((prev) => ({
+          ...prev,
+          [remoteId]: prev[remoteId] || {
+            displayName: remoteUserRef.current?.name,
+            avatarUrl: remoteUserRef.current?.avatar,
+          },
+        }));
+      }
+
+      const historyItem: CallHistoryItem = {
+        callSessionId: sessionId,
+        channelType: session.channelType || 'DIRECT',
+        mediaType: session.mediaType || mediaType || 'VIDEO',
+        conversationId: session.conversationId || null,
+        hostUserId: session.hostUserId || user?.id || '',
+        status: finalStatus,
+        startedAt: session.startedAt || new Date().toISOString(),
+        endedAt: new Date().toISOString(),
+        durationInSeconds: duration,
+        myRole: isHost ? 'HOST' : 'PARTICIPANT',
+        myStatus: myFinalStatus,
+        participantUserIds: otherParticipants,
+      };
+
+      setCallHistory((prev) => {
+        const idx = prev.findIndex((item) => item.callSessionId === sessionId);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...historyItem };
+          return updated;
+        }
+        return [historyItem, ...prev];
+      });
+    },
+    [user?.id, mediaType]
+  );
+
+  // Fetch call history once on mount / login
+  const fetchCallHistory = useCallback(
+    async (silent = false) => {
+      if (!isAuthenticated) return;
+      if (!silent && callHistoryRef.current.length === 0) setLoadingCallHistory(true);
+      try {
+        const res = await callService.getCallHistory(1, 40);
+        const items = res.content || [];
+        setCallHistory(items);
+
+        const otherUserIds = new Set<string>();
+        items.forEach((item) => {
+          if (item.hostUserId && item.hostUserId !== user?.id) {
+            otherUserIds.add(item.hostUserId);
+          }
+          if (item.participantUserIds) {
+            item.participantUserIds.forEach((pId) => {
+              if (pId !== user?.id) otherUserIds.add(pId);
+            });
+          }
+        });
+
+        const missingUids = Array.from(otherUserIds).filter((uid) => !callUserProfilesRef.current[uid]);
+        if (missingUids.length > 0) {
+          try {
+            const batchLoaded = await userService.getProfilesBatch(missingUids);
+            if (batchLoaded && Object.keys(batchLoaded).length > 0) {
+              setCallUserProfiles((prev) => ({ ...prev, ...batchLoaded }));
+            }
+          } catch {
+            const profilePromises = missingUids.map(async (uid) => {
+              try {
+                const prof = await userService.getUserProfile(uid);
+                return { uid, prof };
+              } catch {
+                return { uid, prof: null };
+              }
+            });
+            const profiles = await Promise.all(profilePromises);
+            const map: Record<string, any> = {};
+            profiles.forEach(({ uid, prof }) => {
+              if (prof) map[uid] = prof;
+            });
+            setCallUserProfiles((prev) => ({ ...prev, ...map }));
+          }
+        }
+      } catch (err) {
+        console.error('[CallContext] Error fetching call history:', err);
+      } finally {
+        if (!silent) setLoadingCallHistory(false);
+      }
+    },
+    [isAuthenticated, user?.id]
+  );
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (!hasLoadedCallHistoryRef.current) {
+        hasLoadedCallHistoryRef.current = true;
+        fetchCallHistory(false);
+      }
+    } else {
+      hasLoadedCallHistoryRef.current = false;
+      setCallHistory((prev) => (prev.length > 0 ? [] : prev));
+      setCallUserProfiles((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+    }
+  }, [isAuthenticated, fetchCallHistory]);
+
   // Cleanup all streams, peer connection, audio and timers
   const cleanupCall = useCallback(() => {
     callAudio.stopAll();
@@ -195,19 +329,24 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsVideoMuted(false);
     setIsScreenSharing(false);
     setCallDuration(0);
+    callStartTimeRef.current = null;
   }, []);
 
   // Gracefully terminate active/incoming call locally and reset all UI state
   const terminateCallLocally = useCallback((message = 'Cuộc gọi đã kết thúc') => {
     callAudio.playCallEndedTone();
     toast.showInfo(message);
+    const dur = callStartTimeRef.current ? Math.max(0, Math.round((Date.now() - callStartTimeRef.current) / 1000)) : callDuration;
+    const finalStatus: CallStatus = callState === 'connected' ? 'ENDED' : 'MISSED';
+    const myStatus: ParticipantStatus = callState === 'connected' ? 'LEFT' : 'DECLINED';
+    recordCallToHistory(finalStatus, myStatus, dur);
     cleanupCall();
     callSessionRef.current = null;
     remoteUserRef.current = null;
     setCallState('idle');
     setCallSession(null);
     setRemoteUser(null);
-  }, [cleanupCall, toast]);
+  }, [cleanupCall, toast, callState, callDuration, recordCallToHistory]);
 
   // Connect to Call WebSocket on auth
   useEffect(() => {
@@ -252,6 +391,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timeoutTimerRef.current = setTimeout(() => {
         if (callSessionRef.current?.callSessionId === activeCall.callSessionId) {
           callAudio.stopAll();
+          recordCallToHistory('MISSED', 'DECLINED', 0);
           callWebSocketService.sendSignal(activeCall.callSessionId, activeCall.hostUserId, 'REJECT');
           callService.rejectCall(activeCall.callSessionId, true).catch(() => {});
           setCallState('idle');
@@ -528,6 +668,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           timeoutTimerRef.current = setTimeout(() => {
             if (callSessionRef.current?.callSessionId === signal.callSessionId) {
               callAudio.stopAll();
+              recordCallToHistory('MISSED', 'DECLINED', 0);
               const activeSession = callSessionRef.current;
               const callerId = remoteUserRef.current?.id || signal.senderId || null;
               if (activeSession) {
@@ -641,6 +782,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             toast.showInfo('Một thành viên đã từ chối cuộc gọi');
             break;
           }
+          recordCallToHistory('REJECTED', 'LEFT', 0);
           callAudio.playCallEndedTone();
           toast.showInfo('Người dùng đã từ chối cuộc gọi');
           cleanupCall();
@@ -704,6 +846,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const startDurationTimer = () => {
     if (durationTimerRef.current) clearInterval(durationTimerRef.current);
+    callStartTimeRef.current = Date.now();
     setCallDuration(0);
     durationTimerRef.current = setInterval(() => {
       setCallDuration((prev) => prev + 1);
@@ -856,6 +999,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (callSessionRef.current?.callSessionId === session.callSessionId) {
           callAudio.playCallEndedTone();
           toast.showInfo('Người dùng không trả lời');
+          recordCallToHistory('MISSED', 'LEFT', 0);
           endSession(session, targetUser.id).finally(() => {
             cleanupCall();
             setCallState('idle');
@@ -917,6 +1061,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (callSessionRef.current?.callSessionId === session.callSessionId) {
           callAudio.playCallEndedTone();
           toast.showInfo('Chưa có thành viên nào trả lời cuộc gọi');
+          recordCallToHistory('MISSED', 'LEFT', 0);
           endSession(session, null).finally(() => {
             cleanupCall();
             setCallState('idle');
@@ -971,6 +1116,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Callee rejects incoming call
   const rejectCall = async () => {
     if (!callSession) return;
+    recordCallToHistory('REJECTED', 'DECLINED', 0);
     callAudio.stopAll();
     if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
 
@@ -991,6 +1137,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // End active call
   const endCall = async () => {
     callAudio.playCallEndedTone();
+    const dur = callStartTimeRef.current ? Math.max(0, Math.round((Date.now() - callStartTimeRef.current) / 1000)) : callDuration;
+    recordCallToHistory('ENDED', 'LEFT', dur);
     const sessionId = callSession?.callSessionId;
     const targetId = remoteUser?.id ||
       callSession?.participants?.find((p) => p.userId !== user?.id)?.userId ||
@@ -1170,6 +1318,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleScreenShare,
         setIsMinimized,
         setIsCallHistoryOpen,
+        callHistory,
+        loadingCallHistory,
+        callUserProfiles,
+        refreshCallHistory: fetchCallHistory,
       }}
     >
       {children}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, UserPlus, LogOut, Edit2, Check, Shield, Loader2, Trash2 } from 'lucide-react';
 import { chatService } from '../../services/chatService';
-import { userService, fetchAuthorProfile } from '../../services/userService';
+import { userService, fetchAuthorProfile, authorProfileCache } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -64,24 +64,18 @@ export const GroupInfoModal: React.FC<GroupInfoModalProps> = ({
         setGroupDetail(data);
         setEditName(data.name || initialName || 'Nhóm chat');
 
-        // Resolve member profiles
+        // Resolve member profiles via single batch
         if (Array.isArray(data.members)) {
+          const uids = data.members.map((m: any) => String(m.userId)).filter(Boolean);
+          const missingUids = uids.filter((uid: string) => !authorProfileCache[uid]);
+          if (missingUids.length > 0) {
+            await userService.getProfilesBatch(missingUids);
+          }
           const profiles: Record<string, { name: string; avatar: string }> = {};
-          await Promise.all(
-            data.members.map(async (m: any) => {
-              const uid = String(m.userId);
-              try {
-                const cached = await fetchAuthorProfile(uid);
-                if (cached) {
-                  profiles[uid] = cached;
-                } else {
-                  profiles[uid] = { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
-                }
-              } catch {
-                profiles[uid] = { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
-              }
-            })
-          );
+          data.members.forEach((m: any) => {
+            const uid = String(m.userId);
+            profiles[uid] = authorProfileCache[uid] || { name: m.nickname || 'Thành viên', avatar: '/default-avatar.png' };
+          });
           setMemberProfiles(profiles);
         }
       }

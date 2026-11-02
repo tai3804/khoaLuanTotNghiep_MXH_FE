@@ -11,6 +11,7 @@ const ACCOUNT_LOCKED_CODE = 40320;
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },

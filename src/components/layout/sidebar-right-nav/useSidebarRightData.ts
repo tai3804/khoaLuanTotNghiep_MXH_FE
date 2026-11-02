@@ -1,21 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../context/AuthContext';
+import { useChat } from '../../../context/ChatContext';
 import { ChatUser } from '../../../components/chat/chat-box';
 import { userService } from '../../../services/api';
 import { chatService } from '../../../services/chatService';
 import { websocketService } from '../../../services/websocket';
 import { PendingFriendRequestItem } from './types';
 
+let cachedSidebarContacts: ChatUser[] = [];
+let cachedSidebarRequests: PendingFriendRequestItem[] = [];
+let hasFetchedSidebarOnce = false;
+
 export const useSidebarRightData = () => {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
   const { isAuthenticated, tokens } = useAuth();
+  const { conversations } = useChat();
+  const groupChats = useMemo(() => conversations.filter((c) => c.isGroup), [conversations]);
 
-  const [contacts, setContacts] = useState<ChatUser[]>([]);
-  const [groupChats, setGroupChats] = useState<ChatUser[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<PendingFriendRequestItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState<ChatUser[]>(() => cachedSidebarContacts);
+  const [pendingRequests, setPendingRequests] = useState<PendingFriendRequestItem[]>(() => cachedSidebarRequests);
+  const [loading, setLoading] = useState(!hasFetchedSidebarOnce && cachedSidebarContacts.length === 0);
   const [contactSearch, setContactSearch] = useState('');
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
@@ -28,9 +34,8 @@ export const useSidebarRightData = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setContacts([]);
-      setPendingRequests([]);
-      setGroupChats([]);
+      setContacts((prev) => (prev.length > 0 ? [] : prev));
+      setPendingRequests((prev) => (prev.length > 0 ? [] : prev));
       return;
     }
 
@@ -64,8 +69,10 @@ export const useSidebarRightData = () => {
           };
         });
 
+        cachedSidebarContacts = mappedContacts;
+        cachedSidebarRequests = Array.isArray(requests) ? requests : [];
         setContacts(mappedContacts);
-        setPendingRequests(Array.isArray(requests) ? requests : []);
+        setPendingRequests(cachedSidebarRequests);
       } catch {
         if (!silent) setContacts([]);
       } finally {
@@ -73,37 +80,15 @@ export const useSidebarRightData = () => {
       }
     };
 
-    const fetchGroupChats = async () => {
-      try {
-        const convs = await chatService.getConversations();
-        if (Array.isArray(convs)) {
-          const groups: ChatUser[] = convs
-            .filter((c: any) => c.type === 'GROUP')
-            .map((c: any) => ({
-              id: c.conversationId,
-              conversationId: c.conversationId,
-              isGroup: true,
-              name: c.name || 'Nhóm chat',
-              avatar: c.avatarUrl || '/default-avatar.png',
-              online: false,
-              lastMessageContent: c.lastMessageContent,
-              unreadCount: Number(c.unreadCount || 0),
-            }));
-          setGroupChats(groups);
-        }
-      } catch (err) {
-        console.error('[SidebarRight] Error loading group chats', err);
-      }
-    };
 
-    fetchData(false);
-    fetchGroupChats();
+
+    if (!hasFetchedSidebarOnce || cachedSidebarContacts.length === 0) {
+      hasFetchedSidebarOnce = true;
+      fetchData(false);
+    }
 
     const handleFriendUpdate = () => fetchData(true);
-    const handleGroupUpdate = () => fetchGroupChats();
     window.addEventListener('friend_status_updated', handleFriendUpdate);
-    window.addEventListener('group_chat_created', handleGroupUpdate);
-    window.addEventListener('group_chat_updated', handleGroupUpdate);
 
     const handlePresence = (e: any) => {
       const detail = e.detail;
@@ -126,8 +111,6 @@ export const useSidebarRightData = () => {
 
     return () => {
       window.removeEventListener('friend_status_updated', handleFriendUpdate);
-      window.removeEventListener('group_chat_created', handleGroupUpdate);
-      window.removeEventListener('group_chat_updated', handleGroupUpdate);
       window.removeEventListener('user_presence_updated', handlePresence);
     };
   }, [isAuthenticated, tokens?.accessToken]);

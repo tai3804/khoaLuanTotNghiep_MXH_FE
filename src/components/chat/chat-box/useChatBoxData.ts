@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import { useChat } from '../../../context/ChatContext';
 import { useToast } from '../../../context/ToastContext';
 import { chatService, websocketService } from '../../../services/api';
-import { userService, fetchAuthorProfile } from '../../../services/userService';
+import { userService, fetchAuthorProfile, authorProfileCache } from '../../../services/userService';
 import { mediaService } from '../../../services/mediaService';
 import { ChatUser } from './types';
 
@@ -75,6 +76,12 @@ const storeMessages = (key: string, msgs: Message[]) => {
 
 export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const { user } = useAuth();
+  const {
+    recordOutgoingMessage,
+    registerActiveChat,
+    unregisterActiveChat,
+    markConversationAsRead: contextMarkAsRead,
+  } = useChat();
   const toast = useToast();
 
   const cacheKey = String(friend.conversationId || friend.userId || friend.id || '');
@@ -98,6 +105,16 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const [groupDetail, setGroupDetail] = useState<any>(null);
   const [partnerProfile, setPartnerProfile] = useState<{ userId?: string; name: string; avatar: string } | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // Keep ChatContext informed of active chat to suppress unread badges for current conversation
+  useEffect(() => {
+    if (conversationId && !isMinimized) {
+      registerActiveChat(conversationId);
+      return () => {
+        unregisterActiveChat(conversationId);
+      };
+    }
+  }, [conversationId, isMinimized, registerActiveChat, unregisterActiveChat]);
+
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [firstUnreadId, setFirstUnreadId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -382,6 +399,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
               try {
                 const p = await fetchAuthorProfile(directTargetId);
                 if (p && isMounted) {
+                  resolvedPartnerProf = p;
                   setPartnerProfile({ userId: directTargetId, ...p });
                   return { [directTargetId]: p };
                 }
@@ -414,7 +432,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
             setUnreadCount(0);
           }
 
-          const mapped = sorted.map((m: any) => {
+          const mapped: Message[] = sorted.map((m: any) => {
             const sId = String(m.senderId);
             const isCurrentUser = sId === String(user?.id);
             const prof = profilesMap[sId] || memberProfilesRef.current[sId];
@@ -425,7 +443,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
               senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : resolvedPartnerProf?.avatar || partnerProfile?.avatar || friend.avatar),
               text: (m.deleted || (m as any).isDeleted) ? '' : (m.content || ''),
               time: formatMessageTime(m.createdAt),
-              status: isCurrentUser ? 'SENT' : 'DELIVERED',
+              status: (isCurrentUser ? 'SENT' : 'DELIVERED') as Message['status'],
               type: m.type || (m.mediaUrl ? 'IMAGE' : 'TEXT'),
               mediaUrl: (m.deleted || (m as any).isDeleted) ? null : (m.mediaUrl || null),
               edited: Boolean(m.edited),
@@ -547,7 +565,7 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                   .filter((m) => !(m.id.startsWith('msg-') && m.text === incomingContent))
                   .map((m) => {
                     if (m.id === incomingId) {
-                      const isRecalled = Boolean(incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED');
+                      const isRecalled = Boolean(incoming.deleted || (incoming as any).isDeleted || incoming.type === 'MESSAGE_RECALLED');
                       return {
                         ...m,
                         text: isRecalled ? '' : (incomingContent !== undefined ? incomingContent : m.text),
@@ -572,13 +590,13 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
                 senderId: incomingSender,
                 senderName: isCurrentUser ? 'Bạn' : prof?.name || friend.name,
                 senderAvatar: prof?.avatar || (isCurrentUser ? user?.avatar : friend.avatar),
-                text: (incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED') ? '' : incomingContent,
+                text: (incoming.deleted || (incoming as any).isDeleted || incoming.type === 'MESSAGE_RECALLED') ? '' : incomingContent,
                 time: formatMessageTime(incoming.createdAt),
                 status: isCurrentUser ? 'SENT' : 'DELIVERED',
                 type: incoming.type || (incoming.mediaUrl ? 'IMAGE' : 'TEXT'),
-                mediaUrl: (incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED') ? null : (incoming.mediaUrl || null),
+                mediaUrl: (incoming.deleted || (incoming as any).isDeleted || incoming.type === 'MESSAGE_RECALLED') ? null : (incoming.mediaUrl || null),
                 edited: Boolean(incoming.edited),
-                deleted: Boolean(incoming.deleted || incoming.isDeleted || incoming.type === 'MESSAGE_RECALLED'),
+                deleted: Boolean(incoming.deleted || (incoming as any).isDeleted || incoming.type === 'MESSAGE_RECALLED'),
               };
 
               if (!isCurrentUser && incomingId) {
@@ -691,21 +709,22 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
 
     try {
       if (conversationId) {
-        // 1. Send via WebSocket for immediate real-time frame
-        websocketService.sendMessage(conversationId, textToSend);
-        setIsWsLive(true);
-
-        // 2. Persist via REST for guaranteed delivery & server broadcast
+        // Gửi qua REST API: Backend MessageController lưu DB và tự động broadcast WebSocket /topic/conversations/{id}
         const res = await chatService.sendMessage(conversationId, textToSend);
         if (res && (res.messageId || res.id)) {
           const actualId = String(res.messageId || res.id);
-          setMessages((prev) =>
-            prev.map((m) => (m.id === tempId ? { ...m, id: actualId, status: 'SENT' } : m))
-          );
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === actualId)) {
+              return prev.filter((m) => m.id !== tempId);
+            }
+            return prev.map((m) => (m.id === tempId ? { ...m, id: actualId, status: 'SENT' } : m));
+          });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ChatBox] Error sending message:', err);
+      toast.showError('Gửi tin nhắn thất bại: ' + (err.response?.data?.message || err.message));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   };
 

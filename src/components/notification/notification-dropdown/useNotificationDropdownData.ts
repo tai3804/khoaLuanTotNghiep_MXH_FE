@@ -97,23 +97,10 @@ export const useNotificationDropdownData = ({
 
     if (toFetch.length === 0) return;
 
-    Promise.all(
-      toFetch.map(async (id) => {
-        try {
-          const profile = await fetchAuthorProfile(id);
-          return { id, profile };
-        } catch {
-          return { id, profile: null };
-        }
-      })
-    ).then((results) => {
-      setActorProfiles((prev) => {
-        const next = { ...prev };
-        results.forEach(({ id, profile }) => {
-          if (profile) next[id] = profile;
-        });
-        return next;
-      });
+    userService.getProfilesBatch(toFetch).then((batchResults) => {
+      if (batchResults && Object.keys(batchResults).length > 0) {
+        setActorProfiles((prev) => ({ ...prev, ...batchResults }));
+      }
     });
   }, [notifications]);
 

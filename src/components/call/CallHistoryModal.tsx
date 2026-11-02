@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCall } from '../../context/CallContext';
-import { callService, CallHistoryItem } from '../../services/callService';
-import { userService } from '../../services/userService';
+import { CallHistoryItem } from '../../services/callService';
 import { useAuth } from '../../context/AuthContext';
 import {
   CallHistoryHeader,
@@ -36,76 +35,32 @@ const formatCallTime = (dateStr?: string): string => {
 };
 
 export const CallHistoryModal: React.FC = () => {
-  const { isCallHistoryOpen, setIsCallHistoryOpen, startCall } = useCall();
+  const {
+    isCallHistoryOpen,
+    setIsCallHistoryOpen,
+    startCall,
+    callHistory,
+    loadingCallHistory,
+    callUserProfiles,
+  } = useCall();
   const { user } = useAuth();
 
-  const [history, setHistory] = useState<CallHistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'missed'>('all');
-  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
-
-  useEffect(() => {
-    if (!isCallHistoryOpen) return;
-
-    const fetchHistory = async () => {
-      setLoading(true);
-      try {
-        const res = await callService.getCallHistory(1, 30);
-        const items = res.content || [];
-        setHistory(items);
-
-        // Fetch user profiles for participants
-        const otherUserIds = new Set<string>();
-        items.forEach((item) => {
-          if (item.hostUserId && item.hostUserId !== user?.id) {
-            otherUserIds.add(item.hostUserId);
-          }
-          if (item.participantUserIds) {
-            item.participantUserIds.forEach((pId) => {
-              if (pId !== user?.id) otherUserIds.add(pId);
-            });
-          }
-        });
-
-        const profilePromises = Array.from(otherUserIds).map(async (uid) => {
-          try {
-            const prof = await userService.getUserProfile(uid);
-            return { uid, prof };
-          } catch {
-            return { uid, prof: null };
-          }
-        });
-
-        const profiles = await Promise.all(profilePromises);
-        const map: Record<string, any> = {};
-        profiles.forEach(({ uid, prof }) => {
-          if (prof) map[uid] = prof;
-        });
-        setUserProfiles(map);
-      } catch (err) {
-        console.error('[CallHistoryModal] Error fetching history:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [isCallHistoryOpen, user?.id]);
 
   const missedCount = useMemo(() => {
-    return history.filter(
+    return callHistory.filter(
       (item) => item.status === 'MISSED' || item.myStatus === 'DECLINED'
     ).length;
-  }, [history]);
+  }, [callHistory]);
 
   const filteredHistory = useMemo(() => {
-    return history.filter((item) => {
+    return callHistory.filter((item) => {
       if (activeTab === 'missed') {
         return item.status === 'MISSED' || item.myStatus === 'DECLINED';
       }
       return true;
     });
-  }, [history, activeTab]);
+  }, [callHistory, activeTab]);
 
   if (!isCallHistoryOpen) return null;
 
@@ -118,7 +73,7 @@ export const CallHistoryModal: React.FC = () => {
       if (other) partnerId = other;
     }
 
-    const prof = partnerId ? userProfiles[partnerId] : null;
+    const prof = partnerId ? callUserProfiles[partnerId] : null;
     return {
       id: partnerId,
       name:
@@ -158,7 +113,7 @@ export const CallHistoryModal: React.FC = () => {
 
         {/* Content Area with Fixed Responsive Height */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 divide-y divide-gray-100 dark:divide-[#393a3b]/60">
-          {loading ? (
+          {loadingCallHistory && callHistory.length === 0 ? (
             <CallHistoryLoadingState />
           ) : filteredHistory.length === 0 ? (
             <CallHistoryEmptyState isMissedTab={activeTab === 'missed'} />

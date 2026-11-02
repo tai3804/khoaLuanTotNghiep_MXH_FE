@@ -24,9 +24,14 @@ export const reportService = {
     return response.data;
   },
   getMyReports: async (): Promise<SubmittedReport[]> => {
-    const response = await api.get('/moderation/reports/mine');
-    const reports = contentOf(response.data);
-    return Array.isArray(reports) ? reports : [];
+    try {
+      const response = await api.get('/moderation/reports/mine');
+      const reports = contentOf(response.data);
+      return Array.isArray(reports) ? reports : [];
+    } catch (err) {
+      console.warn('Failed to fetch my reports:', err);
+      return [];
+    }
   },
   appeal: async (reportId: string, message: string) => {
     const response = await api.post(`/moderation/reports/${reportId}/appeal`, { message });

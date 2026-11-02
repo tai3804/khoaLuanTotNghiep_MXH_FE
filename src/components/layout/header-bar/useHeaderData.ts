@@ -3,16 +3,14 @@ import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
+import { useChat } from '../../../context/ChatContext';
 import { userService, postService, groupService } from '../../../services/api';
-import { fetchAuthorProfile } from '../../../services/userService';
-import { chatService } from '../../../services/chatService';
 import { ChatUser } from '../../../components/chat/chat-box';
 
 interface UseHeaderDataProps {
   onTabChange?: (tab: string) => void;
 }
 
-let cachedHeaderChatContacts: ChatUser[] = [];
 
 export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const { user, isAuthenticated, logout, openLoginModal } = useAuth();
@@ -27,13 +25,15 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showMsgMenu, setShowMsgMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [chatContacts, setChatContacts] = useState<ChatUser[]>(() => cachedHeaderChatContacts);
-  const [loadingChatContacts, setLoadingChatContacts] = useState(false);
+  const {
+    conversations: chatContacts,
+    loadingConversations: loadingChatContacts,
+    totalUnreadCount: messageUnreadCount,
+  } = useChat();
   const [msgSearch, setMsgSearch] = useState('');
   const [msgSearchResults, setMsgSearchResults] = useState<ChatUser[]>([]);
   const [msgSearching, setMsgSearching] = useState(false);
   const [pendingReqCount, setPendingReqCount] = useState(0);
-  const messageUnreadCount = chatContacts.reduce((total, contact: any) => total + Number(contact.unreadCount || 0), 0);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const msgMenuRef = useRef<HTMLDivElement>(null);
@@ -151,131 +151,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     };
   }, [isAuthenticated]);
 
-  // Fetch chat contacts (conversations) when messenger dropdown opens
-  useEffect(() => {
-    if (showMsgMenu && isAuthenticated) {
-      if (chatContacts.length === 0 && cachedHeaderChatContacts.length === 0) {
-        setLoadingChatContacts(true);
-      }
-      chatService
-        .getConversations()
-        .then(async (convs) => {
-          if (Array.isArray(convs)) {
-            const mapped = await Promise.all(
-              convs.map(async (c: any) => {
-                let name = c.name;
-                let avatar = c.avatarUrl;
-                let otherId = c.otherParticipantId || c.other_participant_id || c.partnerId;
-
-                if (c.type === 'DIRECT') {
-                  if (!otherId && c.conversationId) {
-                    try {
-                      const detail = await chatService.getConversationDetail(c.conversationId);
-                      if (detail && Array.isArray(detail.members)) {
-                        const partner = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
-                        if (partner) otherId = partner.userId;
-                      }
-                    } catch {}
-                  }
-
-                  if (otherId) {
-                    const prof = await fetchAuthorProfile(String(otherId));
-                    if (prof) {
-                      name = prof.name || name;
-                      avatar = prof.avatar || avatar;
-                    }
-                  }
-                }
-
-                return {
-                  id: otherId || c.conversationId,
-                  userId: otherId,
-                  conversationId: c.conversationId,
-                  isGroup: c.type === 'GROUP',
-                  name: name || (c.type === 'GROUP' ? 'Nhóm trò chuyện' : 'Người dùng'),
-                  avatar: avatar || '/default-avatar.png',
-                  online: c.type === 'GROUP' ? false : Boolean(c.isOnline),
-                  lastActiveAt: c.otherLastActiveAt || null,
-                  lastMessageContent: c.lastMessageContent,
-                  unreadCount: Number(c.unreadCount || 0),
-                } as any;
-              })
-            );
-
-            // Fetch latest real-time presence for direct chat partners to ensure 100% synchronization
-            const directUserIds = mapped
-              .filter((item) => !item.isGroup && item.userId)
-              .map((item) => String(item.userId));
-
-            if (directUserIds.length > 0) {
-              try {
-                const presenceMap = await chatService.getBatchPresence(directUserIds);
-                if (presenceMap && typeof presenceMap === 'object') {
-                  for (const item of mapped) {
-                    if (!item.isGroup && item.userId && presenceMap[item.userId]) {
-                      item.online = Boolean(presenceMap[item.userId].online);
-                      item.lastActiveAt = presenceMap[item.userId].lastActiveAt || item.lastActiveAt;
-                    }
-                  }
-                }
-              } catch {}
-            }
-
-            // Sort: prioritize conversations with messages
-            mapped.sort((a, b) => {
-              if (a.lastMessageContent && !b.lastMessageContent) return -1;
-              if (!a.lastMessageContent && b.lastMessageContent) return 1;
-              return 0;
-            });
-
-            // Deduplicate: Keep only 1 entry per partner for DIRECT chats, and 1 per conversationId for GROUP chats
-            const seen = new Set<string>();
-            const deduped: any[] = [];
-            for (const item of mapped) {
-              const key = item.isGroup ? `group_${item.conversationId}` : `direct_${item.userId || item.id}`;
-              if (!seen.has(key)) {
-                seen.add(key);
-                deduped.push(item);
-              }
-            }
-            setChatContacts(deduped);
-          } else {
-            setChatContacts([]);
-          }
-        })
-        .catch(() => {
-          setChatContacts([]);
-        })
-        .finally(() => setLoadingChatContacts(false));
-    }
-  }, [showMsgMenu, isAuthenticated, user?.id]);
-
-  // Real-time synchronization of presence in chatContacts
-  useEffect(() => {
-    const handlePresence = (e: any) => {
-      const detail = e.detail;
-      if (!detail || !detail.userId) return;
-      setChatContacts((prev) =>
-        prev.map((c) => {
-          const cId = c.userId || (!c.isGroup ? c.id : null);
-          if (cId && String(cId).toLowerCase() === String(detail.userId).toLowerCase()) {
-            return {
-              ...c,
-              online: Boolean(detail.online),
-              lastActiveAt: detail.lastActiveAt || c.lastActiveAt,
-            };
-          }
-          return c;
-        })
-      );
-    };
-    window.addEventListener('user_presence_updated', handlePresence);
-    return () => {
-      window.removeEventListener('user_presence_updated', handlePresence);
-    };
-  }, []);
-
-  const handleNavClick = (tab: string) => {
+const handleNavClick = (tab: string) => {
     if (onTabChange) onTabChange(tab);
   };
 

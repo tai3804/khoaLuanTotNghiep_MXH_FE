@@ -176,6 +176,38 @@ class LiveWebRtcService {
       this.channels.delete(postId);
     }
   }
+  /**
+   * Chấm dứt hoàn toàn phiên phát trực tiếp của chủ phòng:
+   * Dừng tất cả các MediaStream track (camera, mic), đóng tất cả peer connections và giải phóng kênh truyền.
+   */
+  public endHostSession(postId: string) {
+    const session = this.hostSessions.get(postId);
+    if (!session) return;
+
+    console.log(`[LiveWebRtc] Force terminating Host session for post: ${postId}`);
+    if (session.stream) {
+      session.stream.getTracks().forEach((track) => {
+        try { track.stop(); } catch { }
+      });
+    }
+    session.peers.forEach((peer) => {
+      try {
+        peer.getSenders().forEach((sender) => {
+          try { sender.track?.stop(); } catch { }
+        });
+        peer.close();
+      } catch { }
+    });
+    session.peers.clear();
+    try { session.unsubWs(); } catch { }
+    this.hostSessions.delete(postId);
+
+    const ch = this.channels.get(postId);
+    if (ch) {
+      try { ch.close(); } catch { }
+      this.channels.delete(postId);
+    }
+  }
 
   // --- VIEWER SUBSCRIPTION ---
   /**

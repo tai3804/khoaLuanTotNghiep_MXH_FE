@@ -51,6 +51,9 @@ export const LiveStreamHostVideo: React.FC<LiveStreamHostVideoProps> = ({
         console.warn('[LiveStreamHostVideo] Video play auto recovery:', err);
       });
     }
+    return () => {
+      if (video) video.srcObject = null;
+    };
   }, [stream, isCameraOn]);
 
   if (!isCameraOn || !stream) {

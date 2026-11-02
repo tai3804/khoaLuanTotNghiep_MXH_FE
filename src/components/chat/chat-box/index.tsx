@@ -86,8 +86,14 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
     return () => window.removeEventListener('chat_quick_emoji_changed', handleEmojiChange);
   }, [conversationId]);
 
+  const isSendingQuickEmojiRef = React.useRef(false);
   const handleQuickReaction = () => {
+    if (isSendingQuickEmojiRef.current) return;
+    isSendingQuickEmojiRef.current = true;
     handleSend(undefined, quickEmoji);
+    setTimeout(() => {
+      isSendingQuickEmojiRef.current = false;
+    }, 400);
   };
 
   const effectiveFriend: ChatUser = {

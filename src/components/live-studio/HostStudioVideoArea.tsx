@@ -36,6 +36,9 @@ export const HostStudioVideoArea: React.FC<HostStudioVideoAreaProps> = ({
         console.warn('[HostStudioVideoArea] Autoplay play recovery:', err);
       });
     }
+    return () => {
+      if (video) video.srcObject = null;
+    };
   }, [stream, isCameraOn]);
 
   return (

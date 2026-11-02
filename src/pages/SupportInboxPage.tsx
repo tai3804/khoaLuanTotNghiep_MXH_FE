@@ -7,12 +7,18 @@ import { ChatUser } from '../components/chat/chat-box';
 import { reportService, SubmittedReport } from '../services/reportService';
 import { postService } from '../services/postService';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import {
   SupportInboxFilterStatus,
 } from '../components/support-inbox/SupportInboxFilters';
 import { SupportInboxItem } from '../components/support-inbox/SupportInboxItem';
 import { SupportInboxEmpty } from '../components/support-inbox/SupportInboxEmpty';
 import { SupportInboxAppealModal } from '../components/support-inbox/SupportInboxAppealModal';
+
+// Module-level in-memory cache to prevent infinite spinning & redundant fetching
+let cachedSupportReports: SubmittedReport[] = [];
+let cachedModeratedAppeals: any[] = [];
+let hasFetchedSupportOnce = false;
 
 interface SupportInboxPageProps {
   activeNavTab: string;
@@ -48,26 +54,28 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
   setActiveChatUser,
 }) => {
   const [inboxTab, setInboxTab] = useState<'reports' | 'appeals'>('reports');
-  const [reports, setReports] = useState<SubmittedReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState<SubmittedReport[]>(() => cachedSupportReports);
+  const [loading, setLoading] = useState<boolean>(!hasFetchedSupportOnce && cachedSupportReports.length === 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<SupportInboxFilterStatus>('ALL');
   const [appealReportId, setAppealReportId] = useState<string | null>(null);
 
   // Moderated post appeals state (from dev)
-  const [moderatedItems, setModeratedItems] = useState<any[]>([]);
-  const [moderatedLoading, setModeratedLoading] = useState(false);
+  const [moderatedItems, setModeratedItems] = useState<any[]>(() => cachedModeratedAppeals);
+  const [moderatedLoading, setModeratedLoading] = useState<boolean>(!hasFetchedSupportOnce && cachedModeratedAppeals.length === 0);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [appealMessage, setAppealMessage] = useState('');
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
 
   const toast = useToast();
+  const { user, isAuthenticated } = useAuth();
 
   const loadReports = async () => {
     try {
       setLoading(true);
       const data = await reportService.getMyReports();
-      setReports(data);
+      cachedSupportReports = Array.isArray(data) ? data : [];
+      setReports(cachedSupportReports);
     } catch (err) {
       console.error('Failed to load support inbox reports:', err);
       toast.showError('Không thể tải danh sách báo cáo hỗ trợ.');
@@ -80,7 +88,8 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
     setModeratedLoading(true);
     try {
       const response = await postService.getMyModerationAppeals();
-      setModeratedItems(Array.isArray(response) ? response : []);
+      cachedModeratedAppeals = Array.isArray(response) ? response : [];
+      setModeratedItems(cachedModeratedAppeals);
     } catch {
       setModeratedItems([]);
     } finally {
@@ -89,9 +98,15 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
   };
 
   useEffect(() => {
-    loadReports();
-    loadModeratedPosts();
-  }, []);
+    if (isAuthenticated) {
+      hasFetchedSupportOnce = true;
+      loadReports();
+      loadModeratedPosts();
+    } else {
+      setLoading(false);
+      setModeratedLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const handleAppealSubmit = async (reportId: string, message: string) => {
     try {

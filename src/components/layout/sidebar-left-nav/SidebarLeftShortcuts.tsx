@@ -38,7 +38,9 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
   };
 
   useEffect(() => {
-    fetchJoinedGroups();
+    if (cachedJoinedGroups.length === 0) {
+      fetchJoinedGroups();
+    }
 
     const handleUpdate = () => fetchJoinedGroups();
     window.addEventListener('community_group_updated', handleUpdate);
