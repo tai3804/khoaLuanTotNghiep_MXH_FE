@@ -61,6 +61,8 @@ export interface ReputationHistoryPage {
 
 export const authorProfileCache: Record<string, { name: string; avatar: string }> = {};
 export const myFriendIdsMemoryCache = new Set<string>();
+export let cachedFriendsList: any[] = [];
+export let cachedPendingRequests: any[] = [];
 const authorProfilePendingMap = new Map<string, Promise<{ name: string; avatar: string } | null>>();
 
 export const fetchAuthorProfile = async (userId: string) => {
@@ -256,7 +258,7 @@ export const userService = {
 
         await Promise.all(friendIds.map((id) => fetchAuthorProfile(id)));
 
-        return friendIds.map((fid) => {
+        const friendsList = friendIds.map((fid) => {
           const connection = data.find((item: any) =>
             String(item.userId || '').toLowerCase() === fid.toLowerCase() ||
             String(item.requesterId || '').toLowerCase() === fid.toLowerCase() ||
@@ -347,7 +349,7 @@ export const userService = {
 
         await Promise.all(followerIds.map((id) => fetchAuthorProfile(id)));
 
-        return data.map((c: any) => {
+        const reqsList = data.map((c: any) => {
           const fid = String(c.requesterId || c.userId || c.id);
           const profile = authorProfileCache[fid];
           return {

@@ -69,7 +69,7 @@ export const NotificationListContent: React.FC<NotificationListContentProps> = (
         filteredNotifications.map((item) => {
           const profile = item.actorId ? actorProfiles[item.actorId] : undefined;
           const isMenuOpen = activeMenuId === item.id;
-          const friendStatus = friendActionStatus[item.id] || (item.actorId ? friendActionStatus[item.actorId] : undefined);
+          const friendStatus = friendActionStatus[item.id] || (item.actorId ? friendActionStatus[item.actorId] : undefined) || (item.targetId ? friendActionStatus[item.targetId] : undefined);
           const detectedReaction =
             actorReactions?.[item.id] ||
             (item.targetId && item.actorId ? actorReactions?.[`${item.targetId}_${item.actorId}`] : undefined);

@@ -46,8 +46,7 @@ export const useLiveStreamPlayer = (post: Post) => {
 
   const isLive = isHost
     ? activeBroadcast.isBroadcasting
-    : isHostResuming ||
-      (isPostLiveActive && !viewerStream.hasEnded && (!viewerStream.isChecking || viewerStream.isConnected));
+    : isHostResuming || (isPostLiveActive && !viewerStream.hasEnded);
 
   // Auto-subscribe viewer to WebSocket room for real-time comments & reactions
   useEffect(() => {

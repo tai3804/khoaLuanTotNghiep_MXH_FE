@@ -4,6 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { userService } from '../../../services/api';
+import { cachedFriendsList, cachedPendingRequests } from '../../../services/userService';
 
 export const useFriendsData = () => {
   const { user: currentUser, isAuthenticated, openLoginModal } = useAuth();
@@ -12,9 +13,9 @@ export const useFriendsData = () => {
   const { confirm } = useConfirm();
 
   const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('friends');
-  const [friends, setFriends] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>(() => cachedFriendsList);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>(() => cachedPendingRequests);
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());

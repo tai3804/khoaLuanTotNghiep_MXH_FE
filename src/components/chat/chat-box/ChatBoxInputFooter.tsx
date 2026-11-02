@@ -140,7 +140,10 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            e.nativeEvent.stopImmediatePropagation();
+          }}
           placeholder={t('chat.typeMessage', isEn ? 'Type a message...' : 'Nhập tin nhắn...')}
           className="w-full min-w-0 bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] text-xs px-3 py-1.5 pr-7 rounded-full border border-transparent focus:outline-none focus:border-[#1877f2] placeholder-gray-400 dark:placeholder-[#b0b3b8] transition"
         />

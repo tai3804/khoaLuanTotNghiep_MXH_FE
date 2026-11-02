@@ -9,6 +9,7 @@ import { useSystemConfig } from './context/SystemConfigContext';
 import { MaintenanceScreen } from './components/common/MaintenanceScreen';
 import { postService } from './services/api';
 import { chatService } from './services/chatService';
+import { websocketService } from './services/websocket';
 import type { FeedMode } from './services/postService';
 import { isPostHidden } from './utils/hiddenPosts';
 import { AccountLockedScreen } from './components/common/AccountLockedScreen';

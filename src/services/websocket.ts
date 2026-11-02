@@ -3,6 +3,7 @@ import SockJS from 'sockjs-client';
 import { store } from '../store/store';
 import { setAccessToken } from '../store/slices/authSlice';
 import { authService } from './authService';
+import { getWebSocketUrl } from '../utils/wsUrl';
 
 export interface ChatMessagePayload {
   messageId?: string;
@@ -62,7 +63,7 @@ class WebSocketService {
     }
 
     this.connectionPromise = new Promise<boolean>((resolve) => {
-      // Try to connect through API gateway (port 8080) where CORS is configured
+      // Connect through API gateway (port 8080) where CORS is configured
       const wsUrl = getWebSocketUrl('/ws-chat', import.meta.env.VITE_CHAT_WS_URL);
 
       this.client = new Client({
@@ -82,7 +83,6 @@ class WebSocketService {
         },
         debug: (str) => {
           if (import.meta.env.DEV) {
-            // Uncomment for verbose logging
             // console.log('[STOMP Debug]:', str);
           }
         },
@@ -196,6 +196,8 @@ class WebSocketService {
           if (callbacks) {
             callbacks.forEach((cb) => cb(payload));
           }
+          // Global dispatch so conversations dropdown & other listeners stay updated
+          window.dispatchEvent(new CustomEvent('kltn_chat_message_received', { detail: payload }));
         } catch (e) {
           console.error('[WebSocket] Error parsing incoming chat message frame:', e);
         }

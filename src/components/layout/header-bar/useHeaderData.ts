@@ -12,6 +12,8 @@ interface UseHeaderDataProps {
   onTabChange?: (tab: string) => void;
 }
 
+let cachedHeaderChatContacts: ChatUser[] = [];
+
 export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const { user, isAuthenticated, logout, openLoginModal } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -25,7 +27,7 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showMsgMenu, setShowMsgMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [chatContacts, setChatContacts] = useState<ChatUser[]>([]);
+  const [chatContacts, setChatContacts] = useState<ChatUser[]>(() => cachedHeaderChatContacts);
   const [loadingChatContacts, setLoadingChatContacts] = useState(false);
   const [msgSearch, setMsgSearch] = useState('');
   const [msgSearchResults, setMsgSearchResults] = useState<ChatUser[]>([]);

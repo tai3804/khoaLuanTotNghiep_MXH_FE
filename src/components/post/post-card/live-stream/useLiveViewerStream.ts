@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { liveWebRtcService } from '../../../../services/liveWebRtcService';
 import { callService } from '../../../../services/callService';
-import { postService } from '../../../../services/api';
 import { useAuth } from '../../../../context/AuthContext';
 import { getStoredEndedStreamIds, saveStoredEndedStreamId } from '../../../../context/LiveStreamContext';
 import { VIEWER_RECONNECT_GRACE_MS, readResumableHostLiveSession } from '../../../../utils/liveHostSession';
@@ -15,11 +14,12 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
   const [isMuted, setIsMuted] = useState(true);
   const [viewerCount, setViewerCount] = useState<number>(0);
   const [isConnected, setIsConnected] = useState(false);
-  // Đã xem được rồi nhưng chủ phòng rớt kết nối (tải lại trang, mất mạng): chờ chủ phòng quay lại chứ chưa kết thúc
+  // Đã xem được rồi nhưng chủ phòng rớt kết nối: chờ chủ phòng quay lại chứ chưa kết thúc
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  // Check immediately from persistent storage if this stream has already ended
-  const isAlreadyEnded = !postId || getStoredEndedStreamIds().has(postId);
+  // Check persistent storage, but only if post content doesn't explicitly declare it's still live
+  const contentIsExplicitlyLive = Boolean(rawContent && rawContent.includes('[ĐANG PHÁT TRỰC TIẾP]'));
+  const isAlreadyEnded = !postId || (!contentIsExplicitlyLive && getStoredEndedStreamIds().has(postId));
   const [hasEnded, setHasEnded] = useState(isAlreadyEnded);
   const [isChecking, setIsChecking] = useState(!isAlreadyEnded);
 
@@ -30,7 +30,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
 
   useEffect(() => {
     if (!postId) return;
-    if (getStoredEndedStreamIds().has(postId)) {
+    if (!contentIsExplicitlyLive && getStoredEndedStreamIds().has(postId)) {
       setHasEnded(true);
       setIsChecking(false);
       return;
@@ -61,22 +61,6 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
       setHasEnded(true);
       setIsChecking(false);
       saveStoredEndedStreamId(postId);
-
-      // Tác giả mà phiên của chính mình đang được giữ chờ nối lại thì tuyệt đối không ghi "đã kết thúc" vào bài viết
-      const hostMayResume = readResumableHostLiveSession()?.postId === postId;
-
-      // If current user is author, sync post content in post-service database to permanently mark ended
-      if (
-        !hostMayResume &&
-        user?.id &&
-        postAuthorId &&
-        user.id === postAuthorId &&
-        rawContent &&
-        rawContent.includes('[ĐANG PHÁT TRỰC TIẾP]')
-      ) {
-        const updatedContent = rawContent.replace(/🔴\s*\[ĐANG PHÁT TRỰC TIẾP\]/i, '⏹ [ĐÃ KẾT THÚC]');
-        postService.updatePost(postId, { content: updatedContent }).catch(() => {});
-      }
     };
 
     // Chủ phòng rớt kết nối: thử nối lại định kỳ cho tới khi chủ phòng quay lại, phòng đóng hẳn, hoặc hết thời gian chờ
@@ -88,12 +72,12 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
         try {
           const session = await callService.getCallSessionByPost(postId);
           if (!active) return;
-          if (!session || session.status === 'ENDED') {
+          if (session && session.status === 'ENDED') {
             markEnded();
             return;
           }
         } catch {
-          // mạng chập chờn: cứ thử tiếp
+          // Mạng chập chờn: cứ thử tiếp
         }
         if (!active || isConnectedRef.current) return;
         stopViewer?.();
@@ -101,43 +85,52 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
       }, RECONNECT_INTERVAL_MS);
     };
 
-    // 1. Verify and register with Backend Room Session
-    callService
-      .getCallSessionByPost(postId)
-      .then((session) => {
-        if (!active) return;
-        // If session not found, or session is not active (ENDED, MISSED, REJECTED)
-        if (!session || session.status === 'ENDED' || (session.status !== 'ACTIVE' && session.status !== 'INITIATED')) {
-          markEnded();
-          return;
-        }
-        setIsChecking(false);
-        registeredSessionId = session.callSessionId;
-        if (Array.isArray(session.participants) && session.participants.length > 0) {
-          setViewerCount(session.participants.length);
-        }
-        // Register viewer on Backend database
-        callService.joinCallByPost(postId).catch(() => {});
-      })
-      .catch(() => {
-        if (!active) return;
-        markEnded();
-      });
+    // 1. Check Backend Call Session status
+    const checkBackendSession = (retries = 3) => {
+      callService
+        .getCallSessionByPost(postId)
+        .then((session) => {
+          if (!active) return;
+          if (session && session.status === 'ENDED') {
+            markEnded();
+            return;
+          }
+          if (session) {
+            setIsChecking(false);
+            registeredSessionId = session.callSessionId;
+            if (Array.isArray(session.participants) && session.participants.length > 0) {
+              setViewerCount(session.participants.length);
+            }
+            callService.joinCallByPost(postId).catch(() => {});
+          } else if (retries > 0) {
+            setTimeout(() => {
+              if (active) checkBackendSession(retries - 1);
+            }, 2000);
+          } else {
+            setIsChecking(false);
+          }
+        })
+        .catch(() => {
+          if (!active) return;
+          if (retries > 0) {
+            setTimeout(() => {
+              if (active) checkBackendSession(retries - 1);
+            }, 2000);
+          } else {
+            setIsChecking(false);
+          }
+        });
+    };
 
-    // Timeout: if no host responds with media stream within 3.5 seconds, mark ended
-    const connectionTimeout = setTimeout(() => {
-      if (active && !isConnectedRef.current) {
-        markEnded();
-      }
-    }, 3500);
+    checkBackendSession();
 
+    // 2. Connect via WebRTC signaling
     const connect = () => {
       stopViewer = liveWebRtcService.subscribeViewer(
         postId,
         viewerIdRef.current,
         (stream) => {
           if (!active) return;
-          clearTimeout(connectionTimeout);
           stopReconnecting();
           isConnectedRef.current = true;
           setRemoteStream(stream);
@@ -150,18 +143,17 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
           if (!active) return;
           setViewerCount(count);
         },
-        // Chủ phòng chủ động kết thúc
+        // Chủ phòng chủ động kết thúc qua tín hiệu END_CALL
         () => {
           if (!active) return;
           isConnectedRef.current = false;
           markEnded();
         },
-        // Kết nối tới chủ phòng bị đứt
+        // Mất kết nối tới chủ phòng
         () => {
           if (!active) return;
           if (!isConnectedRef.current) {
-            // Chưa từng nối được: nếu đang chờ nối lại thì bỏ qua lần thử hỏng này, không thì coi như chủ phòng không còn phát
-            if (!reconnectTimer) markEnded();
+            // Chưa nối được: giữ kết nối thử tiếp
             return;
           }
           isConnectedRef.current = false;
@@ -177,14 +169,13 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
 
     return () => {
       active = false;
-      clearTimeout(connectionTimeout);
       stopReconnecting();
       stopViewer?.();
       if (registeredSessionId) {
         callService.leaveCall(registeredSessionId).catch(() => {});
       }
     };
-  }, [postId, postAuthorId, rawContent, user?.id]);
+  }, [postId, postAuthorId, rawContent, user?.id, contentIsExplicitlyLive]);
 
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
