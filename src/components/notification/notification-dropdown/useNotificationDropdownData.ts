@@ -14,7 +14,7 @@ interface UseNotificationDropdownDataProps {
 
 const loadSavedFriendStatus = (): Record<string, 'accepted' | 'rejected'> => {
   try {
-    const raw = sessionStorage.getItem('friend_action_status');
+    const raw = localStorage.getItem('friend_action_status') || sessionStorage.getItem('friend_action_status');
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -23,6 +23,7 @@ const loadSavedFriendStatus = (): Record<string, 'accepted' | 'rejected'> => {
 
 const saveFriendStatus = (map: Record<string, 'accepted' | 'rejected'>) => {
   try {
+    localStorage.setItem('friend_action_status', JSON.stringify(map));
     sessionStorage.setItem('friend_action_status', JSON.stringify(map));
   } catch {}
 };
@@ -185,11 +186,15 @@ export const useNotificationDropdownData = ({
         let changed = false;
         const next = { ...prev };
         notifications.forEach((n) => {
-          if (n.type === 'FRIEND_REQUEST' && n.actorId && myFriendIdsMemoryCache.has(n.actorId.toLowerCase())) {
-            if (next[n.id] !== 'accepted') {
-              next[n.id] = 'accepted';
-              next[n.actorId] = 'accepted';
-              changed = true;
+          if (n.type === 'FRIEND_REQUEST') {
+            const ids = [n.id, n.actorId, n.targetId, n.targetUrl ? n.targetUrl.replace('/profile/', '').trim() : undefined].filter(Boolean) as string[];
+            if (ids.some((id) => myFriendIdsMemoryCache.has(id.toLowerCase()))) {
+              ids.forEach((id) => {
+                if (next[id] !== 'accepted') {
+                  next[id] = 'accepted';
+                  changed = true;
+                }
+              });
             }
           }
         });
@@ -228,18 +233,24 @@ export const useNotificationDropdownData = ({
 
   const handleAcceptFriend = async (e: React.MouseEvent, item: NotificationItem) => {
     e.stopPropagation();
-    if (!item.actorId) return;
+    const targetUserId = item.actorId || item.targetId || (item.targetUrl ? item.targetUrl.replace('/profile/', '').trim() : '');
+    if (!targetUserId) {
+      console.warn('Cannot accept friend request: no actorId or targetId found', item);
+      return;
+    }
     try {
-      await userService.acceptFriendRequest(item.actorId);
+      await userService.acceptFriendRequest(targetUserId);
       toast.showSuccess(isEn ? 'Friend request accepted!' : 'Đã chấp nhận lời mời kết bạn!');
       setFriendActionStatus((prev) => {
-        const next = { ...prev, [item.id]: 'accepted' as const, [item.actorId!]: 'accepted' as const };
+        const next = { ...prev, [item.id]: 'accepted' as const, [targetUserId]: 'accepted' as const };
+        if (item.actorId) next[item.actorId] = 'accepted';
+        if (item.targetId) next[item.targetId] = 'accepted';
         saveFriendStatus(next);
         return next;
       });
-      if (item.actorId) {
-        myFriendIdsMemoryCache.add(item.actorId.toLowerCase());
-      }
+      myFriendIdsMemoryCache.add(targetUserId.toLowerCase());
+      if (item.actorId) myFriendIdsMemoryCache.add(item.actorId.toLowerCase());
+      if (item.targetId) myFriendIdsMemoryCache.add(item.targetId.toLowerCase());
       if (!item.isRead) markAsRead(item.id);
     } catch (err: any) {
       console.error('Failed to accept friend request:', err);
@@ -249,12 +260,16 @@ export const useNotificationDropdownData = ({
 
   const handleRejectFriend = async (e: React.MouseEvent, item: NotificationItem) => {
     e.stopPropagation();
-    if (!item.actorId) return;
+    const targetUserId = item.actorId || item.targetId || (item.targetUrl ? item.targetUrl.replace('/profile/', '').trim() : '');
+    if (!targetUserId) return;
     try {
-      await userService.rejectFriendRequest(item.actorId);
+      await userService.rejectFriendRequest(targetUserId);
       toast.showInfo(isEn ? 'Friend request removed' : 'Đã xóa lời mời kết bạn');
       setFriendActionStatus((prev) => {
-        const next = { ...prev, [item.id]: 'rejected' as const, [item.actorId!]: 'rejected' as const };
+        const next = { ...prev, [item.id]: 'rejected' as const, [targetUserId]: 'rejected' as const };
+        if (item.actorId) next[item.actorId] = 'rejected';
+        if (item.targetId) next[item.targetId] = 'rejected';
+
         saveFriendStatus(next);
         return next;
       });

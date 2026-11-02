@@ -120,14 +120,15 @@ export const mediaService = {
     if (url.includes('s3.amazonaws.com/') || url.includes('.s3.') || url.includes('amazonaws.com')) {
       const parts = url.split(/amazonaws\.com\//i);
       if (parts.length > 1) {
-        return `${resolvedApiBase}/media/files/${parts[1]}`;
+        const cleanKey = parts[1].replace(/^\/+/, '');
+        return `${resolvedApiBase}/media/files/${cleanKey}`;
       }
     }
 
-    // 2. Localhost URL transformation when client runs from remote / custom domain
-    if (url.includes('localhost:8080') || url.includes('127.0.0.1:8080')) {
+    // 2. Localhost / internal IP URL transformation when client runs from remote / custom domain
+    if (url.includes('localhost:') || url.includes('127.0.0.1:') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
       if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        const pathPart = url.replace(/^http:\/\/(localhost|127\.0\.0\.1):8080/, '');
+        const pathPart = url.replace(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, '');
         if (pathPart.startsWith('/api/v1')) {
           const subPath = pathPart.replace(/^\/api\/v1/, '');
           return `${resolvedApiBase}${subPath}`;
@@ -138,9 +139,7 @@ export const mediaService = {
 
     // 3. Ensure HTTPS when page is served over HTTPS to avoid Mixed Content
     if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
-      if (url.includes('kltn-mxh.me') || !url.includes('localhost')) {
-        return url.replace(/^http:\/\//i, 'https://');
-      }
+      return url.replace(/^http:\/\//i, 'https://');
     }
 
     return url;

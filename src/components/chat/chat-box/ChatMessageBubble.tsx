@@ -187,14 +187,30 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
         ) : isAudio ? (
           /* Voice Audio Message Player */
           <VoiceMessagePlayer audioUrl={mediaUrl || msg.text} isMe={isMe} />
-        ) : isFile || (imageError && mediaUrl) ? (
-          /* File Attachment (PDF, Word, Excel, ZIP, or fallback) */
-          <ChatFileAttachment
-            fileUrl={mediaUrl}
-            fileName={msg.fileName || (!isUrl ? msg.text : undefined)}
-            fileSize={msg.fileSize}
-            isMe={isMe}
-          />
+        ) : isImage ? (
+          /* Image Preview with graceful preview */
+          imageError ? (
+            <div
+              onClick={() => window.open(mediaUrl, '_blank')}
+              className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-gray-100 dark:bg-[#3a3b3c] border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:opacity-90 transition my-0.5"
+              title={isEn ? 'Click to view original photo' : 'Bấm để xem ảnh gốc'}
+            >
+              <Eye className="w-4 h-4 text-[#1877f2]" />
+              <span className="font-medium underline">{isEn ? 'View attached photo' : 'Xem hình ảnh đính kèm'}</span>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-xs max-w-full my-0.5 bg-black/5 dark:bg-white/5">
+              <img
+                src={mediaUrl}
+                alt={isEn ? 'Attached photo' : 'Ảnh đính kèm'}
+                onError={() => setImageError(true)}
+                onLoad={onMediaLoad}
+                className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
+                onClick={() => window.open(mediaUrl, '_blank')}
+                title={isEn ? 'Click to view original image' : 'Bấm để xem ảnh gốc'}
+              />
+            </div>
+          )
         ) : isVideo ? (
           /* Video Player */
           <video
@@ -202,19 +218,14 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
             controls
             className="max-w-full max-h-52 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs my-0.5"
           />
-        ) : isImage && !imageError ? (
-          /* Image Preview */
-          <div className="overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-xs max-w-full my-0.5 bg-black/5 dark:bg-white/5">
-            <img
-              src={mediaUrl}
-              alt={isEn ? 'Attached photo' : 'Ảnh đính kèm'}
-              onError={() => setImageError(true)}
-              onLoad={onMediaLoad}
-              className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
-              onClick={() => window.open(mediaUrl, '_blank')}
-              title={isEn ? 'Click to view original image' : 'Bấm để xem ảnh gốc'}
-            />
-          </div>
+        ) : isFile ? (
+          /* File Attachment (PDF, Word, Excel, ZIP) */
+          <ChatFileAttachment
+            fileUrl={mediaUrl}
+            fileName={msg.fileName || (!isUrl ? msg.text : undefined)}
+            fileSize={msg.fileSize}
+            isMe={isMe}
+          />
         ) : isSolelyPostUrl ? (
           /* Pure Shared Post (No outer speech bubble, direct rich card) */
           <ChatSharedPostCard postId={sharedPostId!} isMe={isMe} />
