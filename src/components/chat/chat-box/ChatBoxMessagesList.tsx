@@ -111,10 +111,19 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
         {!hasMoreMessages && messages.length > 0 && (
           <div className="py-1 text-center text-[10px] text-gray-400">{t('chat.allLoaded', 'Đã xem toàn bộ tin nhắn')}</div>
         )}
-        {loading ? (
-          <div className="flex items-center justify-center h-full text-xs text-gray-400 dark:text-[#b0b3b8]">
-            <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin mr-2" />
-            <span>{t('chat.loading', 'Đang tải tin nhắn...')}</span>
+        {loading && messages.length === 0 ? (
+          <div className="p-3 space-y-3.5 animate-pulse">
+            <div className="flex items-end gap-2">
+              <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-[#3a3b3c] shrink-0" />
+              <div className="w-36 h-8 rounded-2xl rounded-bl-none bg-gray-200 dark:bg-[#3a3b3c]" />
+            </div>
+            <div className="flex justify-end">
+              <div className="w-48 h-8 rounded-2xl rounded-br-none bg-blue-100 dark:bg-[#1877f2]/30" />
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-[#3a3b3c] shrink-0" />
+              <div className="w-28 h-8 rounded-2xl rounded-bl-none bg-gray-200 dark:bg-[#3a3b3c]" />
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">

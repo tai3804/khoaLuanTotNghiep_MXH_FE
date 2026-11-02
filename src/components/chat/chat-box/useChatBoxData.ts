@@ -49,13 +49,37 @@ export const chatMessagesMemoryCache = new Map<string, Message[]>();
 export const chatConvIdMemoryCache = new Map<string, string>();
 export const chatProfilesMemoryCache = new Map<string, { name: string; avatar: string }>();
 
+const getStoredMessages = (key: string): Message[] | null => {
+  try {
+    const memory = chatMessagesMemoryCache.get(key);
+    if (memory && memory.length > 0) return memory;
+    const raw = sessionStorage.getItem(`chat_cache_${key}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        chatMessagesMemoryCache.set(key, parsed);
+        return parsed;
+      }
+    }
+  } catch {}
+  return null;
+};
+
+const storeMessages = (key: string, msgs: Message[]) => {
+  try {
+    chatMessagesMemoryCache.set(key, msgs);
+    const slice = msgs.slice(-30);
+    sessionStorage.setItem(`chat_cache_${key}`, JSON.stringify(slice));
+  } catch {}
+};
+
 export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const { user } = useAuth();
   const toast = useToast();
 
   const cacheKey = String(friend.conversationId || friend.userId || friend.id || '');
   const initialCached = cacheKey
-    ? chatMessagesMemoryCache.get(cacheKey) || (friend.conversationId ? chatMessagesMemoryCache.get(friend.conversationId) : null)
+    ? getStoredMessages(cacheKey) || (friend.conversationId ? getStoredMessages(friend.conversationId) : null)
     : null;
 
   const [messages, setMessages] = useState<Message[]>(() => initialCached || []);
@@ -65,9 +89,9 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const [loading, setLoading] = useState<boolean>(() => !initialCached || initialCached.length === 0);
 
   const syncChatCache = useCallback((newMsgs: Message[]) => {
-    if (cacheKey) chatMessagesMemoryCache.set(cacheKey, newMsgs);
-    if (conversationId) chatMessagesMemoryCache.set(conversationId, newMsgs);
-    if (friend.conversationId) chatMessagesMemoryCache.set(friend.conversationId, newMsgs);
+    if (cacheKey) storeMessages(cacheKey, newMsgs);
+    if (conversationId) storeMessages(conversationId, newMsgs);
+    if (friend.conversationId) storeMessages(friend.conversationId, newMsgs);
   }, [cacheKey, conversationId, friend.conversationId]);
   const [isWsLive, setIsWsLive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -317,51 +341,50 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
           setConversationId(convId);
         }
 
-        let profilesMap: Record<string, { name: string; avatar: string }> = {};
-        let resolvedPartnerProf: { name: string; avatar: string } | null = null;
-
-        if (friend.isGroup) {
-          profilesMap = await loadGroupMembers(convId);
-        } else {
-          // If directTargetId is missing or equals convId, retrieve members from conversation detail
-          if (!directTargetId || directTargetId === convId) {
-            try {
-              const detail = await chatService.getConversationDetail(convId);
-              if (detail && Array.isArray(detail.members)) {
-                const partnerMember = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
-                if (partnerMember) {
-                  directTargetId = String(partnerMember.userId);
-                }
-              }
-            } catch (err) {
-              console.warn('[ChatBox] Could not get conversation detail for direct chat:', err);
-            }
-          }
-
-          if (directTargetId) {
-            try {
-              resolvedPartnerProf = await fetchAuthorProfile(directTargetId);
-              if (resolvedPartnerProf && isMounted) {
-                setPartnerProfile({ userId: directTargetId, ...resolvedPartnerProf });
-                profilesMap[directTargetId] = resolvedPartnerProf;
-              }
-            } catch (err) {
-              console.warn('[ChatBox] Error fetching partner profile:', err);
-            }
-          }
-        }
-
         messagePageRef.current = 0;
         setHasMoreMessages(true);
 
-        // 1. Detect unread messages count
         const detectedUnread = Number(friend.unreadCount || 0);
         if (cacheKey && convId) {
           chatConvIdMemoryCache.set(cacheKey, convId);
           chatConvIdMemoryCache.set(convId, convId);
         }
 
-        const rawMsgs = await chatService.getMessages(convId, 0, 30);
+        // Fire message query IMMEDIATELY in parallel (Zero-waterfall)
+        const messagesPromise = chatService.getMessages(convId, 0, 30);
+
+        let profilesMap: Record<string, { name: string; avatar: string }> = {};
+        let resolvedPartnerProf: { name: string; avatar: string } | null = null;
+
+        const profilesPromise = (async () => {
+          if (friend.isGroup) {
+            return await loadGroupMembers(convId);
+          } else {
+            if (!directTargetId || directTargetId === convId) {
+              try {
+                const detail = await chatService.getConversationDetail(convId);
+                if (detail && Array.isArray(detail.members)) {
+                  const partnerMember = detail.members.find((m: any) => String(m.userId) !== String(user?.id));
+                  if (partnerMember) directTargetId = String(partnerMember.userId);
+                }
+              } catch {}
+            }
+            if (directTargetId) {
+              try {
+                const p = await fetchAuthorProfile(directTargetId);
+                if (p && isMounted) {
+                  setPartnerProfile({ userId: directTargetId, ...p });
+                  return { [directTargetId]: p };
+                }
+              } catch {}
+            }
+          }
+          return {};
+        })();
+
+        // Wait for messages first so UI renders instantly!
+        const [rawMsgs, resolvedProfiles] = await Promise.all([messagesPromise, profilesPromise]);
+        if (resolvedProfiles) profilesMap = resolvedProfiles;
         if (isMounted && Array.isArray(rawMsgs) && rawMsgs.length > 0) {
           const sorted = [...rawMsgs].reverse();
 

@@ -55,6 +55,10 @@ const isMediaExtension = (url: string) => {
   return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url);
 };
 
+const isDocumentExtension = (url: string) => {
+  return /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|csv)(\?.*)?$/i.test(url);
+};
+
 const isVideoExtension = (url: string) => {
   return /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(url);
 };
@@ -107,7 +111,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     !isVideo &&
     (msg.type === 'IMAGE' ||
     (isUrl && isMediaExtension(rawText)) ||
-    (Boolean(mediaUrl) && isMediaExtension(mediaUrl)));
+    (Boolean(mediaUrl) && isMediaExtension(mediaUrl)) ||
+    (Boolean(mediaUrl) && !isDocumentExtension(mediaUrl) && !isDocumentExtension(rawText) && (rawText.length === 36 || mediaUrl.includes('/chats/'))));
   const isFile =
     !isAudio &&
     !isVideo &&
