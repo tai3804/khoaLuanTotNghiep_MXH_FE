@@ -26,6 +26,7 @@ import {
   Globe,
   Lock,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
 interface SearchPageProps {
@@ -57,6 +58,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [searchMode, setSearchMode] = useState<'hybrid' | 'keyword'>('hybrid');
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -85,7 +87,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
       try {
         const [usersRes, postsRes, hashtagPostsRes, groupsRes] = await Promise.all([
           !isHashtag ? userService.searchUsers(trimmed).catch(() => []) : Promise.resolve([]),
-          postService.searchPosts ? postService.searchPosts(trimmed).catch(() => []) : Promise.resolve([]),
+          postService.searchPosts ? postService.searchPosts(trimmed, 1, 20, searchMode).catch(() => []) : Promise.resolve([]),
           isHashtag && postService.getPostsByHashtag
             ? postService.getPostsByHashtag(trimmed).catch(() => ({ posts: [] }))
             : Promise.resolve({ posts: [] }),
@@ -135,7 +137,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
     };
 
     fetchResults();
-  }, [query, currentUser?.id]);
+  }, [query, currentUser?.id, searchMode]);
 
   useEffect(() => {
     const handleStatusUpdate = () => {

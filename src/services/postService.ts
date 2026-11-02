@@ -1021,10 +1021,10 @@ export const postService = {
     }
   },
 
-  searchPosts: async (query: string, page = 1, size = 20): Promise<Post[]> => {
+  searchPosts: async (query: string, page = 1, size = 20, mode = 'hybrid'): Promise<Post[]> => {
     if (!query.trim()) return [];
     try {
-      const res = await api.get('/posts/search', { params: { query, page, size } });
+      const res = await api.get('/posts/search', { params: { query, page, size, mode } });
       const raw = Array.isArray(res.data?.data)
         ? res.data.data
         : (res.data?.data?.content || res.data?.result || res.data || []);

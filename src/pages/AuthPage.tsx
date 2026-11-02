@@ -10,7 +10,7 @@ import { LoginForm } from '../components/common/login-modal/LoginForm';
 import { RegisterStep1Email } from '../components/common/login-modal/RegisterStep1Email';
 import { RegisterStep2Otp } from '../components/common/login-modal/RegisterStep2Otp';
 import { RegisterStep3Profile } from '../components/common/login-modal/RegisterStep3Profile';
-import { CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowLeft, Check } from 'lucide-react';
 
 interface AuthPageProps {
   onGoHome?: () => void;
@@ -151,44 +151,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                 ) : (
                   /* Register Flow View */
                   <div>
-                    {/* 3-Step Progress Indicator */}
-                    <div className="mb-5 pb-3 border-b border-gray-100 dark:border-[#393a3b]">
+                    {/* Modern 3-Step Progress Indicator */}
+                    <div className="mb-5 pb-3.5 border-b border-gray-100 dark:border-[#393a3b]">
                       <div className="flex items-center justify-between">
                         {[
                           { step: 1, label: 'Email' },
                           { step: 2, label: 'Mã OTP' },
                           { step: 3, label: 'Thông tin' },
-                        ].map((item, idx) => (
-                          <div key={item.step} className="flex items-center space-x-1.5 sm:space-x-2">
-                            <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${
-                                data.registerStep >= item.step
-                                  ? 'bg-[#1877f2] text-white shadow-xs'
-                                  : 'bg-gray-100 dark:bg-[#18191a] text-gray-400'
-                              }`}
-                            >
-                              {item.step}
-                            </div>
-                            <span
-                              className={`text-xs ${
-                                data.registerStep >= item.step
-                                  ? 'text-[#1877f2] dark:text-[#4599ff] font-bold'
-                                  : 'text-gray-400 font-medium'
-                              }`}
-                            >
-                              {item.label}
-                            </span>
-                            {idx < 2 && (
-                              <div
-                                className={`w-8 sm:w-12 h-0.5 mx-1 transition-all ${
-                                  data.registerStep > item.step
-                                    ? 'bg-[#1877f2]'
-                                    : 'bg-gray-200 dark:bg-[#383a3d]'
-                                }`}
-                              />
-                            )}
-                          </div>
-                        ))}
+                        ].map((item, idx) => {
+                          const isCompleted = data.registerStep > item.step;
+                          const isCurrent = data.registerStep === item.step;
+
+                          return (
+                            <React.Fragment key={item.step}>
+                              <div className="flex items-center space-x-2">
+                                <div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                                    isCompleted
+                                      ? 'bg-emerald-500 text-white shadow-xs'
+                                      : isCurrent
+                                      ? 'bg-[#1877f2] text-white ring-4 ring-[#1877f2]/20 shadow-xs'
+                                      : 'bg-gray-100 dark:bg-[#18191a] text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-[#383a3d]'
+                                  }`}
+                                >
+                                  {isCompleted ? (
+                                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  ) : (
+                                    item.step
+                                  )}
+                                </div>
+                                <span
+                                  className={`text-xs transition-colors ${
+                                    isCurrent
+                                      ? 'text-[#1877f2] dark:text-[#4599ff] font-bold'
+                                      : isCompleted
+                                      ? 'text-gray-700 dark:text-[#e4e6eb] font-semibold'
+                                      : 'text-gray-400 dark:text-gray-500 font-medium'
+                                  }`}
+                                >
+                                  {item.label}
+                                </span>
+                              </div>
+
+                              {idx < 2 && (
+                                <div
+                                  className={`flex-1 h-0.5 mx-2 rounded-full transition-all duration-300 ${
+                                    data.registerStep > item.step
+                                      ? 'bg-emerald-500'
+                                      : 'bg-gray-200 dark:bg-[#383a3d]'
+                                  }`}
+                                />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -237,6 +253,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onGoHome }) => {
                     <div className="pt-4 text-center border-t border-gray-100 dark:border-[#393a3b] mt-5">
                       <button
                         type="button"
+                        tabIndex={8}
                         onClick={() => {
                           data.setIsLoginMode(true);
                           data.setErrorMessage(null);
