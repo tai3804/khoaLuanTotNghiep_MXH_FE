@@ -135,13 +135,22 @@ export const callService = {
     }
   },
 
-  // Join call session by post ID
+  // Join call session by post ID (viewer joining live room)
   async joinCallByPost(postId: string): Promise<CallSession | null> {
     try {
       const response = await api.post(`/calls/post/${postId}/join`);
       return response.data?.data || response.data;
     } catch {
       return null;
+    }
+  },
+
+  // Leave call session by post ID (viewer leaving live room)
+  async leaveCallByPost(postId: string): Promise<void> {
+    try {
+      await api.post(`/calls/post/${postId}/leave`);
+    } catch (e) {
+      console.warn('leaveCallByPost notice:', e);
     }
   },
 

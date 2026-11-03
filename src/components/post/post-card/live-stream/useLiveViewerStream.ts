@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { liveWebRtcService } from '../../../../services/liveWebRtcService';
 import { callService } from '../../../../services/callService';
 import { useAuth } from '../../../../context/AuthContext';
-import { getStoredEndedStreamIds, saveStoredEndedStreamId } from '../../../../context/LiveStreamContext';
-import { VIEWER_RECONNECT_GRACE_MS, readResumableHostLiveSession } from '../../../../utils/liveHostSession';
+import { saveStoredEndedStreamId } from '../../../../context/LiveStreamContext';
+import { VIEWER_RECONNECT_GRACE_MS } from '../../../../utils/liveHostSession';
 
 /** Chu kỳ thử nối lại với chủ phòng khi đang chờ. */
 const RECONNECT_INTERVAL_MS = 3000;
@@ -17,11 +17,10 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
   // Đã xem được rồi nhưng chủ phòng rớt kết nối: chờ chủ phòng quay lại chứ chưa kết thúc
   const [isReconnecting, setIsReconnecting] = useState(false);
 
-  // Check persistent storage, but only if post content doesn't explicitly declare it's still live
-  const contentIsExplicitlyLive = Boolean(rawContent && rawContent.includes('[ĐANG PHÁT TRỰC TIẾP]'));
-  const isAlreadyEnded = !postId || (!contentIsExplicitlyLive && getStoredEndedStreamIds().has(postId));
-  const [hasEnded, setHasEnded] = useState(isAlreadyEnded);
-  const [isChecking, setIsChecking] = useState(!isAlreadyEnded);
+  // Chỉ coi là đã kết thúc ngay lập tức nếu nội dung bài viết chỉ rõ đã kết thúc
+  const isExplicitlyEnded = Boolean(rawContent && rawContent.includes('[ĐÃ KẾT THÚC]'));
+  const [hasEnded, setHasEnded] = useState(isExplicitlyEnded);
+  const [isChecking, setIsChecking] = useState(Boolean(postId && !isExplicitlyEnded));
 
   const isConnectedRef = useRef(false);
   const viewerIdRef = useRef(
@@ -29,10 +28,11 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
   );
 
   useEffect(() => {
-    if (!postId) return;
-    if (!contentIsExplicitlyLive && getStoredEndedStreamIds().has(postId)) {
-      setHasEnded(true);
-      setIsChecking(false);
+    if (!postId || isExplicitlyEnded) {
+      if (isExplicitlyEnded) {
+        setHasEnded(true);
+        setIsChecking(false);
+      }
       return;
     }
 
@@ -85,7 +85,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
       }, RECONNECT_INTERVAL_MS);
     };
 
-    // 1. Check Backend Call Session status
+    // 1. Kiểm tra trạng thái CallSession trên Backend (Single Source of Truth)
     const checkBackendSession = (retries = 3) => {
       callService
         .getCallSessionByPost(postId)
@@ -99,13 +99,14 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
             setIsChecking(false);
             registeredSessionId = session.callSessionId;
             if (Array.isArray(session.participants) && session.participants.length > 0) {
-              setViewerCount(session.participants.length);
+              const connected = session.participants.filter((p) => p.status === 'CONNECTED');
+              setViewerCount(connected.length);
             }
             callService.joinCallByPost(postId).catch(() => {});
           } else if (retries > 0) {
             setTimeout(() => {
               if (active) checkBackendSession(retries - 1);
-            }, 2000);
+            }, 1500);
           } else {
             setIsChecking(false);
           }
@@ -115,7 +116,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
           if (retries > 0) {
             setTimeout(() => {
               if (active) checkBackendSession(retries - 1);
-            }, 2000);
+            }, 1500);
           } else {
             setIsChecking(false);
           }
@@ -124,7 +125,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
 
     checkBackendSession();
 
-    // 2. Connect via WebRTC signaling
+    // 2. Kết nối luồng qua WebRTC signaling
     const connect = () => {
       stopViewer = liveWebRtcService.subscribeViewer(
         postId,
@@ -171,21 +172,28 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
       active = false;
       stopReconnecting();
       stopViewer?.();
+      // Khi unmount / rời khỏi bài viết: tự động rời phòng để Backend trừ sĩ số người xem
+      if (postId) {
+        callService.leaveCallByPost(postId).catch(() => {});
+      }
       if (registeredSessionId) {
         callService.leaveCall(registeredSessionId).catch(() => {});
       }
     };
-  }, [postId, postAuthorId, rawContent, user?.id, contentIsExplicitlyLive]);
+  }, [postId, postAuthorId, rawContent, user?.id, isExplicitlyEnded]);
 
   const toggleMute = () => {
     setIsMuted((prev) => !prev);
   };
+
+  const isConnecting = !hasEnded && !isConnected && !remoteStream && isChecking;
 
   return {
     remoteStream,
     isMuted,
     viewerCount,
     isConnected,
+    isConnecting,
     isReconnecting,
     hasEnded,
     isChecking,

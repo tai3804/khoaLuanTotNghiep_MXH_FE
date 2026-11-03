@@ -95,6 +95,8 @@ export const HostLiveStudioModal: React.FC = () => {
               chatBottomRef={chatBottomRef}
               inputRef={inputRef}
               hostName={user?.fullName || user?.username}
+              hostAvatar={user?.avatar}
+              viewerCount={activeBroadcast.viewerCount}
               onCommentInputChange={setCommentInput}
               onStartReply={handleStartReply}
               onCancelReply={handleCancelReply}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Radio, Users, Minimize2, Maximize2, X } from 'lucide-react';
+import { Users, Minimize2, X } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface HostStudioHeaderProps {
   title: string;
@@ -16,6 +17,8 @@ export const HostStudioHeader: React.FC<HostStudioHeaderProps> = ({
   onMinimize,
   onClose,
 }) => {
+  const { t } = useLanguage();
+
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 select-none">
       {/* Left: Studio Branding & Title */}
@@ -26,7 +29,7 @@ export const HostStudioHeader: React.FC<HostStudioHeaderProps> = ({
         </div>
 
         <h2 className="text-sm sm:text-base font-bold text-white truncate max-w-xs sm:max-w-md">
-          {title || 'Phát trực tiếp'}
+          {title || t('live.broadcasting', 'Phát trực tiếp')}
         </h2>
       </div>
 
@@ -41,7 +44,7 @@ export const HostStudioHeader: React.FC<HostStudioHeaderProps> = ({
         {/* Viewer Count Badge */}
         <div className="flex items-center space-x-1.5 bg-blue-600/20 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-400 border border-blue-500/30">
           <Users className="w-3.5 h-3.5" />
-          <span>{viewerCount} người xem</span>
+          <span>{viewerCount} {t('live.viewerCount', 'người xem')}</span>
         </div>
 
         {/* Window action buttons */}

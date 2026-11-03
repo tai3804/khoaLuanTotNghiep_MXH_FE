@@ -8,6 +8,8 @@ import { LiveStreamHostControls } from './LiveStreamHostControls';
 import { LiveStreamViewerOverlay } from './LiveStreamViewerOverlay';
 import { LiveStreamFloatingReactions } from './LiveStreamFloatingReactions';
 import { LiveStreamEndedView } from './LiveStreamEndedView';
+import { useLanguage } from '../../../../context/LanguageContext';
+import { Radio } from 'lucide-react';
 
 interface LiveStreamPlayerProps {
   post: Post;
@@ -15,9 +17,11 @@ interface LiveStreamPlayerProps {
 }
 
 export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
+  const { t } = useLanguage();
   const {
     containerRef,
     isLive,
+    isConnecting,
     isHost,
     isHostResuming,
     activeBroadcast,
@@ -45,10 +49,30 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     openStudio,
   } = useLiveStreamPlayer(post);
 
+  // 1. Trạng thái đang kết nối vào phòng (Connecting State) - ngăn chặn giật màn hình "đã kết thúc"
+  if (isConnecting) {
+    return (
+      <div className="relative w-full aspect-video sm:max-h-[480px] bg-zinc-950 flex flex-col items-center justify-center border-y border-zinc-800 text-white select-none">
+        <div className="relative flex items-center justify-center mb-3">
+          <div className="w-12 h-12 rounded-full border-2 border-red-500/30 border-t-red-500 animate-spin" />
+          <Radio className="absolute w-5 h-5 text-red-500 animate-pulse" />
+        </div>
+        <p className="text-xs sm:text-sm font-semibold text-zinc-200">
+          {t('live.connecting', 'Đang kết nối vào phòng phát trực tiếp...')}
+        </p>
+        <p className="text-[11px] text-zinc-500 mt-1">
+          {t('live.connectingSub', 'Vui lòng chờ trong giây lát')}
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Buổi phát đã kết thúc
   if (!isLive) {
     return <LiveStreamEndedView cleanTitle={cleanTitle} authorName={post.authorName} />;
   }
 
+  // 3. Đang phát sóng trực tiếp (Active Live Room)
   return (
     <div
       ref={containerRef}
@@ -78,7 +102,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
         />
       )}
 
-      {/* Floating Animated Reactions (Visible on both Host and Viewer screens) */}
+      {/* Floating Animated Reactions */}
       <LiveStreamFloatingReactions reactions={reactions} />
 
       {/* Top Header Overlay with accurate real viewer count */}
@@ -88,7 +112,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
         onToggleFullscreen={handleToggleFullscreen}
       />
 
-      {/* Live Comments Speech Bubbles & Viewer Reactions Overlay (Rendered for both Host & Viewers) */}
+      {/* Live Comments Speech Bubbles & Viewer Reactions Overlay */}
       <LiveStreamViewerOverlay
         comments={comments}
         commentInput={commentInput}
@@ -118,4 +142,3 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     </div>
   );
 };
-

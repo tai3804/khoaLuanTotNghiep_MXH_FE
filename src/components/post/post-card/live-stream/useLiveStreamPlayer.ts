@@ -34,7 +34,6 @@ export const useLiveStreamPlayer = (post: Post) => {
   const isPostLiveActive = isPostLive(post);
   const isHost = activeBroadcast.isBroadcasting && (activeBroadcast.postId === post.id || user?.id === post.userId);
   // Chính chủ phòng vừa tải lại trang: buổi phát đang được giữ chờ nối lại, không được coi mình là người xem
-  // (nếu không, không ai trả luồng sẽ bị hiểu là buổi phát đã kết thúc)
   const isHostResuming = !isHost && resumableLive?.postId === post.id;
 
   // Hook up WebRTC viewer stream when watching someone else's live stream
@@ -44,6 +43,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     post.content
   );
 
+  const isConnecting = !isHost && !isHostResuming && isPostLiveActive && (viewerStream.isConnecting || (viewerStream.isChecking && !viewerStream.hasEnded));
   const isLive = isHost
     ? activeBroadcast.isBroadcasting
     : isHostResuming || (isPostLiveActive && !viewerStream.hasEnded);
@@ -66,9 +66,7 @@ export const useLiveStreamPlayer = (post: Post) => {
   const comments = liveCommentsMap[post.id] || [];
   const reactions = liveReactionsMap[post.id] || [];
 
-  // Đồng hồ thời lượng phát. Mốc bắt đầu: chủ phòng dùng lúc bấm phát (đồng hồ máy mình); người xem, hoặc chủ phòng
-  // sau khi tải lại trang, dùng giờ đăng bài (bài live được đăng đúng lúc bắt đầu phát) nên đồng hồ luôn khớp với
-  // "x phút trước" của bài, thay vì chỉ đếm từ lúc thẻ bài được mở trên màn hình người xem.
+  // Đồng hồ thời lượng phát
   useEffect(() => {
     if (!isLive) return;
     const postStart = post.createdAtRaw ? new Date(post.createdAtRaw).getTime() : NaN;
@@ -131,6 +129,7 @@ export const useLiveStreamPlayer = (post: Post) => {
     containerRef,
     inputRef,
     isLive,
+    isConnecting,
     isHost,
     isHostResuming,
     activeBroadcast,
@@ -158,4 +157,3 @@ export const useLiveStreamPlayer = (post: Post) => {
     openStudio,
   };
 };
-
