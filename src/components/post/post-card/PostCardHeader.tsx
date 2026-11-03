@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Flag,
+  Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../types';
@@ -205,6 +206,18 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
 
   return (
     <div>
+      {/* AI Search Interest Recommendation Badge */}
+      {post.relevanceReason && post.relevanceReason.startsWith('Gợi ý') && (
+        <div className="px-3.5 pt-2.5 pb-0 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 text-blue-600 dark:text-blue-400 border border-blue-400/30 dark:border-blue-500/30 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0 animate-pulse" />
+            <span className="truncate max-w-[280px] sm:max-w-md" title={post.relevanceReason}>
+              {post.relevanceReason}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Pinned post badge if pinned */}
       {showPinnedBadge && (
         <div className="px-4 pt-3 pb-0 flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-[#b0b3b8]">
