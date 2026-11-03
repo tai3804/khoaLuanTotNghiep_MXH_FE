@@ -497,13 +497,24 @@ export const userService = {
 
       let data: any[] = [];
       try {
-        const res = await api.get('/users/connections/suggestions');
+        // Ưu tiên lấy gợi ý bạn bè thông minh bằng AI Vector Semantic (dựa trên tiểu sử, chuyên môn tương đồng)
+        const aiRes = await api.get('/users/profile/recommended-similar', { params: { limit: 10 } });
+        const aiRaw = aiRes.data?.data || aiRes.data?.result || [];
+        if (Array.isArray(aiRaw) && aiRaw.length > 0) {
+          data = aiRaw;
+        }
+      } catch {}
+
+      if (!data || data.length === 0) {
+        try {
+          const res = await api.get('/users/connections/suggestions');
         const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
         if (Array.isArray(raw)) {
           data = raw;
         }
       } catch (err) {
         console.warn('Backend suggestions endpoint warning:', err);
+      }
       }
 
       // Fallback: If backend suggestions array is empty, query search API to suggest active platform users
