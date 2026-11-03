@@ -26,7 +26,6 @@ import {
   Globe,
   Lock,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 
 interface SearchPageProps {
@@ -632,45 +631,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({
               </button>
             </nav>
 
-            {/* AI Search Mode Toggle */}
-            <div className="mt-3 border-t border-gray-100 dark:border-[#393a3b] pt-3 px-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-gray-500 dark:text-[#b0b3b8] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  Chế độ bài viết AI
-                </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-blue-100 text-[#1877f2] dark:bg-blue-900/40 dark:text-blue-300">
-                  {searchMode === 'hybrid' ? 'Ngữ nghĩa (AI)' : 'Từ khóa'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 dark:bg-[#3a3b3c] rounded-lg text-xs">
-                <button
-                  type="button"
-                  onClick={() => setSearchMode('hybrid')}
-                  className={`py-1.5 px-2 rounded-md font-semibold transition cursor-pointer flex items-center justify-center gap-1 ${
-                    searchMode === 'hybrid'
-                      ? 'bg-white dark:bg-[#242526] text-[#1877f2] dark:text-[#2d88ff] shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  Ngữ nghĩa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSearchMode('keyword')}
-                  className={`py-1.5 px-2 rounded-md font-semibold transition cursor-pointer flex items-center justify-center gap-1 ${
-                    searchMode === 'keyword'
-                      ? 'bg-white dark:bg-[#242526] text-[#1877f2] dark:text-[#2d88ff] shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
-                  }`}
-                >
-                  <Search className="w-3 h-3 text-gray-400" />
-                  Từ khóa
-                </button>
-              </div>
-            </div>
-
             <div className="mt-3 border-t border-gray-100 dark:border-[#393a3b] pt-2">
               <div className="px-3 py-1.5 flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-[#b0b3b8]">
                 <History className="w-3.5 h-3.5" />
@@ -721,20 +681,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {searchMode === 'hybrid' && !query.trim().startsWith('#') && posts.length > 0 && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200/80 dark:border-blue-800/40 rounded-xl p-3 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
-                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>Đang áp dụng <b>Tìm kiếm ngữ nghĩa AI (Gemini Embedding & pgvector)</b></span>
-                  </div>
-                  <button
-                    onClick={() => setSearchMode('keyword')}
-                    className="text-[#1877f2] dark:text-[#2d88ff] hover:underline font-semibold cursor-pointer shrink-0 ml-2"
-                  >
-                    Chuyển sang từ khóa
-                  </button>
-                </div>
-              )}
               {query.trim().startsWith('#') && (
                 <div className="bg-white dark:bg-[#242526] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-[#393a3b] flex items-center justify-between">
                   <div className="flex items-center gap-3">
