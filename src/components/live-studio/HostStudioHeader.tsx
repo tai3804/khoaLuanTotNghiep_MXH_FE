@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Minimize2, X } from 'lucide-react';
+import { Users, Minimize2, Maximize, X } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface HostStudioHeaderProps {
@@ -49,6 +49,20 @@ export const HostStudioHeader: React.FC<HostStudioHeaderProps> = ({
 
         {/* Window action buttons */}
         <div className="flex items-center space-x-1 pl-2 border-l border-zinc-700">
+          <button
+            type="button"
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              } else {
+                document.exitFullscreen().catch(() => {});
+              }
+            }}
+            title="Toàn màn hình trình duyệt"
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+          >
+            <Maximize className="w-4 h-4" />
+          </button>
           <button
             type="button"
             onClick={onMinimize}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Radio } from 'lucide-react';
 import { useLiveStream } from '../../context/LiveStreamContext';
 import { hostResumeRemainingMs } from '../../utils/liveHostSession';
@@ -12,6 +13,7 @@ const formatCountdown = (seconds: number) =>
  */
 export const LiveResumePrompt: React.FC = () => {
   const { resumableLive, isResumingLive, activeBroadcast, resumeBroadcast, discardResumableLive } = useLiveStream();
+  const navigate = useNavigate();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -55,7 +57,12 @@ export const LiveResumePrompt: React.FC = () => {
         </button>
         <button
           type="button"
-          onClick={() => void resumeBroadcast()}
+          onClick={async () => {
+            const ok = await resumeBroadcast();
+            if (ok && resumableLive?.postId) {
+              navigate('/live/' + resumableLive.postId);
+            }
+          }}
           disabled={isResumingLive}
           className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center space-x-1.5 disabled:opacity-60 transition cursor-pointer shadow-md"
         >

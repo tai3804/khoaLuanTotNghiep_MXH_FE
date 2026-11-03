@@ -145,9 +145,9 @@ export const LiveStreamPage: React.FC = () => {
   }, [comments.length]);
 
   const handleToggleFullscreen = () => {
-    if (!videoContainerRef.current) return;
+    const target = videoContainerRef.current || document.documentElement;
     if (!document.fullscreenElement) {
-      videoContainerRef.current.requestFullscreen().catch(() => {});
+      target.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen().catch(() => {});
     }
@@ -192,7 +192,7 @@ export const LiveStreamPage: React.FC = () => {
   // =========================================================================
   if (isHost) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col text-white select-none">
+      <div className="h-screen w-screen max-w-full max-h-screen overflow-hidden bg-zinc-950 flex flex-col text-white select-none">
         {/* Top Producer Navigation Bar */}
         <header className="h-14 px-4 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0 z-20">
           <div className="flex items-center space-x-3 overflow-hidden">
@@ -227,6 +227,16 @@ export const LiveStreamPage: React.FC = () => {
               <Users className="w-4 h-4" />
               <span>{activeBroadcast.viewerCount} {t('live.viewerCount', 'người xem')}</span>
             </div>
+
+            {/* Fullscreen Button */}
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              className="p-2 text-gray-400 hover:text-white hover:bg-zinc-800 rounded-lg transition cursor-pointer flex items-center space-x-1"
+              title="Toàn màn hình trình duyệt"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
 
             {/* Minimize / Floating button */}
             <button
@@ -300,7 +310,7 @@ export const LiveStreamPage: React.FC = () => {
   const isLive = isPostLiveActive && !viewerStream.hasEnded;
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col text-white select-none">
+    <div className="h-screen w-screen max-w-full max-h-screen overflow-hidden bg-zinc-950 flex flex-col text-white select-none">
       {/* Top Navigation Bar */}
       <header className="h-14 px-4 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center space-x-3 overflow-hidden">

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
@@ -20,6 +21,7 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
   const { t } = useLanguage();
   const toast = useToast();
   const { startBroadcast } = useLiveStream();
+  const navigate = useNavigate();
 
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
@@ -136,7 +138,12 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       privacy === 'friends' ? 'FRIENDS' : privacy === 'private' ? 'PRIVATE' : 'PUBLIC';
 
     if (stream) {
-      await startBroadcast(liveTitle, liveDescription, stream, postPrivacy, onPostCreated);
+      setIsLiveModalOpen(false);
+      setIsOpenModal(false);
+      const createdLivePost = await startBroadcast(liveTitle, liveDescription, stream, postPrivacy, onPostCreated);
+      if (createdLivePost && createdLivePost.id) {
+        navigate('/live/' + createdLivePost.id);
+      }
     } else {
       const liveContent = `🔴 [ĐANG PHÁT TRỰC TIẾP] ${liveTitle}${liveDescription ? `\n\n${liveDescription}` : ''}`;
       const createdPost = await postService.createPost(liveContent, postPrivacy, []);
@@ -144,6 +151,11 @@ export const useCreatePost = ({ onPostCreated, groupId }: UseCreatePostProps) =>
       createdPost.liveStatus = 'LIVE';
       onPostCreated(createdPost);
       window.dispatchEvent(new CustomEvent('feed_post_created', { detail: createdPost }));
+      setIsLiveModalOpen(false);
+      setIsOpenModal(false);
+      if (createdPost.id) {
+        navigate('/live/' + createdPost.id);
+      }
     }
   };
 

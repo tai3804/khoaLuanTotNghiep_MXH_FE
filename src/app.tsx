@@ -56,6 +56,7 @@ export const App: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+  const isLivePage = location.pathname.startsWith('/live/');
 
   const [activeSidebarFilter, setActiveSidebarFilter] = useState<string>('all');
   const [feedCategory, setFeedCategory] = useState<'all' | 'recent' | 'popular'>('all');
@@ -695,15 +696,18 @@ export const App: React.FC = () => {
       </Suspense>
 
       {/* Upgraded Mobile Bottom Navigation Bar */}
-      <MobileBottomNav
+      {!isLivePage && (
+        <MobileBottomNav
         activeNavTab={activeNavTab}
         onTabChange={handleTabChange}
         user={user}
         onViewProfile={() => handleViewProfile()}
       />
 
+      )}
+
       {/* Floating Back to Top Button */}
-      <BackToTopButton />
+      {!isLivePage && <BackToTopButton />}
 
       {/* Tài khoản bị khóa vì điểm uy tín: vẫn đăng nhập được nhưng chỉ thấy màn hình thông báo khóa */}
       <AccountLockedScreen />
@@ -718,7 +722,7 @@ export const App: React.FC = () => {
       <LiveResumePrompt />
 
       {/* Floating AI Social Assistant Widget */}
-      <AiSocialChatWidget />
+      {!isLivePage && <AiSocialChatWidget />}
 
       {/* Global Hashtag Feed Modal */}
       <HashtagFeedModal />
