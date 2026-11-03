@@ -94,6 +94,7 @@ export const HostLiveStudioModal: React.FC = () => {
               replyingTo={replyingTo}
               chatBottomRef={chatBottomRef}
               inputRef={inputRef}
+              postId={activeBroadcast.postId || undefined}
               hostName={user?.fullName || user?.username}
               hostAvatar={user?.avatar}
               viewerCount={activeBroadcast.viewerCount}

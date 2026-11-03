@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Post } from '../../../../types';
 import { useLiveStreamPlayer } from './useLiveStreamPlayer';
 import { LiveStreamHeader } from './LiveStreamHeader';
@@ -9,7 +10,7 @@ import { LiveStreamViewerOverlay } from './LiveStreamViewerOverlay';
 import { LiveStreamFloatingReactions } from './LiveStreamFloatingReactions';
 import { LiveStreamEndedView } from './LiveStreamEndedView';
 import { useLanguage } from '../../../../context/LanguageContext';
-import { Radio } from 'lucide-react';
+import { Radio, Ban } from 'lucide-react';
 
 interface LiveStreamPlayerProps {
   post: Post;
@@ -18,6 +19,7 @@ interface LiveStreamPlayerProps {
 
 export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const {
     containerRef,
     isLive,
@@ -49,7 +51,24 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     openStudio,
   } = useLiveStreamPlayer(post);
 
-  // 1. Trạng thái đang kết nối vào phòng (Connecting State) - ngăn chặn giật màn hình "đã kết thúc"
+  // 1. Khán giả bị chủ phòng cấm khỏi buổi live (Banned State)
+  if (viewerStream.isBanned) {
+    return (
+      <div className="relative w-full aspect-video sm:max-h-[480px] bg-zinc-950 flex flex-col items-center justify-center border-y border-zinc-800 text-white select-none p-6 text-center animate-fadeIn">
+        <div className="w-12 h-12 rounded-full bg-red-950/80 border border-red-500/40 flex items-center justify-center mb-3">
+          <Ban className="w-6 h-6 text-red-500" />
+        </div>
+        <p className="text-sm font-bold text-red-400">
+          {t('live.bannedMessage', 'Bạn đã bị chủ phòng cấm khỏi buổi phát trực tiếp này.')}
+        </p>
+        <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+          Bạn không thể xem luồng video hoặc gửi bình luận trong buổi phát này nữa.
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Trạng thái đang kết nối vào phòng (Connecting State) - ngăn chặn giật màn hình "đã kết thúc"
   if (isConnecting) {
     return (
       <div className="relative w-full aspect-video sm:max-h-[480px] bg-zinc-950 flex flex-col items-center justify-center border-y border-zinc-800 text-white select-none">
@@ -67,12 +86,12 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     );
   }
 
-  // 2. Buổi phát đã kết thúc
+  // 3. Buổi phát đã kết thúc
   if (!isLive) {
     return <LiveStreamEndedView cleanTitle={cleanTitle} authorName={post.authorName} />;
   }
 
-  // 3. Đang phát sóng trực tiếp (Active Live Room)
+  // 4. Đang phát sóng trực tiếp (Active Live Room)
   return (
     <div
       ref={containerRef}
@@ -105,11 +124,12 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
       {/* Floating Animated Reactions */}
       <LiveStreamFloatingReactions reactions={reactions} />
 
-      {/* Top Header Overlay with accurate real viewer count */}
+      {/* Top Header Overlay with accurate real viewer count & Navigate to dedicated page button */}
       <LiveStreamHeader
         formattedTime={formattedTime}
         viewerCount={effectiveViewerCount}
         onToggleFullscreen={handleToggleFullscreen}
+        onOpenPage={() => navigate(`/live/${post.id}`)}
       />
 
       {/* Live Comments Speech Bubbles & Viewer Reactions Overlay */}
@@ -136,7 +156,7 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
           onToggleCamera={toggleCamera}
           onShowEndConfirm={setShowEndConfirm}
           onStopBroadcast={() => stopBroadcast(post.id)}
-          onOpenStudio={openStudio}
+          onOpenStudio={() => navigate(`/live/${post.id}`)}
         />
       )}
     </div>

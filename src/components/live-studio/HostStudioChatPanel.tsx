@@ -16,6 +16,7 @@ export interface HostStudioChatPanelProps {
   replyingTo: LiveComment | null;
   chatBottomRef: React.RefObject<HTMLDivElement | null>;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  postId?: string;
   hostName?: string;
   hostAvatar?: string;
   viewerCount?: number;
@@ -32,6 +33,7 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
   replyingTo,
   chatBottomRef,
   inputRef,
+  postId,
   hostName,
   hostAvatar,
   viewerCount = 0,
@@ -54,23 +56,24 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
     isReactionsEnabled,
     setIsReactionsEnabled,
     copiedCommentId,
+    bannedUsers,
     visibleComments,
     handlePinComment,
     handleUnpinComment,
     handleDeleteComment,
     handleCopyComment,
-  } = useHostStudioChat(comments, hostName);
+    handleBanViewer,
+    handleUnbanViewer,
+  } = useHostStudioChat(comments, hostName, postId);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-lg">
-      {/* 1. Header with Tab Switcher (Chat / Audience / Settings) */}
+      {/* 1. Header with Tab Switcher (Chat / Audience / Settings) - Evenly spaced, no cramming */}
       <HostStudioChatHeader
         activeTab={activeTab}
         commentCount={comments.length}
         viewerCount={viewerCount}
-        filter={filter}
         onTabChange={setActiveTab}
-        onFilterToggle={() => setFilter((prev) => (prev === 'all' ? 'host_only' : 'all'))}
       />
 
       {/* 2. Main Tab Body Content */}
@@ -82,17 +85,20 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
               <HostStudioPinnedComment comment={pinnedComment} onUnpin={handleUnpinComment} />
             )}
 
-            {/* Messages List with auto-scroll */}
+            {/* Messages List with dedicated Filter Sub-bar */}
             <HostStudioMessageList
               comments={visibleComments}
               pinnedComment={pinnedComment}
               copiedCommentId={copiedCommentId}
               hostName={hostName}
+              filter={filter}
               chatBottomRef={chatBottomRef}
+              onFilterChange={setFilter}
               onStartReply={onStartReply}
               onPinComment={handlePinComment}
               onCopyComment={handleCopyComment}
               onDeleteComment={handleDeleteComment}
+              onBanViewer={handleBanViewer}
             />
 
             {/* Input bar (only in Chat tab) */}
@@ -116,7 +122,10 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
             hostName={hostName}
             hostAvatar={hostAvatar}
             searchQuery={searchAudience}
+            bannedUsers={bannedUsers}
             onSearchChange={setSearchAudience}
+            onBanViewer={handleBanViewer}
+            onUnbanViewer={handleUnbanViewer}
           />
         )}
 

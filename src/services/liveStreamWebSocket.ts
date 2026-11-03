@@ -20,7 +20,8 @@ export interface LiveWebRtcSignal {
     | 'END_CALL'
     | 'VIEWER_COUNT'
     | 'LIVE_COMMENT'
-    | 'LIVE_REACTION';
+    | 'LIVE_REACTION'
+    | 'KICK_PARTICIPANT';
   sdp?: any;
   candidate?: any;
   viewerCount?: number;

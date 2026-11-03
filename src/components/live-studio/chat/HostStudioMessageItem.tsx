@@ -1,5 +1,5 @@
 import React from 'react';
-import { Reply, Pin, Copy, Trash2, Check } from 'lucide-react';
+import { Reply, Pin, Copy, Trash2, Check, Ban } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { LiveComment } from '../../../context/LiveStreamContext';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -13,6 +13,7 @@ interface HostStudioMessageItemProps {
   onPinComment: (comment: LiveComment) => void;
   onCopyComment: (content: string, id: string) => void;
   onDeleteComment: (id: string) => void;
+  onBanViewer?: (userId: string, userName?: string) => void;
 }
 
 export const HostStudioMessageItem: React.FC<HostStudioMessageItemProps> = ({
@@ -24,6 +25,7 @@ export const HostStudioMessageItem: React.FC<HostStudioMessageItemProps> = ({
   onPinComment,
   onCopyComment,
   onDeleteComment,
+  onBanViewer,
 }) => {
   const { t } = useLanguage();
 
@@ -123,6 +125,18 @@ export const HostStudioMessageItem: React.FC<HostStudioMessageItemProps> = ({
         >
           <Trash2 className="w-3 h-3" />
         </button>
+
+        {/* 5. Ban Viewer from Room */}
+        {!isHostComment && onBanViewer && (
+          <button
+            type="button"
+            onClick={() => onBanViewer(comment.id, comment.authorName)}
+            className="p-1 rounded text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+            title={t('live.audience.ban', 'Cấm khỏi phòng')}
+          >
+            <Ban className="w-3 h-3" />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
   const [isMuted, setIsMuted] = useState(true);
   const [viewerCount, setViewerCount] = useState<number>(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
   // Đã xem được rồi nhưng chủ phòng rớt kết nối: chờ chủ phòng quay lại chứ chưa kết thúc
   const [isReconnecting, setIsReconnecting] = useState(false);
 
@@ -63,6 +64,26 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
       saveStoredEndedStreamId(postId);
     };
 
+    // Lắng nghe sự kiện bị cấm (KICK_PARTICIPANT)
+    const handleLiveEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      const sig = customEvent.detail;
+      if (!sig) return;
+      const targetPost = sig.postId || sig.callSessionId;
+      if (targetPost !== postId) return;
+
+      const type = sig.type || sig.signalType;
+      if (type === 'KICK_PARTICIPANT') {
+        const targetId = sig.targetUserId || sig.targetId;
+        if (targetId && (targetId === user?.id || targetId === viewerIdRef.current)) {
+          console.warn('[useLiveViewerStream] Viewer was banned from this live stream');
+          setIsBanned(true);
+          markEnded();
+        }
+      }
+    };
+    window.addEventListener('kltn_live_chat_event', handleLiveEvent);
+
     // Chủ phòng rớt kết nối: thử nối lại định kỳ cho tới khi chủ phòng quay lại, phòng đóng hẳn, hoặc hết thời gian chờ
     const startReconnecting = () => {
       if (reconnectTimer) return;
@@ -99,10 +120,24 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
             setIsChecking(false);
             registeredSessionId = session.callSessionId;
             if (Array.isArray(session.participants) && session.participants.length > 0) {
+              // Check if current user is marked as BANNED
+              const currentP = session.participants.find((p) => p.userId === user?.id);
+              if (currentP && currentP.status === 'BANNED') {
+                setIsBanned(true);
+                markEnded();
+                return;
+              }
+
               const connected = session.participants.filter((p) => p.status === 'CONNECTED');
               setViewerCount(connected.length);
             }
-            callService.joinCallByPost(postId).catch(() => {});
+
+            callService.joinCallByPost(postId).catch((err) => {
+              if (err?.response?.status === 403 || err?.response?.data?.message?.includes('banned')) {
+                setIsBanned(true);
+                markEnded();
+              }
+            });
           } else if (retries > 0) {
             setTimeout(() => {
               if (active) checkBackendSession(retries - 1);
@@ -154,7 +189,6 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
         () => {
           if (!active) return;
           if (!isConnectedRef.current) {
-            // Chưa nối được: giữ kết nối thử tiếp
             return;
           }
           isConnectedRef.current = false;
@@ -170,6 +204,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
 
     return () => {
       active = false;
+      window.removeEventListener('kltn_live_chat_event', handleLiveEvent);
       stopReconnecting();
       stopViewer?.();
       // Khi unmount / rời khỏi bài viết: tự động rời phòng để Backend trừ sĩ số người xem
@@ -196,6 +231,7 @@ export const useLiveViewerStream = (postId: string, postAuthorId?: string, rawCo
     isConnecting,
     isReconnecting,
     hasEnded,
+    isBanned,
     isChecking,
     toggleMute,
   };

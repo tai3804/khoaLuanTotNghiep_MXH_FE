@@ -95,3 +95,4 @@ export const HostStudioChatInput: React.FC<HostStudioChatInputProps> = ({
     </div>
   );
 };
+

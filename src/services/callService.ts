@@ -4,7 +4,7 @@ export type ChannelType = 'DIRECT' | 'GROUP';
 export type MediaType = 'AUDIO' | 'VIDEO';
 export type CallStatus = 'INITIATED' | 'ACTIVE' | 'ENDED' | 'MISSED' | 'REJECTED';
 export type ParticipantRole = 'HOST' | 'PARTICIPANT';
-export type ParticipantStatus = 'INVITED' | 'RINGING' | 'CONNECTED' | 'DECLINED' | 'LEFT' | 'BUSY';
+export type ParticipantStatus = 'INVITED' | 'RINGING' | 'CONNECTED' | 'DECLINED' | 'LEFT' | 'BUSY' | 'BANNED';
 
 export interface CallParticipant {
   userId: string;
@@ -62,7 +62,8 @@ export interface WebRtcSignal {
     | 'LEAVE'
     | 'END_CALL'
     | 'TOGGLE_AUDIO'
-    | 'TOGGLE_VIDEO';
+    | 'TOGGLE_VIDEO'
+    | 'KICK_PARTICIPANT';
   mediaType?: MediaType;
   channelType?: ChannelType;
   sdp?: any;
@@ -161,6 +162,16 @@ export const callService = {
     } catch (e) {
       console.warn('endCallByPost notice:', e);
     }
+  },
+
+  // Ban viewer from post live room (host only)
+  async banViewerFromPost(postId: string, targetUserId: string): Promise<void> {
+    await api.post(`/calls/post/${postId}/ban/${targetUserId}`);
+  },
+
+  // Unban viewer from post live room (host only)
+  async unbanViewerFromPost(postId: string, targetUserId: string): Promise<void> {
+    await api.post(`/calls/post/${postId}/unban/${targetUserId}`);
   },
 
   // Get call history with pagination

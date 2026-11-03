@@ -1,14 +1,23 @@
-import React from 'react';
-import { Search, UserCheck, Shield, Radio } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, UserCheck, Shield, Radio, Ban, UserX, CheckCircle, AlertTriangle } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { useLanguage } from '../../../context/LanguageContext';
+
+export interface BannedViewerItem {
+  id: string;
+  name: string;
+  avatar?: string;
+}
 
 interface HostStudioAudienceListProps {
   viewerCount: number;
   hostName?: string;
   hostAvatar?: string;
   searchQuery: string;
+  bannedUsers: BannedViewerItem[];
   onSearchChange: (val: string) => void;
+  onBanViewer: (userId: string, userName?: string) => void;
+  onUnbanViewer: (userId: string) => void;
 }
 
 export const HostStudioAudienceList: React.FC<HostStudioAudienceListProps> = ({
@@ -16,9 +25,20 @@ export const HostStudioAudienceList: React.FC<HostStudioAudienceListProps> = ({
   hostName,
   hostAvatar,
   searchQuery,
+  bannedUsers,
   onSearchChange,
+  onBanViewer,
+  onUnbanViewer,
 }) => {
   const { t } = useLanguage();
+  const [confirmBanTarget, setConfirmBanTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const handleConfirmBan = () => {
+    if (confirmBanTarget) {
+      onBanViewer(confirmBanTarget.id, confirmBanTarget.name);
+      setConfirmBanTarget(null);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 select-none">
@@ -47,7 +67,7 @@ export const HostStudioAudienceList: React.FC<HostStudioAudienceListProps> = ({
       </div>
 
       {/* 3. List of Active Members in the Room */}
-      <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-100 dark:divide-zinc-800/50 p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
         {/* Host Card */}
         <div className="flex items-center justify-between p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-700/30">
           <div className="flex items-center space-x-2.5 min-w-0">
@@ -73,25 +93,85 @@ export const HostStudioAudienceList: React.FC<HostStudioAudienceListProps> = ({
           </span>
         </div>
 
-        {/* Viewers status placeholder */}
-        {viewerCount > 0 ? (
-          <div className="p-3 text-center text-xs text-gray-500 dark:text-zinc-400">
-            <p className="font-medium text-gray-700 dark:text-zinc-300">
-              {viewerCount} {t('live.viewerCount', 'người xem')} đang kết nối vào phòng phát
-            </p>
-            <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-0.5">
-              Khán giả xem phát sóng qua giao thức luồng một chiều WebRTC
-            </p>
+        {/* Viewers status summary */}
+        <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800/40 border border-gray-200/60 dark:border-zinc-700/40 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-zinc-300 font-semibold">
+              Khán giả trực tiếp ({viewerCount})
+            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>Đang kết nối</span>
+            </span>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center p-6 text-center text-gray-400 dark:text-zinc-500">
-            <UserCheck className="w-8 h-8 mb-2 opacity-50" />
-            <p className="text-xs font-medium">
-              {t('live.audience.empty', 'Chưa có khán giả nào vào phòng')}
-            </p>
+          <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-1">
+            Chủ phòng có thể nhấp vào biểu tượng cấm trên bất kỳ tin nhắn hoặc khán giả nào để chặn họ khỏi phòng.
+          </p>
+        </div>
+
+        {/* 4. Banned Viewers Section (if any) */}
+        {bannedUsers.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-zinc-800 space-y-1.5">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-red-600 dark:text-red-400 px-1">
+              <UserX className="w-3.5 h-3.5" />
+              <span>{t('live.audience.bannedList', 'Khán giả đã bị cấm')} ({bannedUsers.length})</span>
+            </div>
+
+            <div className="space-y-1">
+              {bannedUsers.map((banned) => (
+                <div
+                  key={banned.id}
+                  className="flex items-center justify-between p-2 rounded-lg bg-red-50/50 dark:bg-red-950/20 border border-red-200/60 dark:border-red-900/30 text-xs"
+                >
+                  <div className="flex items-center space-x-2 truncate">
+                    <UserAvatar src={banned.avatar} alt={banned.name} size="sm" className="w-6 h-6 rounded-full" />
+                    <span className="font-semibold text-gray-800 dark:text-zinc-200 truncate">{banned.name}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onUnbanViewer(banned.id)}
+                    className="text-[11px] text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 transition cursor-pointer shrink-0"
+                  >
+                    {t('live.audience.unban', 'Bỏ cấm')}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Ban */}
+      {confirmBanTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl space-y-3">
+            <div className="flex items-center space-x-2.5 text-red-600 dark:text-red-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="font-bold text-sm">Xác nhận cấm người xem</h3>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-zinc-400 leading-relaxed">
+              Bạn có chắc chắn muốn cấm <strong className="text-gray-900 dark:text-white">@{confirmBanTarget.name}</strong> khỏi buổi phát trực tiếp này? Người này sẽ bị ngắt kết nối và không thể xem hoặc bình luận nữa.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmBanTarget(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBan}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition cursor-pointer"
+              >
+                Xác nhận cấm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

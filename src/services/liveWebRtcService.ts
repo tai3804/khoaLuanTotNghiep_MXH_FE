@@ -10,7 +10,8 @@ export interface LiveSignalPayload {
   | 'END_CALL'
   | 'VIEWER_COUNT'
   | 'LIVE_COMMENT'
-  | 'LIVE_REACTION';
+  | 'LIVE_REACTION'
+  | 'KICK_PARTICIPANT';
   postId: string;
   senderId: string;
   targetId?: string;
@@ -355,7 +356,7 @@ class LiveWebRtcService {
   private async routeSignal(msg: LiveSignalPayload) {
     if (!msg || !msg.postId) return;
 
-    if (msg.type === 'LIVE_COMMENT' || msg.type === 'LIVE_REACTION' || msg.type === 'END_CALL') {
+    if (msg.type === 'LIVE_COMMENT' || msg.type === 'LIVE_REACTION' || msg.type === 'END_CALL' || msg.type === 'KICK_PARTICIPANT') {
       window.dispatchEvent(
         new CustomEvent('kltn_live_chat_event', {
           detail: {
