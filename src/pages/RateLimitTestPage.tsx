@@ -312,8 +312,8 @@ export const RateLimitTestPage: React.FC = () => {
                 <span className="p-2 bg-blue-600/20 text-blue-400 rounded-xl">
                   <Lock className="w-5 h-5" />
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                  Hạn mức: 20 req/m
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                  5 tokens • Hồi: 30s/token
                 </span>
               </div>
               <div>
@@ -324,26 +324,26 @@ export const RateLimitTestPage: React.FC = () => {
               </div>
               <div className="text-xs text-slate-500 space-y-1 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 font-mono">
                 <div>Endpoint: POST /auth/login</div>
-                <div>Ngưỡng: 20 req/phút</div>
-                <div>Kỳ vọng: 429 từ req thứ 21</div>
+                <div>Ngưỡng: Dung lượng 5 • Nạp 30s/token</div>
+                <div>Kỳ vọng: 429 từ req thứ 6</div>
               </div>
             </div>
 
             <div className="mt-5 space-y-2">
               <button
                 disabled={isRunning}
-                onClick={() => handleTestAuth(25)}
+                onClick={() => handleTestAuth(10)}
                 className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 fill-white" />
-                Test Auth (Gửi 25 req)
+                Test Auth (Gửi 10 req)
               </button>
               <button
                 disabled={isRunning}
-                onClick={() => handleTestAuth(5)}
+                onClick={() => handleTestAuth(3)}
                 className="w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-medium rounded-lg text-xs transition"
               >
-                Test nhẹ (5 req an toàn)
+                Test an toàn (3 req)
               </button>
             </div>
           </div>
@@ -355,8 +355,8 @@ export const RateLimitTestPage: React.FC = () => {
                 <span className="p-2 bg-purple-600/20 text-purple-400 rounded-xl">
                   <Sparkles className="w-5 h-5" />
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                  Hạn mức: 30 req/m
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                  5 tokens • Hồi: 10s/token
                 </span>
               </div>
               <div>
@@ -367,26 +367,26 @@ export const RateLimitTestPage: React.FC = () => {
               </div>
               <div className="text-xs text-slate-500 space-y-1 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 font-mono">
                 <div>Endpoint: POST /api/v1/ai/chat</div>
-                <div>Ngưỡng: 30 req/phút</div>
-                <div>Kỳ vọng: 429 từ req thứ 31</div>
+                <div>Ngưỡng: Dung lượng 5 • Nạp 10s/token</div>
+                <div>Kỳ vọng: 429 từ req thứ 6</div>
               </div>
             </div>
 
             <div className="mt-5 space-y-2">
               <button
                 disabled={isRunning}
-                onClick={() => handleTestAi(35)}
+                onClick={() => handleTestAi(10)}
                 className="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 fill-white" />
-                Test AI (Gửi 35 req)
+                Test AI (Gửi 10 req)
               </button>
               <button
                 disabled={isRunning}
-                onClick={() => handleTestAi(10)}
+                onClick={() => handleTestAi(2)}
                 className="w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-medium rounded-lg text-xs transition"
               >
-                Test nhẹ (10 req an toàn)
+                Test an toàn (2 req)
               </button>
             </div>
           </div>
@@ -398,8 +398,8 @@ export const RateLimitTestPage: React.FC = () => {
                 <span className="p-2 bg-amber-600/20 text-amber-400 rounded-xl">
                   <FileText className="w-5 h-5" />
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                  Hạn mức: 60 req/m
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  10 tokens • Hồi: 30s/token
                 </span>
               </div>
               <div>
@@ -410,26 +410,26 @@ export const RateLimitTestPage: React.FC = () => {
               </div>
               <div className="text-xs text-slate-500 space-y-1 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 font-mono">
                 <div>Endpoint: POST /api/v1/posts</div>
-                <div>Ngưỡng: 60 req/phút</div>
-                <div>Kỳ vọng: 429 từ req thứ 61</div>
+                <div>Ngưỡng: Dung lượng 10 • Nạp 30s/token</div>
+                <div>Kỳ vọng: 429 từ req thứ 11</div>
               </div>
             </div>
 
             <div className="mt-5 space-y-2">
               <button
                 disabled={isRunning}
-                onClick={() => handleTestMutation(65)}
+                onClick={() => handleTestMutation(15)}
                 className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-amber-600/30 flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 fill-white" />
-                Test Post (Gửi 65 req)
+                Test Post (Gửi 15 req)
               </button>
               <button
                 disabled={isRunning}
-                onClick={() => handleTestMutation(20)}
+                onClick={() => handleTestMutation(5)}
                 className="w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-medium rounded-lg text-xs transition"
               >
-                Test nhẹ (20 req an toàn)
+                Test an toàn (5 req)
               </button>
             </div>
           </div>
@@ -631,3 +631,4 @@ export const RateLimitTestPage: React.FC = () => {
 };
 
 export default RateLimitTestPage;
+
