@@ -104,7 +104,7 @@ export const useNotificationDropdownData = ({
     });
   }, [notifications]);
 
-  // Fetch actual reaction types for LIKE_POST notifications
+  // Resolve reaction types for LIKE_POST notifications (Zero-HTTP call via Denormalization)
   useEffect(() => {
     if (!notifications || notifications.length === 0) return;
 
@@ -115,68 +115,34 @@ export const useNotificationDropdownData = ({
     if (likeNotifs.length === 0) return;
 
     const immediateMap: Record<string, string> = {};
-    const postsToFetch = new Set<string>();
 
     likeNotifs.forEach((n) => {
-      // 1. Check targetUrl query param (?reaction=...)
-      if (n.targetUrl) {
+      let resolvedType: string | null = null;
+
+      // 1. Chuẩn hóa: Trường reactionType đã được lưu dưới DB dạng Enum text (LOVE, LIKE, HAHA...)
+      if (n.reactionType) {
+        resolvedType = n.reactionType.toUpperCase();
+      }
+
+      // 2. Fallback: Query param trên targetUrl (?reaction=...)
+      if (!resolvedType && n.targetUrl) {
         const match = n.targetUrl.match(/[?&]reaction=([A-Za-z]+)/i);
         if (match) {
-          const type = match[1].toUpperCase();
-          immediateMap[n.id] = type;
-          if (n.targetId && n.actorId) {
-            immediateMap[`${n.targetId}_${n.actorId}`] = type;
-          }
+          resolvedType = match[1].toUpperCase();
         }
       }
 
-      // 2. Check content for reaction keywords/emojis
-      if (!immediateMap[n.id] && n.content) {
-        const c = n.content.toLowerCase();
-        let found: string | null = null;
-        if (c.includes('❤️') || c.includes('thả tim') || c.includes('yêu thích') || c.includes('love')) found = 'LOVE';
-        else if (c.includes('😆') || c.includes('haha')) found = 'HAHA';
-        else if (c.includes('😮') || c.includes('wow')) found = 'WOW';
-        else if (c.includes('😢') || c.includes('buồn') || c.includes('sad')) found = 'SAD';
-        else if (c.includes('😡') || c.includes('phẫn nộ') || c.includes('angry')) found = 'ANGRY';
-        else if (c.includes('👍') || c.includes('thích') || c.includes('like')) found = 'LIKE';
-
-        if (found) {
-          immediateMap[n.id] = found;
-          if (n.targetId && n.actorId) {
-            immediateMap[`${n.targetId}_${n.actorId}`] = found;
-          }
-        }
-      }
-
-      // 3. For any remaining without known reaction, queue post reaction fetch
-      if (!immediateMap[n.id] && n.targetId && n.actorId && !actorReactions[`${n.targetId}_${n.actorId}`]) {
-        postsToFetch.add(n.targetId);
+      // 3. Mặc định là LIKE nếu không có thông tin
+      const finalType = resolvedType || 'LIKE';
+      immediateMap[n.id] = finalType;
+      if (n.targetId && n.actorId) {
+        immediateMap[`${n.targetId}_${n.actorId}`] = finalType;
       }
     });
 
     if (Object.keys(immediateMap).length > 0) {
       setActorReactions((prev) => ({ ...prev, ...immediateMap }));
     }
-
-    if (postsToFetch.size === 0) return;
-
-    Array.from(postsToFetch).forEach(async (postId) => {
-      try {
-        const reactions = await postService.getReactions(postId);
-        if (Array.isArray(reactions) && reactions.length > 0) {
-          setActorReactions((prev) => {
-            const next = { ...prev };
-            reactions.forEach((r: any) => {
-              if (r.userId && r.type) {
-                next[`${postId}_${r.userId}`] = String(r.type).toUpperCase();
-              }
-            });
-            return next;
-          });
-        }
-      } catch {}
-    });
   }, [notifications]);
 
   // Sync with existing friends from in-memory cache and warm up if needed

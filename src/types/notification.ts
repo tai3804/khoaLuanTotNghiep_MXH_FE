@@ -35,6 +35,7 @@ export interface NotificationItem {
   targetId?: string;
   targetUrl?: string;
   avatarUrl?: string;
+  reactionType?: string;
   isRead: boolean;
   readAt?: string;
   createdAt: string;
