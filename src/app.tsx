@@ -36,6 +36,7 @@ const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage').then((m) 
 const SavedPage = lazy(() => import('./pages/SavedPage').then((m) => ({ default: m.SavedPage })));
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 const LiveStreamPage = lazy(() => import('./pages/LiveStreamPage').then((m) => ({ default: m.LiveStreamPage })));
+const RateLimitTestPage = lazy(() => import('./pages/RateLimitTestPage').then((m) => ({ default: m.RateLimitTestPage })));
 
 // Tab của bảng tin -> cách xếp hạng ở máy chủ: Tất cả = độ liên quan, Mới nhất = thời gian, Nổi bật = tốc độ tương tác
 const FEED_MODE_BY_CATEGORY: Record<'all' | 'recent' | 'popular', FeedMode> = {
@@ -692,6 +693,7 @@ export const App: React.FC = () => {
           }
         />
         <Route path="/live/:postId" element={<LiveStreamPage />} />
+        <Route path="/test" element={<RateLimitTestPage />} />
       </Routes>
       </Suspense>
 
