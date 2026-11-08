@@ -76,7 +76,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ onSelectChatUser, onVi
         followersCount={followers.length}
         followingCount={following.length}
         t={t}
-        onRefresh={() => loadAllData(false)}
+        onRefresh={() => loadAllData(false, true)}
       />
 
       <div className="w-full transition-all duration-150">

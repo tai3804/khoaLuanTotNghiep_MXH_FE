@@ -18,21 +18,42 @@ const DEFAULT_CONFIGS: SystemConfigs = {
   max_reports_auto_hide: 5,
 };
 
+let publicConfigCache: SystemConfigs | null = null;
+let lastPublicConfigFetchTime = 0;
+let inFlightPublicConfigPromise: Promise<SystemConfigs> | null = null;
+const CONFIG_CACHE_TTL_MS = 60_000;
+
 export const systemConfigService = {
-  getPublicConfigs: async (): Promise<SystemConfigs> => {
-    try {
-      const res = await api.get('/admin/settings/public');
-      const data: Record<string, string> = res.data?.data || res.data || {};
-      return {
-        maintenance_mode: data.maintenance_mode === 'true',
-        allow_registration: data.allow_registration !== 'false',
-        ai_moderation_enabled: data.ai_moderation_enabled !== 'false',
-        max_upload_size_mb: Number(data.max_upload_size_mb) || 25,
-        system_announcement: (data.system_announcement || '').trim(),
-        max_reports_auto_hide: Number(data.max_reports_auto_hide) || 5,
-      };
-    } catch {
-      return DEFAULT_CONFIGS;
+  getPublicConfigs: async (forceRefresh = false): Promise<SystemConfigs> => {
+    if (!forceRefresh && publicConfigCache && Date.now() - lastPublicConfigFetchTime < CONFIG_CACHE_TTL_MS) {
+      return publicConfigCache;
     }
+    if (inFlightPublicConfigPromise && !forceRefresh) {
+      return inFlightPublicConfigPromise;
+    }
+
+    inFlightPublicConfigPromise = (async () => {
+      try {
+        const res = await api.get('/admin/settings/public');
+        const data: Record<string, string> = res.data?.data || res.data || {};
+        const parsed: SystemConfigs = {
+          maintenance_mode: data.maintenance_mode === 'true',
+          allow_registration: data.allow_registration !== 'false',
+          ai_moderation_enabled: data.ai_moderation_enabled !== 'false',
+          max_upload_size_mb: Number(data.max_upload_size_mb) || 25,
+          system_announcement: (data.system_announcement || '').trim(),
+          max_reports_auto_hide: Number(data.max_reports_auto_hide) || 5,
+        };
+        publicConfigCache = parsed;
+        lastPublicConfigFetchTime = Date.now();
+        return parsed;
+      } catch {
+        return DEFAULT_CONFIGS;
+      } finally {
+        inFlightPublicConfigPromise = null;
+      }
+    })();
+
+    return inFlightPublicConfigPromise;
   },
 };

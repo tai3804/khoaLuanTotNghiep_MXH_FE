@@ -180,15 +180,37 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
   const reactionsList = ['👍', '❤️', '😆', '😮', '😢', '😡'];
 
   useEffect(() => {
-    const local = getStoredReaction(post.id, user?.id);
-    if (local) {
-      setLiked(local.liked);
-      if (local.reaction) setReaction(local.reaction);
+    // 1. Dùng luôn dữ liệu phản hồi All-in-One từ backend nếu có
+    if (post.myReaction) {
+      setLiked(true);
+      const emoji = reactionTypeToEmoji[post.myReaction] || '👍';
+      setReaction(emoji);
     } else if (post.isLiked) {
       setLiked(true);
+    } else {
+      const local = getStoredReaction(post.id, user?.id);
+      if (local) {
+        setLiked(local.liked);
+        if (local.reaction) setReaction(local.reaction);
+      } else {
+        setLiked(false);
+      }
     }
 
-    if (isAuthenticated && nearViewport && post.id && !post.isOptimistic && !post.id.startsWith('temp-')) {
+    if (Array.isArray(post.topReactionTypes) && post.topReactionTypes.length > 0) {
+      const types = Array.from(new Set(post.topReactionTypes.map((t) => reactionTypeToEmoji[t] || '👍')));
+      setActiveReactions(types);
+      return; // Đã có dữ liệu trọn gói trong 1 request, KHÔNG gọi thêm API nữa!
+    }
+
+    // Short-circuit: Nếu bài viết không có lượt thích nào (likesCount === 0)
+    if (!post.likesCount || post.likesCount === 0) {
+      setActiveReactions([]);
+      return;
+    }
+
+    // Fallback: chỉ gọi nếu backend chưa trả về dữ liệu gộp
+    if (isAuthenticated && nearViewport && post.id && !post.isOptimistic && !post.id.startsWith('temp-') && post.topReactionTypes === undefined) {
       postService
         .getReactions(post.id)
         .then((reactions) => {
@@ -216,7 +238,7 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
         })
         .catch(() => {});
     }
-  }, [post.id, user?.id, isAuthenticated, post.isLiked, nearViewport]);
+  }, [post.id, user?.id, isAuthenticated, post.isLiked, post.likesCount, post.myReaction, post.topReactionTypes, nearViewport]);
 
   useEffect(() => {
     if (post.isSaved !== undefined) {
@@ -226,7 +248,16 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
 
   useEffect(() => {
     if (!isAuthenticated || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
-    if (nearViewport) postService.isPostSaved(post.id).then(setSaved).catch(() => {});
+
+    // Short-circuit: Nếu post đã có sẵn trạng thái isSaved từ backend, dùng luôn không gọi API
+    if (post.isSaved !== undefined) {
+      setSaved(Boolean(post.isSaved));
+      return;
+    }
+
+    if (nearViewport) {
+      postService.isPostSaved(post.id).then(setSaved).catch(() => {});
+    }
 
     const handleSavedChanged = (e: any) => {
       if (e?.detail && String(e.detail.postId) === String(post.id)) {
@@ -235,10 +266,32 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     };
     window.addEventListener('saved_posts_changed', handleSavedChanged);
     return () => window.removeEventListener('saved_posts_changed', handleSavedChanged);
-  }, [post.id, isAuthenticated, post.isOptimistic, nearViewport]);
+  }, [post.id, isAuthenticated, post.isOptimistic, post.isSaved, nearViewport]);
 
   useEffect(() => {
+    // 1. Dùng luôn 3 bình luận xem trước đã được backend gộp sẵn trong 1 request
+    if (Array.isArray(post.previewComments) && post.previewComments.length > 0) {
+      setComments(post.previewComments);
+      setLoadingComments(false);
+      return; // Không cần gọi API getComments nữa!
+    }
+
     if (!nearViewport || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
+
+    // Short-circuit: Nếu bài viết không có bình luận nào (commentsCount === 0), không gọi API
+    if (!post.commentsCount || post.commentsCount === 0) {
+      setComments([]);
+      setLoadingComments(false);
+      return;
+    }
+
+    // Nếu đã có previewComments rỗng từ feed, không cần gọi lại
+    if (post.previewComments !== undefined) {
+      setComments([]);
+      setLoadingComments(false);
+      return;
+    }
+
     let isMounted = true;
     setLoadingComments(true);
     postService
@@ -256,7 +309,24 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     return () => {
       isMounted = false;
     };
-  }, [post.id, nearViewport]);
+  }, [post.id, post.commentsCount, post.previewComments, nearViewport]);
+
+  // Tải bình luận khi người dùng mở modal bình luận nếu chưa có dữ liệu
+  useEffect(() => {
+    if (showCommentModal && comments.length === 0 && post.id && !post.isOptimistic && (post.commentsCount ?? 0) > 0) {
+      setLoadingComments(true);
+      postService
+        .getComments(post.id)
+        .then((fetched) => {
+          if (Array.isArray(fetched)) {
+            setComments(fetched);
+            setCommentsCount((prev) => Math.max(prev, fetched.length));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingComments(false));
+    }
+  }, [showCommentModal, comments.length, post.id, post.isOptimistic, post.commentsCount]);
 
   const getReactionLabel = (emoji: string) => {
     switch (emoji) {

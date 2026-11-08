@@ -26,7 +26,7 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
 
   const fetchJoinedGroups = async () => {
     try {
-      const res = await groupService.getGroups({ scope: 'joined', size: 20 });
+      const res = await groupService.getGroups({ scope: 'joined', page: 1, size: 50 });
       const userGroups = res?.groups || [];
       cachedJoinedGroups = userGroups;
       setJoinedGroups(userGroups);
