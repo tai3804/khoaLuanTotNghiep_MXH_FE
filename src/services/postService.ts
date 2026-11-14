@@ -3,6 +3,11 @@ import { Post, Comment, PostInsights } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 import { groupMetaCache, fetchGroupMeta } from './groupService';
 
+export const savedPostStatusCache: Record<string, boolean> = {};
+const inFlightSavedStatus = new Map<string, Promise<boolean>>();
+const inFlightReactions = new Map<string, Promise<any[]>>();
+const inFlightComments = new Map<string, Promise<Comment[]>>();
+
 export const normalizePost = (p: any): Post => {
   const rawMediaUrls: string[] = [];
   const rawMediaList: { id?: string; fileUrl: string; fileKey?: string; mediaType?: string }[] = [];
@@ -136,7 +141,24 @@ export const normalizePost = (p: any): Post => {
     commentsCount: Number(p.commentCount ?? p.commentsCount ?? 0),
     sharesCount: Number(p.shareCount ?? p.sharesCount ?? 0),
     viewsCount: Number(p.viewCount ?? p.viewsCount ?? 0),
-    isLiked: Boolean(p.isLiked),
+    isLiked: Boolean(p.isLiked ?? p.liked),
+    myReaction: p.myReaction || undefined,
+    topReactionTypes: Array.isArray(p.topReactionTypes) ? p.topReactionTypes : [],
+    isSaved: Boolean(p.isSaved ?? p.saved),
+    previewComments: Array.isArray(p.previewComments)
+      ? p.previewComments.map((c: any) => ({
+          id: String(c.id),
+          postId: String(c.postId || p.id),
+          userId: String(c.authorId || c.userId || ''),
+          authorName: c.authorName || 'Thành viên KLTN',
+          authorAvatar: c.authorAvatar || '/default-avatar.png',
+          content: c.content || '',
+          mediaUrl: c.mediaUrl || '',
+          createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+          likesCount: Number(c.likeCount || 0),
+          parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
+        }))
+      : [],
     isPinned: Boolean(p.isPinned),
     groupPinned: Boolean(p.groupPinned),
     isArchived: Boolean(p.isArchived),
@@ -204,6 +226,8 @@ export interface PagedPostsResponse {
 }
 
 export const postDetailCache: Record<string, Post> = {};
+const inFlightGroupsFeed = new Map<string, Promise<{ posts: Post[]; last: boolean; total: number }>>();
+const inFlightFeedPaged = new Map<string, Promise<PagedPostsResponse>>();
 
 export const postService = {
   getPostById: async (postId: string): Promise<Post | null> => {
@@ -241,79 +265,89 @@ export const postService = {
     // true: máy chủ bỏ các bài người dùng đã xem (giống Facebook không bắt xem lại sau khi tải lại trang)
     unseenOnly = false,
   ): Promise<PagedPostsResponse> => {
-    try {
-      const ranked = mode === 'relevance' || mode === 'trending';
-      const params: Record<string, any> = {
-        page,
-        size,
-        sortBy: ranked ? mode : 'createdAt',
-        sortDirection: 'DESC',
-      };
-      if (!ranked && cursor) {
-        params.cursor = cursor;
-      }
-      if (unseenOnly) {
-        params.unseenOnly = true;
-      }
+    const ranked = mode === 'relevance' || mode === 'trending';
+    const cacheKey = `${page}:${size}:${cursor || ''}:${mode}:${unseenOnly}`;
 
-      const res = await api.get('/posts', { params });
-      const rawData = res.data;
-      const rawPosts = Array.isArray(rawData?.data)
-        ? rawData.data
-        : (rawData?.data?.content || rawData?.result || rawData?.content || []);
-
-      if (Array.isArray(rawPosts) && rawPosts.length > 0) {
-        const authorIds = Array.from(
-          new Set(rawPosts.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
-        ) as string[];
-        if (authorIds.length > 0) {
-          Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
-        }
-
-        const groupIds = Array.from(
-          new Set(rawPosts.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))
-        ) as string[];
-        if (groupIds.length > 0) {
-          Promise.all(groupIds.map((gid) => fetchGroupMeta(gid))).catch(() => {});
-        }
-      }
-
-      // Access control is enforced by post-service; do not wait for an extra
-      // friends request before rendering the feed.
-      const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
-
-      // Bảng tin xếp hạng dùng số trang; chỉ chế độ "Mới nhất" mới cần cursor theo thời gian
-      let nextCursor: string | null = null;
-      if (!ranked && Array.isArray(rawPosts) && rawPosts.length > 0) {
-        const lastRaw = rawPosts[rawPosts.length - 1];
-        if (lastRaw?.createdAt) {
-          nextCursor = lastRaw.createdAt;
-        }
-      }
-
-      const isLast = rawData?.last !== undefined ? Boolean(rawData.last) : (posts.length < size);
-
-      return {
-        posts,
-        page: rawData?.page ?? page,
-        size: rawData?.size ?? size,
-        totalElements: rawData?.totalElements ?? posts.length,
-        totalPages: rawData?.totalPages ?? 1,
-        last: isLast,
-        nextCursor,
-      };
-    } catch (err: any) {
-      console.error('getFeedPaged error:', err);
-      return {
-        posts: [],
-        page,
-        size,
-        totalElements: 0,
-        totalPages: 0,
-        last: true,
-        nextCursor: null,
-      };
+    if (inFlightFeedPaged.has(cacheKey)) {
+      return inFlightFeedPaged.get(cacheKey)!;
     }
+
+    const fetchPromise = (async () => {
+      try {
+        const params: Record<string, any> = {
+          page,
+          size,
+          sortBy: ranked ? mode : 'createdAt',
+          sortDirection: 'DESC',
+        };
+        if (!ranked && cursor) {
+          params.cursor = cursor;
+        }
+        if (unseenOnly) {
+          params.unseenOnly = true;
+        }
+
+        const res = await api.get('/posts', { params });
+        const rawData = res.data;
+        const rawPosts = Array.isArray(rawData?.data)
+          ? rawData.data
+          : (rawData?.data?.content || rawData?.result || rawData?.content || []);
+
+        if (Array.isArray(rawPosts) && rawPosts.length > 0) {
+          const authorIds = Array.from(
+            new Set(rawPosts.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))
+          ) as string[];
+          if (authorIds.length > 0) {
+            Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+          }
+
+          const groupIds = Array.from(
+            new Set(rawPosts.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))
+          ) as string[];
+          if (groupIds.length > 0) {
+            Promise.all(groupIds.map((gid) => fetchGroupMeta(gid))).catch(() => {});
+          }
+        }
+
+        const posts = Array.isArray(rawPosts) ? rawPosts.map(normalizePost) : [];
+
+        let nextCursor: string | null = null;
+        if (!ranked && Array.isArray(rawPosts) && rawPosts.length > 0) {
+          const lastRaw = rawPosts[rawPosts.length - 1];
+          if (lastRaw?.createdAt) {
+            nextCursor = lastRaw.createdAt;
+          }
+        }
+
+        const isLast = rawData?.last !== undefined ? Boolean(rawData.last) : (posts.length < size);
+
+        return {
+          posts,
+          page: rawData?.page ?? page,
+          size: rawData?.size ?? size,
+          totalElements: rawData?.totalElements ?? posts.length,
+          totalPages: rawData?.totalPages ?? 1,
+          last: isLast,
+          nextCursor,
+        };
+      } catch (err: any) {
+        console.error('getFeedPaged error:', err);
+        return {
+          posts: [],
+          page,
+          size,
+          totalElements: 0,
+          totalPages: 0,
+          last: true,
+          nextCursor: null,
+        };
+      } finally {
+        inFlightFeedPaged.delete(cacheKey);
+      }
+    })();
+
+    inFlightFeedPaged.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
 
   getWatchFeed: async (
@@ -600,19 +634,33 @@ export const postService = {
 
   /** Bảng tin "Nhóm của bạn": bài mới trong mọi nhóm mình là thành viên. */
   getGroupsFeedPage: async (page = 1, size = 10, sort: GroupPostSort = 'activity'): Promise<{ posts: Post[]; last: boolean; total: number }> => {
-    const res = await api.get('/posts/groups/feed', { params: { page, size, sort } });
-    const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
-    const list: any[] = Array.isArray(raw) ? raw : [];
-    const authorIds = Array.from(new Set(list.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
-    const groupIds = Array.from(new Set(list.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))) as string[];
-    // Nạp thông tin tác giả và nhóm trước khi vẽ để thẻ bài không nhấp nháy tên "Nhóm"/"Thành viên"
-    await Promise.all([...authorIds.map((id) => fetchAuthorProfile(id)), ...groupIds.map((id) => fetchGroupMeta(id))]).catch(() => {});
-    const lastFlag = res.data?.last ?? res.data?.data?.last;
-    return {
-      posts: list.map(normalizePost),
-      last: typeof lastFlag === 'boolean' ? lastFlag : list.length < size,
-      total: Number(res.data?.totalElements ?? res.data?.data?.totalElements ?? list.length),
-    };
+    const cacheKey = `${page}:${size}:${sort}`;
+    if (inFlightGroupsFeed.has(cacheKey)) {
+      return inFlightGroupsFeed.get(cacheKey)!;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.get('/posts/groups/feed', { params: { page, size, sort } });
+        const raw = res.data?.data?.content || (Array.isArray(res.data?.data) ? res.data.data : []);
+        const list: any[] = Array.isArray(raw) ? raw : [];
+        const authorIds = Array.from(new Set(list.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+        const groupIds = Array.from(new Set(list.map((p: any) => (p.groupId ? String(p.groupId) : null)).filter(Boolean))) as string[];
+        // Nạp thông tin tác giả và nhóm trước khi vẽ để thẻ bài không nhấp nháy tên "Nhóm"/"Thành viên"
+        await Promise.all([...authorIds.map((id) => fetchAuthorProfile(id)), ...groupIds.map((id) => fetchGroupMeta(id))]).catch(() => {});
+        const lastFlag = res.data?.last ?? res.data?.data?.last;
+        return {
+          posts: list.map(normalizePost),
+          last: typeof lastFlag === 'boolean' ? lastFlag : list.length < size,
+          total: Number(res.data?.totalElements ?? res.data?.data?.totalElements ?? list.length),
+        };
+      } finally {
+        inFlightGroupsFeed.delete(cacheKey);
+      }
+    })();
+
+    inFlightGroupsFeed.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
 
   /** Ảnh và video của nhóm, phân trang (page từ 1). type: all | image | video. */
@@ -790,12 +838,27 @@ export const postService = {
   },
 
   isPostSaved: async (postId: string): Promise<boolean> => {
-    try {
-      const res = await api.get(`/posts/saved/${postId}/status`);
-      return Boolean(res.data?.data ?? res.data?.result ?? res.data);
-    } catch {
-      return false;
+    if (!postId) return false;
+    if (savedPostStatusCache[postId] !== undefined) {
+      return savedPostStatusCache[postId];
     }
+    if (inFlightSavedStatus.has(postId)) {
+      return inFlightSavedStatus.get(postId)!;
+    }
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.get(`/posts/saved/${postId}/status`);
+        const status = Boolean(res.data?.data ?? res.data?.result ?? res.data);
+        savedPostStatusCache[postId] = status;
+        return status;
+      } catch {
+        return false;
+      } finally {
+        inFlightSavedStatus.delete(postId);
+      }
+    })();
+    inFlightSavedStatus.set(postId, fetchPromise);
+    return fetchPromise;
   },
 
   getSavedPosts: async (page = 1, size = 20): Promise<Post[]> => {
@@ -833,115 +896,125 @@ export const postService = {
   },
 
   getComments: async (postId: string): Promise<Comment[]> => {
-    try {
-      const res = await api.get(`/posts/${postId}/comments`, { params: { size: 100 } });
-      const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      if (Array.isArray(data)) {
-        const authorIds = Array.from(new Set(data.map((c: any) => (c.authorId ? String(c.authorId) : null)).filter(Boolean))) as string[];
-        await Promise.all(authorIds.map((id) => fetchAuthorProfile(id)));
-
-        let currentUser: any = null;
-        try {
-          const uStr = localStorage.getItem('user');
-          if (uStr) currentUser = JSON.parse(uStr);
-        } catch {}
-
-        const parsedComments: Comment[] = data.map((c: any) => {
-          const authorId = String(c.authorId || c.userId || '');
-          const cached = authorProfileCache[authorId];
-          let authorName = c.authorName;
-          let authorAvatar = c.authorAvatar || c.author?.avatarUrl || '';
-
-          if (!authorName || authorName === 'Người dùng' || authorName === 'Thành viên' || authorName === 'Thành viên KLTN') {
-            if (currentUser && currentUser.id && authorId && authorId !== 'me' && currentUser.id === authorId) {
-              authorName = currentUser.fullName || currentUser.username;
-              if (!authorAvatar) authorAvatar = currentUser.avatar;
-            } else if (cached?.name) {
-              authorName = cached.name;
-              if (!authorAvatar) authorAvatar = cached.avatar;
-            } else if (c.author) {
-              authorName = [c.author.lastName, c.author.middleName, c.author.firstName].filter(Boolean).join(' ').trim();
-            }
-          }
-
-          return {
-            id: String(c.id),
-            postId: String(c.postId || postId),
-            userId: authorId || 'user',
-            authorName: authorName || 'Thành viên KLTN',
-            authorAvatar: authorAvatar || cached?.avatar || '',
-            content: c.content || '',
-            createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
-            createdAtRaw: c.createdAt ? String(c.createdAt) : undefined,
-            likesCount: Number(c.likeCount || 0),
-            parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
-            taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : [],
-            isTopFan: Boolean(c.isTopFan ?? c.topFan ?? (Number(c.likeCount || 0) >= 2)),
-          };
-        });
-
-        // Automatically fetch replies for each top-level comment
-        const topLevelComments = parsedComments.filter(c => !c.parentCommentId);
-        const replyPromises = topLevelComments.map(async (parent) => {
-          try {
-            const repliesRes = await api.get(`/posts/${postId}/comments`, {
-              params: { parentCommentId: parent.id, size: 100 },
-            });
-            const repliesData = repliesRes.data?.data?.content || repliesRes.data?.data || repliesRes.data?.result || [];
-            if (Array.isArray(repliesData) && repliesData.length > 0) {
-              const rAuthorIds = Array.from(new Set(repliesData.map((rc: any) => (rc.authorId ? String(rc.authorId) : null)).filter(Boolean))) as string[];
-              await Promise.all(rAuthorIds.map((id) => fetchAuthorProfile(id)));
-
-              return repliesData.map((rc: any) => {
-                const rAuthorId = String(rc.authorId || rc.userId || '');
-                const rCached = authorProfileCache[rAuthorId];
-                let rName = rc.authorName;
-                let rAvatar = rc.authorAvatar || rc.author?.avatarUrl || '';
-
-                if (!rName || rName === 'Người dùng' || rName === 'Thành viên' || rName === 'Thành viên KLTN') {
-                  if (currentUser && currentUser.id && rAuthorId && rAuthorId !== 'me' && currentUser.id === rAuthorId) {
-                    rName = currentUser.fullName || currentUser.username;
-                    if (!rAvatar) rAvatar = currentUser.avatar;
-                  } else if (rCached?.name) {
-                    rName = rCached.name;
-                    if (!rAvatar) rAvatar = rCached.avatar;
-                  } else if (rc.author) {
-                    rName = [rc.author.lastName, rc.author.middleName, rc.author.firstName].filter(Boolean).join(' ').trim();
-                  }
-                }
-
-                return {
-                  id: String(rc.id),
-                  postId: String(rc.postId || postId),
-                  userId: rAuthorId || 'user',
-                  authorName: rName || 'Thành viên KLTN',
-                  authorAvatar: rAvatar || rCached?.avatar || '',
-                  content: rc.content || '',
-                  createdAt: rc.createdAt ? new Date(rc.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
-                  createdAtRaw: rc.createdAt ? String(rc.createdAt) : undefined,
-                  likesCount: Number(rc.likeCount || 0),
-                  parentCommentId: String(parent.id),
-                  taggedUserIds: Array.isArray(rc.taggedUserIds) ? rc.taggedUserIds.map(String) : [],
-                };
-              });
-            }
-          } catch {}
-          return [];
-        });
-
-        const repliesArrays = await Promise.all(replyPromises);
-        const allReplies = repliesArrays.flat();
-
-        const combinedMap = new Map<string, Comment>();
-        parsedComments.forEach((c) => combinedMap.set(c.id, c));
-        allReplies.forEach((c) => combinedMap.set(c.id, c));
-
-        return Array.from(combinedMap.values());
-      }
-      return [];
-    } catch {
-      return [];
+    if (!postId) return [];
+    if (inFlightComments.has(postId)) {
+      return inFlightComments.get(postId)!;
     }
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.get(`/posts/${postId}/comments`, { params: { size: 100 } });
+        const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
+        if (Array.isArray(data)) {
+          const authorIds = Array.from(new Set(data.map((c: any) => (c.authorId ? String(c.authorId) : null)).filter(Boolean))) as string[];
+          await Promise.all(authorIds.map((id) => fetchAuthorProfile(id)));
+
+          let currentUser: any = null;
+          try {
+            const uStr = localStorage.getItem('user');
+            if (uStr) currentUser = JSON.parse(uStr);
+          } catch {}
+
+          const parsedComments: Comment[] = data.map((c: any) => {
+            const authorId = String(c.authorId || c.userId || '');
+            const cached = authorProfileCache[authorId];
+            let authorName = c.authorName;
+            let authorAvatar = c.authorAvatar || c.author?.avatarUrl || '';
+
+            if (!authorName || authorName === 'Người dùng' || authorName === 'Thành viên' || authorName === 'Thành viên KLTN') {
+              if (currentUser && currentUser.id && authorId && authorId !== 'me' && currentUser.id === authorId) {
+                authorName = currentUser.fullName || currentUser.username;
+                if (!authorAvatar) authorAvatar = currentUser.avatar;
+              } else if (cached?.name) {
+                authorName = cached.name;
+                if (!authorAvatar) authorAvatar = cached.avatar;
+              } else if (c.author) {
+                authorName = [c.author.lastName, c.author.middleName, c.author.firstName].filter(Boolean).join(' ').trim();
+              }
+            }
+
+            return {
+              id: String(c.id),
+              postId: String(c.postId || postId),
+              userId: authorId || 'user',
+              authorName: authorName || 'Thành viên KLTN',
+              authorAvatar: authorAvatar || cached?.avatar || '',
+              content: c.content || '',
+              createdAt: c.createdAt ? new Date(c.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+              createdAtRaw: c.createdAt ? String(c.createdAt) : undefined,
+              likesCount: Number(c.likeCount || 0),
+              parentCommentId: c.parentCommentId ? String(c.parentCommentId) : undefined,
+              taggedUserIds: Array.isArray(c.taggedUserIds) ? c.taggedUserIds.map(String) : [],
+              isTopFan: Boolean(c.isTopFan ?? c.topFan ?? (Number(c.likeCount || 0) >= 2)),
+            };
+          });
+
+          // Automatically fetch replies for each top-level comment
+          const topLevelComments = parsedComments.filter(c => !c.parentCommentId);
+          const replyPromises = topLevelComments.map(async (parent) => {
+            try {
+              const repliesRes = await api.get(`/posts/${postId}/comments`, {
+                params: { parentCommentId: parent.id, size: 100 },
+              });
+              const repliesData = repliesRes.data?.data?.content || repliesRes.data?.data || repliesRes.data?.result || [];
+              if (Array.isArray(repliesData) && repliesData.length > 0) {
+                const rAuthorIds = Array.from(new Set(repliesData.map((rc: any) => (rc.authorId ? String(rc.authorId) : null)).filter(Boolean))) as string[];
+                await Promise.all(rAuthorIds.map((id) => fetchAuthorProfile(id)));
+
+                return repliesData.map((rc: any) => {
+                  const rAuthorId = String(rc.authorId || rc.userId || '');
+                  const rCached = authorProfileCache[rAuthorId];
+                  let rName = rc.authorName;
+                  let rAvatar = rc.authorAvatar || rc.author?.avatarUrl || '';
+
+                  if (!rName || rName === 'Người dùng' || rName === 'Thành viên' || rName === 'Thành viên KLTN') {
+                    if (currentUser && currentUser.id && rAuthorId && rAuthorId !== 'me' && currentUser.id === rAuthorId) {
+                      rName = currentUser.fullName || currentUser.username;
+                      if (!rAvatar) rAvatar = currentUser.avatar;
+                    } else if (rCached?.name) {
+                      rName = rCached.name;
+                      if (!rAvatar) rAvatar = rCached.avatar;
+                    } else if (rc.author) {
+                      rName = [rc.author.lastName, rc.author.middleName, rc.author.firstName].filter(Boolean).join(' ').trim();
+                    }
+                  }
+
+                  return {
+                    id: String(rc.id),
+                    postId: String(rc.postId || postId),
+                    userId: rAuthorId || 'user',
+                    authorName: rName || 'Thành viên KLTN',
+                    authorAvatar: rAvatar || rCached?.avatar || '',
+                    content: rc.content || '',
+                    createdAt: rc.createdAt ? new Date(rc.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong',
+                    createdAtRaw: rc.createdAt ? String(rc.createdAt) : undefined,
+                    likesCount: Number(rc.likeCount || 0),
+                    parentCommentId: String(parent.id),
+                    taggedUserIds: Array.isArray(rc.taggedUserIds) ? rc.taggedUserIds.map(String) : [],
+                  };
+                });
+              }
+            } catch {}
+            return [];
+          });
+
+          const repliesArrays = await Promise.all(replyPromises);
+          const allReplies = repliesArrays.flat();
+
+          const combinedMap = new Map<string, Comment>();
+          parsedComments.forEach((c) => combinedMap.set(c.id, c));
+          allReplies.forEach((c) => combinedMap.set(c.id, c));
+
+          return Array.from(combinedMap.values());
+        }
+        return [];
+      } catch {
+        return [];
+      } finally {
+        inFlightComments.delete(postId);
+      }
+    })();
+    inFlightComments.set(postId, fetchPromise);
+    return fetchPromise;
   },
 
   addComment: async (
@@ -1012,13 +1085,23 @@ export const postService = {
   },
 
   getReactions: async (postId: string) => {
-    try {
-      const res = await api.get(`/posts/${postId}/reactions`);
-      const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
+    if (!postId) return [];
+    if (inFlightReactions.has(postId)) {
+      return inFlightReactions.get(postId)!;
     }
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.get(`/posts/${postId}/reactions`);
+        const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      } finally {
+        inFlightReactions.delete(postId);
+      }
+    })();
+    inFlightReactions.set(postId, fetchPromise);
+    return fetchPromise;
   },
 
   searchPosts: async (query: string, page = 1, size = 20, mode = 'hybrid'): Promise<Post[]> => {

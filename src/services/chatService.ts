@@ -1,5 +1,9 @@
 import { api } from './axiosClient';
 
+const presenceCache: Record<string, { online: boolean; lastActiveAt?: string | null; timestamp: number }> = {};
+const inFlightPresenceMap = new Map<string, Promise<Record<string, any>>>();
+const PRESENCE_CACHE_TTL_MS = 20_000;
+
 export const chatService = {
   getConversations: async () => {
     try {
@@ -67,14 +71,59 @@ export const chatService = {
     }
   },
 
-  getBatchPresence: async (userIds: string[]) => {
-    try {
-      if (!userIds || userIds.length === 0) return {};
-      const res = await api.post('/chat/presence/batch', userIds);
-      return res.data?.data || {};
-    } catch {
-      return {};
+  getBatchPresence: async (userIds: string[]): Promise<Record<string, any>> => {
+    if (!userIds || userIds.length === 0) return {};
+    const validIds = Array.from(new Set(userIds.map((id) => String(id).trim()).filter(Boolean)));
+    if (validIds.length === 0) return {};
+
+    const now = Date.now();
+    const result: Record<string, any> = {};
+    const missingIds: string[] = [];
+
+    validIds.forEach((id) => {
+      const cached = presenceCache[id];
+      if (cached && now - cached.timestamp < PRESENCE_CACHE_TTL_MS) {
+        result[id] = { online: cached.online, lastActiveAt: cached.lastActiveAt };
+      } else {
+        missingIds.push(id);
+      }
+    });
+
+    if (missingIds.length === 0) {
+      return result;
     }
+
+    const cacheKey = missingIds.slice().sort().join(',');
+    if (inFlightPresenceMap.has(cacheKey)) {
+      const fetched = await inFlightPresenceMap.get(cacheKey)!;
+      return { ...result, ...fetched };
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.post('/chat/presence/batch', missingIds);
+        const data = res.data?.data || {};
+        if (data && typeof data === 'object') {
+          Object.entries(data).forEach(([uid, val]: [string, any]) => {
+            const entry = {
+              online: Boolean(val?.online),
+              lastActiveAt: val?.lastActiveAt || null,
+              timestamp: Date.now(),
+            };
+            presenceCache[uid] = entry;
+            result[uid] = { online: entry.online, lastActiveAt: entry.lastActiveAt };
+          });
+        }
+        return result;
+      } catch {
+        return result;
+      } finally {
+        inFlightPresenceMap.delete(cacheKey);
+      }
+    })();
+
+    inFlightPresenceMap.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
 
   getConversationDetail: async (conversationId: string) => {

@@ -300,19 +300,10 @@ export const NotificationItemCard: React.FC<NotificationItemCardProps> = ({
 }) => {
   let reactionInfo: ReactionDisplayInfo | null = null;
   if (item.type === 'LIKE_POST') {
-    let type = detectedReaction;
+    let type = item.reactionType || detectedReaction;
     if (!type && item.targetUrl) {
       const match = item.targetUrl.match(/[?&]reaction=([A-Za-z]+)/i);
       if (match) type = match[1].toUpperCase();
-    }
-    if (!type && item.content) {
-      const c = item.content.toLowerCase();
-      if (c.includes('❤️') || c.includes('thả tim') || c.includes('yêu thích') || c.includes('love')) type = 'LOVE';
-      else if (c.includes('😆') || c.includes('haha')) type = 'HAHA';
-      else if (c.includes('😮') || c.includes('wow')) type = 'WOW';
-      else if (c.includes('😢') || c.includes('buồn') || c.includes('sad')) type = 'SAD';
-      else if (c.includes('😡') || c.includes('phẫn nộ') || c.includes('angry')) type = 'ANGRY';
-      else if (c.includes('👍') || c.includes('thích') || c.includes('like')) type = 'LIKE';
     }
     reactionInfo = getReactionDisplay(type || 'LIKE');
   }

@@ -4,6 +4,11 @@ import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
+let devicesCache: any[] | null = null;
+let lastDevicesFetchTime = 0;
+let inFlightDevicesPromise: Promise<any> | null = null;
+const DEVICES_CACHE_TTL_MS = 15_000;
+
 export const authService = {
   refreshToken: async (): Promise<string | null> => {
     try {
@@ -94,12 +99,31 @@ export const authService = {
   },
 
   // Quản lý thiết bị đăng nhập (auth-service)
-  getDevices: async () => {
-    const res = await api.get('/devices');
-    return res.data?.data?.devices || res.data?.data || [];
+  getDevices: async (forceRefresh = false) => {
+    if (!forceRefresh && devicesCache && Date.now() - lastDevicesFetchTime < DEVICES_CACHE_TTL_MS) {
+      return devicesCache;
+    }
+    if (inFlightDevicesPromise && !forceRefresh) {
+      return inFlightDevicesPromise;
+    }
+
+    inFlightDevicesPromise = (async () => {
+      try {
+        const res = await api.get('/devices');
+        const list = res.data?.data?.devices || res.data?.data || [];
+        devicesCache = Array.isArray(list) ? list : [];
+        lastDevicesFetchTime = Date.now();
+        return devicesCache;
+      } finally {
+        inFlightDevicesPromise = null;
+      }
+    })();
+
+    return inFlightDevicesPromise;
   },
 
   revokeDevice: async (deviceId: string) => {
+    devicesCache = null;
     const res = await api.delete(`/devices/${deviceId}`);
     return res.data;
   },

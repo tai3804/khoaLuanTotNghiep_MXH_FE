@@ -63,6 +63,24 @@ export const authorProfileCache: Record<string, { name: string; avatar: string }
 export const myFriendIdsMemoryCache = new Set<string>();
 export let cachedFriendsList: any[] = [];
 export let cachedPendingRequests: any[] = [];
+export let cachedSuggestedFriends: any[] = [];
+let lastFriendsFetchTime = 0;
+let lastPendingRequestsFetchTime = 0;
+let lastSuggestedFriendsFetchTime = 0;
+const FRIENDS_CACHE_TTL_MS = 60 * 1000; // 60s cache TTL
+
+let inFlightFriendsPromise: Promise<any[]> | null = null;
+let inFlightPendingRequestsPromise: Promise<any[]> | null = null;
+let inFlightSuggestedFriendsPromise: Promise<any[]> | null = null;
+
+export const clearFriendsCache = () => {
+  cachedFriendsList = [];
+  cachedPendingRequests = [];
+  cachedSuggestedFriends = [];
+  lastFriendsFetchTime = 0;
+  lastPendingRequestsFetchTime = 0;
+  lastSuggestedFriendsFetchTime = 0;
+};
 const authorProfilePendingMap = new Map<string, Promise<{ name: string; avatar: string } | null>>();
 
 export const fetchAuthorProfile = async (userId: string) => {
@@ -152,10 +170,35 @@ export const getStoredCurrentUserId = (): string => {
   return '';
 };
 
+let myProfileCache: any = null;
+let lastMyProfileFetchTime = 0;
+let inFlightMyProfilePromise: Promise<any> | null = null;
+const MY_PROFILE_CACHE_TTL_MS = 60_000;
+
+const inFlightBatchProfilesMap = new Map<string, Promise<Record<string, { name: string; avatar: string }>>>();
+
 export const userService = {
-  getMyProfile: async () => {
-    const res = await api.get('/users/profile/me');
-    return res.data?.data || res.data?.result || res.data;
+  getMyProfile: async (forceRefresh = false) => {
+    if (!forceRefresh && myProfileCache && Date.now() - lastMyProfileFetchTime < MY_PROFILE_CACHE_TTL_MS) {
+      return myProfileCache;
+    }
+    if (inFlightMyProfilePromise && !forceRefresh) {
+      return inFlightMyProfilePromise;
+    }
+
+    inFlightMyProfilePromise = (async () => {
+      try {
+        const res = await api.get('/users/profile/me');
+        const data = res.data?.data || res.data?.result || res.data;
+        myProfileCache = data;
+        lastMyProfileFetchTime = Date.now();
+        return data;
+      } finally {
+        inFlightMyProfilePromise = null;
+      }
+    })();
+
+    return inFlightMyProfilePromise;
   },
 
   getProfilesBatch: async (userIds: string[]): Promise<Record<string, { name: string; avatar: string }>> => {
@@ -163,32 +206,59 @@ export const userService = {
     const validIds = Array.from(new Set(userIds.filter((id) => Boolean(id && id !== 'me'))));
     if (validIds.length === 0) return {};
 
-    try {
-      const res = await api.post('/users/profile/batch', validIds);
-      const data = res.data?.data || res.data?.result || res.data || [];
-      const result: Record<string, { name: string; avatar: string }> = {};
+    const result: Record<string, { name: string; avatar: string }> = {};
+    const missingIds: string[] = [];
 
-      if (Array.isArray(data)) {
-        data.forEach((profile: any) => {
-          const uid = String(profile.userId || profile.id);
-          const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
-          let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
-          if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
-            if (profile.username) name = profile.username;
-            else if (profile.email) name = profile.email.split('@')[0];
-          }
-          if (!name) name = 'Thành viên KLTN';
-          const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
-          const cached = { name, avatar };
-          authorProfileCache[uid] = cached;
-          result[uid] = cached;
-        });
+    validIds.forEach((id) => {
+      if (authorProfileCache[id]) {
+        result[id] = authorProfileCache[id];
+      } else {
+        missingIds.push(id);
       }
+    });
+
+    if (missingIds.length === 0) {
       return result;
-    } catch (err) {
-      console.warn('[userService] Failed to batch load profiles:', err);
-      return {};
     }
+
+    const cacheKey = missingIds.slice().sort().join(',');
+    if (inFlightBatchProfilesMap.has(cacheKey)) {
+      const fetched = await inFlightBatchProfilesMap.get(cacheKey)!;
+      return { ...result, ...fetched };
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const res = await api.post('/users/profile/batch', missingIds);
+        const data = res.data?.data || res.data?.result || res.data || [];
+
+        if (Array.isArray(data)) {
+          data.forEach((profile: any) => {
+            const uid = String(profile.userId || profile.id);
+            const parts = [profile.lastName, profile.middleName, profile.firstName].filter(Boolean);
+            let name = profile.fullName || parts.join(' ').trim() || profile.name || profile.username;
+            if (!name || name === 'Người Dùng' || name === 'Người dùng' || name === 'Dùng Người') {
+              if (profile.username) name = profile.username;
+              else if (profile.email) name = profile.email.split('@')[0];
+            }
+            if (!name) name = 'Thành viên KLTN';
+            const avatar = profile.avatarUrl || profile.avatar || '/default-avatar.png';
+            const cached = { name, avatar };
+            authorProfileCache[uid] = cached;
+            result[uid] = cached;
+          });
+        }
+        return result;
+      } catch (err) {
+        console.warn('[userService] Failed to batch load profiles:', err);
+        return result;
+      } finally {
+        inFlightBatchProfilesMap.delete(cacheKey);
+      }
+    })();
+
+    inFlightBatchProfilesMap.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
   getUserProfile: async (userId: string) => {
     if (!userId || userId === 'me') {
@@ -224,11 +294,13 @@ export const userService = {
     location?: string;
     website?: string;
   }) => {
+    myProfileCache = null;
     const res = await api.put('/users/profile/me', data);
     return res.data?.data || res.data;
   },
 
   updateAvatar: async (avatarUrl: string) => {
+    myProfileCache = null;
     try {
       const res = await api.patch('/users/profile/avatar', { avatarUrl });
       return res.data?.data || res.data;
@@ -239,6 +311,7 @@ export const userService = {
   },
 
   updateCover: async (coverUrl: string) => {
+    myProfileCache = null;
     try {
       const res = await api.patch('/users/profile/cover', { coverUrl });
       return res.data?.data || res.data;
@@ -249,87 +322,109 @@ export const userService = {
   },
 
   updateProfile: async (data: any) => {
+    myProfileCache = null;
     const res = await api.put('/users/profile/me', data);
     return res.data?.data || res.data;
   },
 
-  getFriends: async (page = 0, size = 50) => {
-    try {
-      const res = await api.get('/users/connections/friends', { params: { page, size } });
-      const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
-      if (Array.isArray(data)) {
-        const currentUserId = getStoredCurrentUserId();
-        const friendIdSet = new Set<string>();
-
-        data.forEach((c: any) => {
-          const reqId = String(c.requesterId || '').toLowerCase().trim();
-          const tgtId = String(c.targetId || '').toLowerCase().trim();
-          const uId = String(c.userId || '').toLowerCase().trim();
-
-          let fid = '';
-          if (reqId && reqId === currentUserId && tgtId && tgtId !== currentUserId) {
-            fid = String(c.targetId);
-          } else if (tgtId && tgtId === currentUserId && reqId && reqId !== currentUserId) {
-            fid = String(c.requesterId);
-          } else if (uId && uId !== currentUserId) {
-            fid = String(c.userId);
-          } else if (tgtId && tgtId !== currentUserId) {
-            fid = String(c.targetId);
-          } else if (reqId && reqId !== currentUserId) {
-            fid = String(c.requesterId);
-          }
-
-          if (fid && fid.toLowerCase() !== currentUserId && fid !== 'undefined' && fid !== 'null') {
-            friendIdSet.add(fid);
-          }
-        });
-
-        const friendIds = Array.from(friendIdSet);
-        friendIds.forEach((id) => myFriendIdsMemoryCache.add(id.toLowerCase()));
-        data.forEach((c: any) => {
-          if (c.id) myFriendIdsMemoryCache.add(String(c.id).toLowerCase());
-          if (c.userId) myFriendIdsMemoryCache.add(String(c.userId).toLowerCase());
-          if (c.requesterId && String(c.requesterId).toLowerCase() !== currentUserId) {
-            myFriendIdsMemoryCache.add(String(c.requesterId).toLowerCase());
-          }
-          if (c.targetId && String(c.targetId).toLowerCase() !== currentUserId) {
-            myFriendIdsMemoryCache.add(String(c.targetId).toLowerCase());
-          }
-        });
-        try { localStorage.removeItem('my_friend_ids'); } catch {}
-
-        const missingFriendIds = friendIds.filter((id) => !authorProfileCache[id]);
-        if (missingFriendIds.length > 0) {
-          await userService.getProfilesBatch(missingFriendIds);
-        }
-
-        const friendsList = friendIds.map((fid) => {
-          const connection = data.find((item: any) =>
-            String(item.userId || '').toLowerCase() === fid.toLowerCase() ||
-            String(item.requesterId || '').toLowerCase() === fid.toLowerCase() ||
-            String(item.targetId || '').toLowerCase() === fid.toLowerCase()
-          ) || {};
-          const profile = authorProfileCache[fid];
-          const name = profile?.name || connection.name || connection.fullName || connection.username || 'Người dùng';
-          const avatar = profile?.avatar || connection.avatarUrl || connection.avatar || '/default-avatar.png';
-          return {
-            id: fid,
-            userId: fid,
-            connectionId: String(connection.id || connection.connectionId || fid),
-            name: name,
-            fullName: name,
-            avatar: avatar,
-            avatarUrl: avatar,
-            online: false,
-            createdAt: connection.createdAt,
-          };
-        });
-        return friendsList;
-      }
-      return [];
-    } catch {
-      return [];
+  getFriends: async (page = 0, size = 50, forceRefresh = false) => {
+    // 1. Dùng chung cache trong RAM nếu còn hạn và không ép refresh
+    if (!forceRefresh && page === 0 && lastFriendsFetchTime > 0 && Date.now() - lastFriendsFetchTime < FRIENDS_CACHE_TTL_MS) {
+      return cachedFriendsList;
     }
+
+    // 2. Tái sử dụng request đang bay (in-flight deduplication) để các component gọi cùng lúc không bắn nhiều request
+    if (inFlightFriendsPromise && !forceRefresh) {
+      return inFlightFriendsPromise;
+    }
+
+    inFlightFriendsPromise = (async () => {
+      try {
+        const res = await api.get('/users/connections/friends', { params: { page, size } });
+        const data = res.data?.data?.content || res.data?.data || res.data?.result || [];
+        if (Array.isArray(data)) {
+          const currentUserId = getStoredCurrentUserId();
+          const friendIdSet = new Set<string>();
+
+          data.forEach((c: any) => {
+            const reqId = String(c.requesterId || '').toLowerCase().trim();
+            const tgtId = String(c.targetId || '').toLowerCase().trim();
+            const uId = String(c.userId || '').toLowerCase().trim();
+
+            let fid = '';
+            if (reqId && reqId === currentUserId && tgtId && tgtId !== currentUserId) {
+              fid = String(c.targetId);
+            } else if (tgtId && tgtId === currentUserId && reqId && reqId !== currentUserId) {
+              fid = String(c.requesterId);
+            } else if (uId && uId !== currentUserId) {
+              fid = String(c.userId);
+            } else if (tgtId && tgtId !== currentUserId) {
+              fid = String(c.targetId);
+            } else if (reqId && reqId !== currentUserId) {
+              fid = String(c.requesterId);
+            }
+
+            if (fid && fid.toLowerCase() !== currentUserId && fid !== 'undefined' && fid !== 'null') {
+              friendIdSet.add(fid);
+            }
+          });
+
+          const friendIds = Array.from(friendIdSet);
+          friendIds.forEach((id) => myFriendIdsMemoryCache.add(id.toLowerCase()));
+          data.forEach((c: any) => {
+            if (c.id) myFriendIdsMemoryCache.add(String(c.id).toLowerCase());
+            if (c.userId) myFriendIdsMemoryCache.add(String(c.userId).toLowerCase());
+            if (c.requesterId && String(c.requesterId).toLowerCase() !== currentUserId) {
+              myFriendIdsMemoryCache.add(String(c.requesterId).toLowerCase());
+            }
+            if (c.targetId && String(c.targetId).toLowerCase() !== currentUserId) {
+              myFriendIdsMemoryCache.add(String(c.targetId).toLowerCase());
+            }
+          });
+          try { localStorage.removeItem('my_friend_ids'); } catch {}
+
+          const missingFriendIds = friendIds.filter((id) => !authorProfileCache[id]);
+          if (missingFriendIds.length > 0) {
+            await userService.getProfilesBatch(missingFriendIds);
+          }
+
+          const friendsList = friendIds.map((fid) => {
+            const connection = data.find((item: any) =>
+              String(item.userId || '').toLowerCase() === fid.toLowerCase() ||
+              String(item.requesterId || '').toLowerCase() === fid.toLowerCase() ||
+              String(item.targetId || '').toLowerCase() === fid.toLowerCase()
+            ) || {};
+            const profile = authorProfileCache[fid];
+            const name = profile?.name || connection.name || connection.fullName || connection.username || 'Người dùng';
+            const avatar = profile?.avatar || connection.avatarUrl || connection.avatar || '/default-avatar.png';
+            return {
+              id: fid,
+              userId: fid,
+              connectionId: String(connection.id || connection.connectionId || fid),
+              name: name,
+              fullName: name,
+              avatar: avatar,
+              avatarUrl: avatar,
+              online: false,
+              createdAt: connection.createdAt,
+            };
+          });
+
+          if (page === 0) {
+            cachedFriendsList = friendsList;
+            lastFriendsFetchTime = Date.now();
+          }
+          return friendsList;
+        }
+        return [];
+      } catch {
+        return [];
+      } finally {
+        inFlightFriendsPromise = null;
+      }
+    })();
+
+    return inFlightFriendsPromise;
   },
 
   getConnectionStatus: async (targetUserId: string) => {
@@ -456,114 +551,158 @@ export const userService = {
     }
   },
 
-  getPendingRequests: async (page = 0, size = 50) => {
-    try {
-      const res = await api.get('/users/connections/friend-requests/pending', { params: { page, size } });
-      const data = res.data?.data?.content || res.data?.data || [];
-      if (Array.isArray(data)) {
-        const requesterIds = Array.from(
-          new Set(data.map((c: any) => (c.requesterId ? String(c.requesterId) : null)).filter(Boolean))
-        ) as string[];
-
-        const missingReqIds = requesterIds.filter((id) => !authorProfileCache[id]);
-        if (missingReqIds.length > 0) {
-          await userService.getProfilesBatch(missingReqIds);
-        }
-
-        return data.map((c: any) => {
-          const reqId = String(c.requesterId || c.userId || c.id);
-          const profile = authorProfileCache[reqId];
-          return {
-            id: String(c.id),
-            requestId: String(c.id),
-            requesterId: reqId,
-            userId: reqId,
-            name: profile?.name || c.name || 'Người dùng',
-            avatar: profile?.avatar || c.avatar || '',
-            createdAt: c.createdAt,
-          };
-        });
-      }
-      return [];
-    } catch {
-      return [];
+  getPendingRequests: async (page = 0, size = 50, forceRefresh = false) => {
+    // 1. Dùng chung cache trong RAM nếu còn hạn và không ép refresh
+    if (!forceRefresh && page === 0 && lastPendingRequestsFetchTime > 0 && Date.now() - lastPendingRequestsFetchTime < FRIENDS_CACHE_TTL_MS) {
+      return cachedPendingRequests;
     }
+
+    // 2. Tái sử dụng request đang bay (in-flight deduplication)
+    if (inFlightPendingRequestsPromise && !forceRefresh) {
+      return inFlightPendingRequestsPromise;
+    }
+
+    inFlightPendingRequestsPromise = (async () => {
+      try {
+        const res = await api.get('/users/connections/friend-requests/pending', { params: { page, size } });
+        const data = res.data?.data?.content || res.data?.data || [];
+        if (Array.isArray(data)) {
+          const requesterIds = Array.from(
+            new Set(data.map((c: any) => (c.requesterId ? String(c.requesterId) : null)).filter(Boolean))
+          ) as string[];
+
+          const missingReqIds = requesterIds.filter((id) => !authorProfileCache[id]);
+          if (missingReqIds.length > 0) {
+            await userService.getProfilesBatch(missingReqIds);
+          }
+
+          const mapped = data.map((c: any) => {
+            const reqId = String(c.requesterId || c.userId || c.id);
+            const profile = authorProfileCache[reqId];
+            return {
+              id: String(c.id),
+              requestId: String(c.id),
+              requesterId: reqId,
+              userId: reqId,
+              name: profile?.name || c.name || 'Người dùng',
+              avatar: profile?.avatar || c.avatar || '',
+              createdAt: c.createdAt,
+            };
+          });
+
+          if (page === 0) {
+            cachedPendingRequests = mapped;
+            lastPendingRequestsFetchTime = Date.now();
+          }
+          return mapped;
+        }
+        return [];
+      } catch {
+        return [];
+      } finally {
+        inFlightPendingRequestsPromise = null;
+      }
+    })();
+
+    return inFlightPendingRequestsPromise;
   },
 
-  getSuggestedFriends: async () => {
-    try {
-      const currentUserId = getStoredCurrentUserId();
-      const myFriendIds = new Set<string>(myFriendIdsMemoryCache);
+  getSuggestedFriends: async (forceRefresh = false) => {
+    // 1. Dùng chung cache trong RAM nếu còn hạn và không ép refresh
+    if (!forceRefresh && lastSuggestedFriendsFetchTime > 0 && Date.now() - lastSuggestedFriendsFetchTime < FRIENDS_CACHE_TTL_MS) {
+      return cachedSuggestedFriends;
+    }
 
-      let data: any[] = [];
+    // 2. Tái sử dụng request đang bay (in-flight deduplication)
+    if (inFlightSuggestedFriendsPromise && !forceRefresh) {
+      return inFlightSuggestedFriendsPromise;
+    }
+
+    inFlightSuggestedFriendsPromise = (async () => {
       try {
-        // Ưu tiên lấy gợi ý bạn bè thông minh bằng AI Vector Semantic (dựa trên tiểu sử, chuyên môn tương đồng)
-        const aiRes = await api.get('/users/profile/recommended-similar', { params: { limit: 10 } });
-        const aiRaw = aiRes.data?.data || aiRes.data?.result || [];
-        if (Array.isArray(aiRaw) && aiRaw.length > 0) {
-          data = aiRaw;
-        }
-      } catch {}
+        const currentUserId = getStoredCurrentUserId();
+        const myFriendIds = new Set<string>(myFriendIdsMemoryCache);
 
-      if (!data || data.length === 0) {
+        let data: any[] = [];
         try {
-          const res = await api.get('/users/connections/suggestions');
-        const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
-        if (Array.isArray(raw)) {
-          data = raw;
-        }
-      } catch (err) {
-        console.warn('Backend suggestions endpoint warning:', err);
-      }
-      }
-
-      // Fallback: If backend suggestions array is empty, query search API to suggest active platform users
-      if (!data || data.length === 0) {
-        try {
-          const searchRes = await api.get('/users/profile/search', { params: { keyword: '', page: 1, size: 20 } });
-          const searchRaw = searchRes.data?.data?.content || searchRes.data?.data || searchRes.data?.result || [];
-          if (Array.isArray(searchRaw)) {
-            data = searchRaw;
+          // Ưu tiên lấy gợi ý bạn bè thông minh bằng AI Vector Semantic (dựa trên tiểu sử, chuyên môn tương đồng)
+          const aiRes = await api.get('/users/profile/recommended-similar', { params: { limit: 10 } });
+          const aiRaw = aiRes.data?.data || aiRes.data?.result || [];
+          if (Array.isArray(aiRaw) && aiRaw.length > 0) {
+            data = aiRaw;
           }
         } catch {}
-      }
 
-      if (Array.isArray(data) && data.length > 0) {
-        const seenIds = new Set<string>();
-        const uniqueSuggestions: any[] = [];
-
-        for (const s of data) {
-          const uid = String(s.userId || s.id || '').trim();
-          const uidLower = uid.toLowerCase();
-          if (!uid || uidLower === currentUserId || myFriendIds.has(uidLower) || seenIds.has(uidLower)) {
-            continue;
+        if (!data || data.length === 0) {
+          try {
+            const res = await api.get('/users/connections/suggestions');
+            const raw = res.data?.data?.content || res.data?.data || res.data?.result || [];
+            if (Array.isArray(raw)) {
+              data = raw;
+            }
+          } catch (err) {
+            console.warn('Backend suggestions endpoint warning:', err);
           }
-          seenIds.add(uidLower);
-
-          const nameParts = [s.lastName, s.middleName, s.firstName].filter(Boolean);
-          const name = s.fullName || (nameParts.length > 0 ? nameParts.join(' ').trim() : s.username) || 'Thành viên KLTN';
-          const avatar = s.avatarUrl || s.avatar || '/default-avatar.png';
-          const mutual = Number(s.mutualFriendsCount || 0);
-
-          uniqueSuggestions.push({
-            id: uid,
-            userId: uid,
-            name,
-            fullName: name,
-            avatar,
-            avatarUrl: avatar,
-            mutualFriendsCount: mutual,
-            // Lý do gợi ý do máy chủ chấm điểm (bạn chung, cùng nhóm, đang theo dõi...), đã sắp theo mức quan trọng
-            reasons: Array.isArray(s.reasons) ? s.reasons.map(String) : [],
-            bio: s.bio || '',
-          });
         }
-        return uniqueSuggestions;
+
+        // Fallback: If backend suggestions array is empty, query search API to suggest active platform users
+        if (!data || data.length === 0) {
+          try {
+            const searchRes = await api.get('/users/profile/search', { params: { keyword: '', page: 1, size: 20 } });
+            const searchRaw = searchRes.data?.data?.content || searchRes.data?.data || searchRes.data?.result || [];
+            if (Array.isArray(searchRaw)) {
+              data = searchRaw;
+            }
+          } catch {}
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          const seenIds = new Set<string>();
+          const uniqueSuggestions: any[] = [];
+
+          for (const s of data) {
+            const uid = String(s.userId || s.id || '').trim();
+            const uidLower = uid.toLowerCase();
+            if (!uid || uidLower === currentUserId || myFriendIds.has(uidLower) || seenIds.has(uidLower)) {
+              continue;
+            }
+            seenIds.add(uidLower);
+
+            const nameParts = [s.lastName, s.middleName, s.firstName].filter(Boolean);
+            const name = s.fullName || (nameParts.length > 0 ? nameParts.join(' ').trim() : s.username) || 'Thành viên KLTN';
+            const avatar = s.avatarUrl || s.avatar || '/default-avatar.png';
+            const mutual = Number(s.mutualFriendsCount || 0);
+
+            uniqueSuggestions.push({
+              id: uid,
+              userId: uid,
+              name,
+              fullName: name,
+              avatar,
+              avatarUrl: avatar,
+              mutualFriendsCount: mutual,
+              // Lý do gợi ý do máy chủ chấm điểm (bạn chung, cùng nhóm, đang theo dõi...), đã sắp theo mức quan trọng
+              reasons: Array.isArray(s.reasons) ? s.reasons.map(String) : [],
+              bio: s.bio || '',
+            });
+          }
+
+          cachedSuggestedFriends = uniqueSuggestions;
+          lastSuggestedFriendsFetchTime = Date.now();
+          return uniqueSuggestions;
+        }
+
+        cachedSuggestedFriends = [];
+        lastSuggestedFriendsFetchTime = Date.now();
+        return [];
+      } catch {
+        return [];
+      } finally {
+        inFlightSuggestedFriendsPromise = null;
       }
-      return [];
-    } catch {
-      return [];
-    }
+    })();
+
+    return inFlightSuggestedFriendsPromise;
   },
 
   getMutualFriends: async (targetId: string, page = 0, size = 20) => {
@@ -601,26 +740,31 @@ export const userService = {
       if (err.message?.includes('chính mình')) throw err;
     }
     const res = await api.post(`/users/connections/friend-requests/${targetId}`);
+    clearFriendsCache();
     return res.data;
   },
 
   acceptFriendRequest: async (requestId: string) => {
     const res = await api.post(`/users/connections/friend-requests/${requestId}/accept`);
+    clearFriendsCache();
     return res.data;
   },
 
   rejectFriendRequest: async (requestId: string) => {
     const res = await api.post(`/users/connections/friend-requests/${requestId}/reject`);
+    clearFriendsCache();
     return res.data;
   },
 
   unfriend: async (friendId: string) => {
     const res = await api.delete(`/users/connections/friends/${friendId}`);
+    clearFriendsCache();
     return res.data;
   },
 
   cancelFriendRequest: async (targetId: string) => {
     const res = await api.delete(`/users/connections/friends/${targetId}`);
+    clearFriendsCache();
     return res.data;
   },
 

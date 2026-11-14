@@ -220,6 +220,19 @@ const pickGroup = (response: any): GroupResponse | null => {
   return data?.id ? mapGroupForCurrentUser(data) : null;
 };
 
+const inFlightGroups = new Map<string, Promise<GroupPage>>();
+const groupsCache = new Map<string, { data: GroupPage; timestamp: number }>();
+const GROUPS_CACHE_TTL_MS = 25_000;
+
+export const clearGroupsCache = () => {
+  groupsCache.clear();
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('community_group_updated', clearGroupsCache);
+  window.addEventListener('community_group_created', clearGroupsCache);
+}
+
 export const groupService = {
   createGroup: async (request: CreateGroupRequest): Promise<GroupResponse> => {
     const validInitialMemberIds = (request.initialMemberIds || []).filter(isUuid);
@@ -244,20 +257,43 @@ export const groupService = {
 
   /**
    * Danh sách nhóm có phân trang (page từ 1) và tìm kiếm ở server (không phân biệt dấu).
-   * Ném lỗi khi gọi thất bại để giao diện hiện đúng trạng thái lỗi thay vì "chưa có nhóm nào".
+   * Hỗ trợ in-flight deduplication và RAM cache để không bắn trùng request khi nhiều widget mount cùng lúc.
    */
   getGroups: async (options: { scope?: GroupScope; keyword?: string; page?: number; size?: number } = {}): Promise<GroupPage> => {
     const { scope = 'all', keyword = '', page = 1, size = 12 } = options;
-    const response = await api.get('/groups', { params: { scope, keyword: keyword.trim() || undefined, page, size } });
-    const body = response.data;
-    const data = Array.isArray(body?.data) ? body.data : [];
-    return {
-      groups: data.map(mapGroupForCurrentUser),
-      page: Number(body?.page ?? page),
-      totalPages: Number(body?.totalPages ?? 1),
-      totalElements: Number(body?.totalElements ?? data.length),
-      last: Boolean(body?.last ?? true),
-    };
+    const cleanKeyword = keyword.trim();
+    const cacheKey = `${scope}:${cleanKeyword}:${page}:${size}`;
+
+    const cached = groupsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < GROUPS_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    if (inFlightGroups.has(cacheKey)) {
+      return inFlightGroups.get(cacheKey)!;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const response = await api.get('/groups', { params: { scope, keyword: cleanKeyword || undefined, page, size } });
+        const body = response.data;
+        const data = Array.isArray(body?.data) ? body.data : [];
+        const result: GroupPage = {
+          groups: data.map(mapGroupForCurrentUser),
+          page: Number(body?.page ?? page),
+          totalPages: Number(body?.totalPages ?? 1),
+          totalElements: Number(body?.totalElements ?? data.length),
+          last: Boolean(body?.last ?? true),
+        };
+        groupsCache.set(cacheKey, { data: result, timestamp: Date.now() });
+        return result;
+      } finally {
+        inFlightGroups.delete(cacheKey);
+      }
+    })();
+
+    inFlightGroups.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
 
   /** Trả về null khi nhóm không tồn tại (404); các lỗi khác (mạng, server) được ném ra. */

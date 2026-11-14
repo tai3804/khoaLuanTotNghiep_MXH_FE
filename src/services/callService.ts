@@ -73,31 +73,40 @@ export interface WebRtcSignal {
   timestamp?: string;
 }
 
+let inFlightActiveCall: Promise<CallSession | null> | null = null;
+let activeCallCache: { data: CallSession | null; timestamp: number } | null = null;
+const ACTIVE_CALL_TTL_MS = 5000;
+
 export const callService = {
   // Initiate a new 1-1 or group call
   async initiateCall(request: InitiateCallRequest): Promise<CallSession> {
+    activeCallCache = null;
     const response = await api.post('/calls/initiate', request);
     return response.data?.data || response.data;
   },
 
   // Join an ongoing call session
   async joinCall(callSessionId: string): Promise<CallSession> {
+    activeCallCache = null;
     const response = await api.post(`/calls/${callSessionId}/join`);
     return response.data?.data || response.data;
   },
 
   // Reject / decline an incoming call
   async rejectCall(callSessionId: string, missed = false): Promise<void> {
+    activeCallCache = null;
     await api.post(`/calls/${callSessionId}/reject`, null, { params: missed ? { missed: true } : undefined });
   },
 
   // Leave active call session
   async leaveCall(callSessionId: string): Promise<void> {
+    activeCallCache = null;
     await api.post(`/calls/${callSessionId}/leave`);
   },
 
   // End call for all (host only)
   async endCall(callSessionId: string): Promise<void> {
+    activeCallCache = null;
     await api.post(`/calls/${callSessionId}/end`);
   },
 
@@ -108,12 +117,25 @@ export const callService = {
 
   // Get current active call session of current user
   async getActiveCall(): Promise<CallSession | null> {
-    try {
-      const response = await api.get('/calls/active');
-      return response.data?.data || response.data;
-    } catch {
-      return null;
+    if (activeCallCache && Date.now() - activeCallCache.timestamp < ACTIVE_CALL_TTL_MS) {
+      return activeCallCache.data;
     }
+    if (inFlightActiveCall) {
+      return inFlightActiveCall;
+    }
+    inFlightActiveCall = (async () => {
+      try {
+        const response = await api.get('/calls/active');
+        const data = response.data?.data || response.data || null;
+        activeCallCache = { data, timestamp: Date.now() };
+        return data;
+      } catch {
+        return null;
+      } finally {
+        inFlightActiveCall = null;
+      }
+    })();
+    return inFlightActiveCall;
   },
 
   // Get call session by ID

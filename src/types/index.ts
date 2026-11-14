@@ -114,6 +114,9 @@ export interface Post {
   sharesCount: number;
   viewsCount?: number;
   isLiked?: boolean;
+  myReaction?: string;
+  topReactionTypes?: string[];
+  previewComments?: Comment[];
   isSaved?: boolean;
   isPinned?: boolean;
   /** Bài đang được quản trị viên ghim đầu trang của nhóm (khác isPinned: ghim trên trang cá nhân). */

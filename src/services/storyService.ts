@@ -56,57 +56,81 @@ export interface StoryViewerItem {
   viewerAvatar?: string;
 }
 
+let storiesCache: UserStories[] | null = null;
+let lastStoriesFetchTime = 0;
+let inFlightStoriesPromise: Promise<UserStories[]> | null = null;
+const STORIES_CACHE_TTL_MS = 15_000;
+
 export const storyService = {
-  getStories: async (): Promise<UserStories[]> => {
+  getStories: async (forceRefresh = false): Promise<UserStories[]> => {
     const token = store.getState().auth.accessToken;
     if (!token) return [];
-    try {
-      const res = await api.get('/stories');
-      const data = res.data?.data || res.data?.result || [];
-      if (Array.isArray(data)) {
-        const now = Date.now();
-        const enriched = await Promise.all(
-          data.map(async (u: any) => {
-            const uid = String(u.userId);
-            let profile = authorProfileCache[uid];
-            if (!profile || profile.name === 'Thành viên KLTN' || profile.name === 'Người dùng') {
-              profile = (await fetchAuthorProfile(uid)) || profile;
-            }
 
-            // Facebook Rule: Stories strictly expire after 24 hours
-            const activeStories = (u.stories || []).filter((s: any) => {
-              if (s.isArchived || s.isDeleted) return false;
-              if (s.expiresAt) {
-                return new Date(s.expiresAt).getTime() > now;
-              }
-              if (s.createdAt) {
-                return now - new Date(s.createdAt).getTime() < 24 * 60 * 60 * 1000;
-              }
-              return true;
-            });
-
-            return {
-              ...u,
-              userId: uid,
-              fullName: profile?.name || u.fullName || u.username || 'Người dùng',
-              avatarUrl: profile?.avatar || u.avatarUrl || '/default-avatar.png',
-              stories: activeStories.map((s: any) => ({
-                ...s,
-                id: String(s.id),
-                userId: String(s.userId || uid),
-                viewCount: Number(s.viewsCount ?? s.viewCount ?? 0),
-                viewsCount: Number(s.viewsCount ?? s.viewCount ?? 0),
-              })),
-            };
-          })
-        );
-        // Exclude users who don't have any active stories currently within the 24h window
-        return enriched.filter((u) => u.stories.length > 0);
-      }
-      return [];
-    } catch {
-      return [];
+    if (!forceRefresh && storiesCache && Date.now() - lastStoriesFetchTime < STORIES_CACHE_TTL_MS) {
+      return storiesCache;
     }
+    if (inFlightStoriesPromise && !forceRefresh) {
+      return inFlightStoriesPromise;
+    }
+
+    inFlightStoriesPromise = (async () => {
+      try {
+        const res = await api.get('/stories');
+        const data = res.data?.data || res.data?.result || [];
+        if (Array.isArray(data)) {
+          const now = Date.now();
+          const enriched = await Promise.all(
+            data.map(async (u: any) => {
+              const uid = String(u.userId);
+              let profile = authorProfileCache[uid];
+              if (!profile || profile.name === 'Thành viên KLTN' || profile.name === 'Người dùng') {
+                profile = (await fetchAuthorProfile(uid)) || profile;
+              }
+
+              // Facebook Rule: Stories strictly expire after 24 hours
+              const activeStories = (u.stories || []).filter((s: any) => {
+                if (s.isArchived || s.isDeleted) return false;
+                if (s.expiresAt) {
+                  return new Date(s.expiresAt).getTime() > now;
+                }
+                if (s.createdAt) {
+                  return now - new Date(s.createdAt).getTime() < 24 * 60 * 60 * 1000;
+                }
+                return true;
+              });
+
+              return {
+                ...u,
+                userId: uid,
+                fullName: profile?.name || u.fullName || u.username || 'Người dùng',
+                avatarUrl: profile?.avatar || u.avatarUrl || '/default-avatar.png',
+                stories: activeStories.map((s: any) => ({
+                  ...s,
+                  id: String(s.id),
+                  userId: String(s.userId || uid),
+                  viewCount: Number(s.viewsCount ?? s.viewCount ?? 0),
+                  viewsCount: Number(s.viewsCount ?? s.viewCount ?? 0),
+                })),
+              };
+            })
+          );
+          // Exclude users who don't have any active stories currently within the 24h window
+          const result = enriched.filter((u) => u.stories.length > 0);
+          storiesCache = result;
+          lastStoriesFetchTime = Date.now();
+          return result;
+        }
+        storiesCache = [];
+        lastStoriesFetchTime = Date.now();
+        return [];
+      } catch {
+        return [];
+      } finally {
+        inFlightStoriesPromise = null;
+      }
+    })();
+
+    return inFlightStoriesPromise;
   },
   getStoryArchive: async (page = 1, size = 20): Promise<{ content: StoryItem[]; totalPages: number; totalElements: number }> => {
     try {

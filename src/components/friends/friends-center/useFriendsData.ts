@@ -4,7 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { userService } from '../../../services/api';
-import { cachedFriendsList, cachedPendingRequests } from '../../../services/userService';
+import { cachedFriendsList, cachedPendingRequests, cachedSuggestedFriends } from '../../../services/userService';
 
 export const useFriendsData = () => {
   const { user: currentUser, isAuthenticated, openLoginModal } = useAuth();
@@ -14,7 +14,7 @@ export const useFriendsData = () => {
 
   const [activeTab, setActiveTab] = useState<'home' | 'requests' | 'suggestions' | 'friends' | 'followers' | 'following'>('friends');
   const [friends, setFriends] = useState<any[]>(() => cachedFriendsList);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>(() => cachedSuggestedFriends);
   const [requests, setRequests] = useState<any[]>(() => cachedPendingRequests);
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
@@ -29,16 +29,14 @@ export const useFriendsData = () => {
   const [sendingRequest, setSendingRequest] = useState(false);
 
   // Load initial counts & active tab data
-  const loadAllData = async (silent = false) => {
+  const loadAllData = async (silent = false, forceRefresh = false) => {
     if (!isAuthenticated) return;
     if (!silent) setLoading(true);
     try {
-      const [fData, sData, rData, foData, fgData] = await Promise.all([
-        userService.getFriends().catch(() => []),
-        userService.getSuggestedFriends().catch(() => []),
-        userService.getPendingRequests().catch(() => []),
-        userService.getFollowers().catch(() => []),
-        userService.getFollowing().catch(() => []),
+      const [fData, sData, rData] = await Promise.all([
+        userService.getFriends(0, 50, forceRefresh).catch(() => []),
+        userService.getSuggestedFriends(forceRefresh).catch(() => []),
+        userService.getPendingRequests(0, 50, forceRefresh).catch(() => []),
       ]);
       const seenFriend = new Set<string>();
       const cleanFriends = (Array.isArray(fData) ? fData : []).filter((f: any) => {
@@ -71,8 +69,6 @@ export const useFriendsData = () => {
       setFriends(cleanFriends);
       setSuggestions(cleanSuggestions);
       setRequests(cleanRequests);
-      setFollowers(Array.isArray(foData) ? foData : []);
-      setFollowing(Array.isArray(fgData) ? fgData : []);
     } catch (e) {
       if (!silent) console.error('Error loading friends center data:', e);
     } finally {
@@ -81,17 +77,17 @@ export const useFriendsData = () => {
   };
 
   useEffect(() => {
-    loadAllData(false);
+    loadAllData(false, false);
 
     const handleFriendStatusUpdated = () => {
-      loadAllData(true);
+      loadAllData(true, true);
     };
     window.addEventListener('friend_status_updated', handleFriendStatusUpdated);
 
     return () => {
       window.removeEventListener('friend_status_updated', handleFriendStatusUpdated);
     };
-  }, [isAuthenticated, activeTab]);
+  }, [isAuthenticated]);
 
   // Handle Accept friend request
   const handleAcceptRequest = async (item: any) => {
