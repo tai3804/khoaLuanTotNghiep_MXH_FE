@@ -2,11 +2,13 @@ import { api } from './axiosClient';
 import { Post, Comment, PostInsights } from '../types';
 import { authorProfileCache, fetchAuthorProfile } from './userService';
 import { groupMetaCache, fetchGroupMeta } from './groupService';
+import { dedupeInFlight } from '../utils/inFlight';
 
 export const savedPostStatusCache: Record<string, boolean> = {};
 const inFlightSavedStatus = new Map<string, Promise<boolean>>();
 const inFlightReactions = new Map<string, Promise<any[]>>();
 const inFlightComments = new Map<string, Promise<Comment[]>>();
+const inFlightPostSearch = new Map<string, Promise<Post[]>>();
 
 export const normalizePost = (p: any): Post => {
   const rawMediaUrls: string[] = [];
@@ -1104,22 +1106,25 @@ export const postService = {
     return fetchPromise;
   },
 
-  searchPosts: async (query: string, page = 1, size = 20): Promise<Post[]> => {
-    if (!query.trim()) return [];
-    try {
-      const res = await api.get('/posts/search', { params: { query, page, size } });
-      const raw = Array.isArray(res.data?.data)
-        ? res.data.data
-        : (res.data?.data?.content || res.data?.result || res.data || []);
-      if (Array.isArray(raw) && raw.length > 0) {
-        const authorIds = Array.from(new Set(raw.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
-        Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
-        return raw.map(normalizePost);
+  searchPosts: (query: string, page = 1, size = 20): Promise<Post[]> => {
+    if (!query.trim()) return Promise.resolve([]);
+    // Tìm bài viết là phép tìm ngữ nghĩa tốn lượt gọi AI: cùng từ khoá đang tìm dở thì dùng chung một request
+    return dedupeInFlight(inFlightPostSearch, `${query}|${page}|${size}`, async () => {
+      try {
+        const res = await api.get('/posts/search', { params: { query, page, size } });
+        const raw = Array.isArray(res.data?.data)
+          ? res.data.data
+          : (res.data?.data?.content || res.data?.result || res.data || []);
+        if (Array.isArray(raw) && raw.length > 0) {
+          const authorIds = Array.from(new Set(raw.map((p: any) => (p.authorId ? String(p.authorId) : null)).filter(Boolean))) as string[];
+          Promise.all(authorIds.map((id) => fetchAuthorProfile(id))).catch(() => {});
+          return raw.map(normalizePost);
+        }
+        return [];
+      } catch {
+        return [];
       }
-      return [];
-    } catch {
-      return [];
-    }
+    });
   },
 
   getPostsByHashtag: async (hashtag: string, page = 0, size = 20): Promise<PagedPostsResponse> => {

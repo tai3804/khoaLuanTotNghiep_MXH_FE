@@ -1,8 +1,8 @@
-import React, { RefObject } from 'react';
-import { Search, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { RefObject, useEffect, useMemo, useState } from 'react';
+import { Hash, History, Search, X } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Logo } from '../../common/Logo';
-import { TimeAgo } from '../../common/TimeAgo';
+import { readSearchHistory, removeSearchHistoryItem } from '../../../utils/searchHistory';
 
 interface HeaderBrandSearchProps {
   searchRef: RefObject<HTMLDivElement | null>;
@@ -10,188 +10,189 @@ interface HeaderBrandSearchProps {
   setSearchQuery: (query: string) => void;
   showSearchResults: boolean;
   setShowSearchResults: (show: boolean) => void;
-  searching: boolean;
-  searchResults: { users: any[]; posts: any[]; groups?: any[] };
   language: string;
   t: (key: string) => string;
   onNavClick: (tab: string) => void;
-  onNavigateProfile?: (userId?: string) => void;
-  onTabChange?: (tab: string) => void;
 }
 
+const MAX_SUGGESTIONS = 6;
+const LISTBOX_ID = 'header-search-suggestions';
+
+/**
+ * Ô tìm kiếm ở header. Không gọi API trong lúc gõ: tìm kiếm chạy một lần khi người dùng gõ xong và bấm Enter (hoặc chọn một gợi ý),
+ * vì mỗi lần tìm là nhiều request và tốn lượt gọi mô hình AI. Khi gõ chỉ hiện lịch sử tìm kiếm khớp với chữ đang gõ.
+ */
 export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
   searchRef,
   searchQuery,
   setSearchQuery,
   showSearchResults,
   setShowSearchResults,
-  searching,
-  searchResults,
   language,
   t,
   onNavClick,
-  onNavigateProfile,
-  onTabChange,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const [history, setHistory] = useState<string[]>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const en = language === 'en';
 
-  const handleSearchSubmit = () => {
-    if (searchQuery.trim()) {
+  // Đang ở trang kết quả thì giữ từ khoá hiện tại trong ô tìm kiếm (tải lại trang, quay lại, bấm một mục lịch sử).
+  const urlQuery = location.pathname === '/search' ? searchParams.get('q') || '' : null;
+  useEffect(() => {
+    if (urlQuery !== null) setSearchQuery(urlQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlQuery]);
+
+  const openSuggestions = () => {
+    setHistory(readSearchHistory());
+    setActiveIndex(-1);
+    setShowSearchResults(true);
+  };
+
+  const typed = searchQuery.trim();
+  const suggestions = useMemo(() => {
+    const needle = typed.toLocaleLowerCase();
+    return history
+      .filter((item) => item.toLocaleLowerCase() !== needle && (!needle || item.toLocaleLowerCase().includes(needle)))
+      .slice(0, MAX_SUGGESTIONS);
+  }, [history, typed]);
+
+  // Dòng đầu (khi đã gõ) là "tìm cụm đang gõ", các dòng sau là gợi ý từ lịch sử.
+  const rows: string[] = typed ? [typed, ...suggestions] : suggestions;
+
+  const runSearch = (keyword: string) => {
+    const value = keyword.trim();
+    if (!value) return;
+    setSearchQuery(value);
+    setShowSearchResults(false);
+    setActiveIndex(-1);
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    navigate(`/search?q=${encodeURIComponent(value)}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Đang gõ dở bằng bộ gõ (IME) thì Enter là để chốt chữ, chưa phải gửi tìm kiếm.
+    if (e.nativeEvent.isComposing) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runSearch(activeIndex >= 0 && rows[activeIndex] ? rows[activeIndex] : searchQuery);
+    } else if (e.key === 'Escape') {
       setShowSearchResults(false);
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setActiveIndex(-1);
+    } else if (e.key === 'ArrowDown' && rows.length > 0) {
+      e.preventDefault();
+      if (!showSearchResults) openSuggestions();
+      setActiveIndex((i) => (i + 1) % rows.length);
+    } else if (e.key === 'ArrowUp' && rows.length > 0) {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? rows.length - 1 : i - 1));
     }
   };
+
+  const forgetItem = (item: string) => {
+    setHistory(removeSearchHistoryItem(item));
+    setActiveIndex(-1);
+  };
+
+  const hasDropdown = showSearchResults && rows.length > 0;
 
   return (
     <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
       <Logo onClick={() => onNavClick('home')} size="sm" className="max-sm:[&>*:nth-child(2)]:hidden" />
 
       <div ref={searchRef} className="relative">
-        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500 dark:text-[#b0b3b8]" />
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500 dark:text-[#b0b3b8] pointer-events-none" />
         <input
           type="text"
+          role="combobox"
+          aria-label={t('nav.search') || 'Tìm kiếm'}
+          aria-expanded={hasDropdown}
+          aria-controls={LISTBOX_ID}
+          aria-autocomplete="list"
+          aria-activedescendant={hasDropdown && activeIndex >= 0 ? `${LISTBOX_ID}-${activeIndex}` : undefined}
+          enterKeyHint="search"
+          autoComplete="off"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onFocus={() => searchQuery.trim() && setShowSearchResults(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleSearchSubmit();
-            }
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (!showSearchResults) openSuggestions();
+            setActiveIndex(-1);
           }}
+          onFocus={openSuggestions}
+          onKeyDown={handleKeyDown}
           placeholder={t('nav.search') || 'Tìm kiếm...'}
           className="w-20 xs:w-28 sm:w-36 md:w-36 lg:w-56 xl:w-60 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] focus:w-36 sm:focus:w-44 md:focus:w-48 lg:focus:w-64 transition-all duration-200"
         />
 
-        {/* Search Dropdown Popover */}
-        {showSearchResults && (
-          <div className="absolute top-12 left-0 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto">
-            <div className="p-3 border-b border-gray-100 dark:border-[#393a3b] flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-500 dark:text-[#b0b3b8] uppercase tracking-wider">{t('search.results')}</span>
-              <button
-                onClick={() => setShowSearchResults(false)}
-                className="text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-              >
-                {t('search.close')}
-              </button>
-            </div>
-
-            {searching ? (
-              <div className="py-6 text-center text-xs text-gray-400 dark:text-[#b0b3b8] flex items-center justify-center space-x-2">
-                <div className="w-4 h-4 border-2 border-[#1877f2] border-t-transparent rounded-full animate-spin" />
-                <span>{t('search.searching')}</span>
-              </div>
-            ) : searchResults.users.length === 0 && searchResults.posts.length === 0 && (!searchResults.groups || searchResults.groups.length === 0) ? (
-              <div className="py-6 text-center text-xs text-gray-400 dark:text-[#b0b3b8]">{t('search.noResults')}</div>
-            ) : (
-              <div className="divide-y divide-gray-100 dark:divide-[#393a3b]">
-                {/* Users results */}
-                {searchResults.users.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <div className="px-2 text-[11px] font-bold text-[#1877f2] dark:text-[#2d88ff]">{t('search.people')}</div>
-                    {searchResults.users.map((u: any) => {
-                      const uid = String(u.userId || u.id);
-                      const name = [u.lastName, u.middleName, u.firstName].filter(Boolean).join(' ').trim() || u.fullName || u.username || (language === 'en' ? 'User' : 'Người dùng');
-                      const avatar = u.avatarUrl || u.avatar || '/default-avatar.png';
-
-                      return (
-                        <div
-                          key={uid}
-                          onClick={() => {
-                            setShowSearchResults(false);
-                            if (onNavigateProfile) onNavigateProfile(uid);
-                          }}
-                          className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition"
-                        >
-                          <img src={avatar} alt={name} className="w-9 h-9 rounded-full object-cover shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] truncate">{name}</p>
-                            <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">@{u.username || 'user'}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Groups results */}
-                {searchResults.groups && searchResults.groups.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <div className="px-2 text-[11px] font-bold text-[#1877f2] dark:text-[#2d88ff]">
-                      {language === 'en' ? 'Groups' : 'Nhóm'}
-                    </div>
-                    {searchResults.groups.map((g: any) => {
-                      const cover = typeof g.coverUrl === 'string' && g.coverUrl.trim() && !g.coverUrl.includes('images.unsplash.com/photo-1522071820081')
-                        ? g.coverUrl.trim()
-                        : (typeof g.coverPhoto === 'string' && g.coverPhoto.trim() && !g.coverPhoto.includes('images.unsplash.com/photo-1522071820081') ? g.coverPhoto.trim() : undefined);
-                      return (
-                        <div
-                          key={g.id}
-                          onClick={() => {
-                            setShowSearchResults(false);
-                            navigate(`/groups/${g.id}`);
-                          }}
-                          className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition"
-                        >
-                          <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#3a3b3c] flex items-center justify-center shrink-0 border border-gray-200/80 dark:border-[#393a3b]">
-                            {cover ? (
-                              <img
-                                src={cover}
-                                alt={g.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <Users className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] truncate">{g.name}</p>
-                            <p className="text-[11px] text-gray-500 dark:text-[#b0b3b8] truncate">
-                              {g.privacy === 'PRIVATE' ? (language === 'en' ? 'Private group' : 'Nhóm riêng tư') : (language === 'en' ? 'Public group' : 'Nhóm công khai')} • {g.memberCount || 1} {language === 'en' ? 'members' : 'thành viên'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Posts results */}
-                {searchResults.posts.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <div className="px-2 text-[11px] font-bold text-[#1877f2] dark:text-[#2d88ff]">{t('search.posts')}</div>
-                    {searchResults.posts.map((p: any) => (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          setShowSearchResults(false);
-                          if (onTabChange) onTabChange('home');
-                        }}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl cursor-pointer transition"
-                      >
-                        <p className="text-xs font-medium text-gray-800 dark:text-[#e4e6eb] line-clamp-2">{p.content}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-[#b0b3b8] mt-1">{p.authorName || (language === 'en' ? 'Member' : 'Thành viên')} • <TimeAgo iso={p.createdAtRaw} fallback={p.createdAt} /></p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Full Search Link */}
-                {searchQuery.trim() && (
-                  <div 
-                    className="p-3 hover:bg-gray-50 dark:hover:bg-[#3a3b3c] cursor-pointer transition flex items-center space-x-3"
-                    onClick={handleSearchSubmit}
-                  >
-                    <div className="w-9 h-9 rounded-full bg-[#1877f2] flex items-center justify-center text-white shrink-0">
-                      <Search className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-semibold text-[#1877f2] dark:text-[#2d88ff]">
-                      Tìm kiếm kết quả cho "{searchQuery}"
-                    </span>
-                  </div>
-                )}
+        {hasDropdown && (
+          <div
+            id={LISTBOX_ID}
+            role="listbox"
+            className="absolute top-12 left-0 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto"
+          >
+            {!typed && (
+              <div className="px-4 pt-3 pb-1 text-xs font-bold text-gray-500 dark:text-[#b0b3b8] uppercase tracking-wider">
+                {en ? 'Recent searches' : 'Tìm kiếm gần đây'}
               </div>
             )}
+
+            <div className="p-2 space-y-0.5">
+              {rows.map((item, index) => {
+                const isRunNow = Boolean(typed) && index === 0;
+                const active = index === activeIndex;
+                return (
+                  <div
+                    key={`${index}-${item}`}
+                    id={`${LISTBOX_ID}-${index}`}
+                    role="option"
+                    aria-selected={active}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => runSearch(item)}
+                    className={`group flex items-center gap-3 px-2 py-2 rounded-xl cursor-pointer transition-colors ${
+                      active ? 'bg-gray-100 dark:bg-[#3a3b3c]' : 'hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                        isRunNow ? 'bg-[#1877f2] text-white' : 'bg-gray-200 dark:bg-[#3a3b3c] text-gray-600 dark:text-[#b0b3b8]'
+                      }`}
+                    >
+                      {isRunNow ? <Search className="w-4 h-4" /> : item.startsWith('#') ? <Hash className="w-4 h-4" /> : <History className="w-4 h-4" />}
+                    </div>
+                    <span
+                      className={`min-w-0 flex-1 truncate text-sm ${
+                        isRunNow ? 'font-semibold text-[#1877f2] dark:text-[#2d88ff]' : 'text-gray-800 dark:text-[#e4e6eb]'
+                      }`}
+                    >
+                      {isRunNow ? (en ? `Search for "${item}"` : `Tìm kiếm "${item}"`) : item}
+                    </span>
+                    {isRunNow ? (
+                      <kbd className="hidden sm:inline text-[10px] font-semibold text-gray-400 dark:text-[#b0b3b8] border border-gray-200 dark:border-[#4e4f50] rounded px-1.5 py-0.5">
+                        Enter
+                      </kbd>
+                    ) : (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          forgetItem(item);
+                        }}
+                        aria-label={en ? `Remove "${item}" from history` : `Xóa "${item}" khỏi lịch sử`}
+                        className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-[#4e4f50] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

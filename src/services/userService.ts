@@ -1,5 +1,8 @@
 import { api } from './axiosClient';
 import { store } from '../store/store';
+import { dedupeInFlight } from '../utils/inFlight';
+
+const inFlightUserSearch = new Map<string, Promise<any[]>>();
 
 /** Quyền hạn / mức phạt của một bậc uy tín. */
 export interface ReputationTier {
@@ -715,16 +718,19 @@ export const userService = {
     }
   },
 
-  searchUsers: async (keyword: string, page = 1, size = 20) => {
-    if (!keyword.trim()) return [];
-    try {
-      const res = await api.get('/users/profile/search', { params: { keyword, page, size } });
-      const raw = res.data?.data;
-      const data = Array.isArray(raw) ? raw : (raw?.content || res.data?.result || []);
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
-    }
+  searchUsers: (keyword: string, page = 1, size = 20): Promise<any[]> => {
+    if (!keyword.trim()) return Promise.resolve([]);
+    // Cùng từ khoá đang tìm dở thì dùng chung một request (StrictMode chạy effect hai lần, bấm Enter hai lần...)
+    return dedupeInFlight(inFlightUserSearch, `${keyword}|${page}|${size}`, async () => {
+      try {
+        const res = await api.get('/users/profile/search', { params: { keyword, page, size } });
+        const raw = res.data?.data;
+        const data = Array.isArray(raw) ? raw : (raw?.content || res.data?.result || []);
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    });
   },
 
   sendFriendRequest: async (targetId: string) => {

@@ -4,7 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../context/NotificationContext';
 import { useChat } from '../../../context/ChatContext';
-import { userService, postService, groupService } from '../../../services/api';
+import { userService } from '../../../services/api';
 import { ChatUser } from '../../../components/chat/chat-box';
 
 interface UseHeaderDataProps {
@@ -19,8 +19,6 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
   const { unreadCount } = useNotification();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[]; groups: any[] }>({ users: [], posts: [], groups: [] });
-  const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showMsgMenu, setShowMsgMenu] = useState(false);
@@ -64,37 +62,9 @@ export const useHeaderData = ({ onTabChange }: UseHeaderDataProps) => {
     };
   }, []);
 
-  // Search API effect with debounce
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults({ users: [], posts: [], groups: [] });
-      setShowSearchResults(false);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      setShowSearchResults(true);
-      try {
-        const [users, posts, groups] = await Promise.all([
-          userService.searchUsers(searchQuery.trim()).catch(() => []),
-          postService.searchPosts ? postService.searchPosts(searchQuery.trim()).catch(() => []) : Promise.resolve([]),
-          groupService.searchGroups(searchQuery.trim()).catch(() => []),
-        ]);
-        setSearchResults({
-          users: Array.isArray(users) ? users : [],
-          posts: Array.isArray(posts) ? posts : [],
-          groups: Array.isArray(groups) ? groups : [],
-        });
-      } catch {
-        setSearchResults({ users: [], posts: [], groups: [] });
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // Ô tìm kiếm chính không gọi API khi đang gõ: chỉ tìm khi gõ xong và bấm Enter (xem HeaderBrandSearch).
 
-  // Messenger search API effect with debounce
+  // Messenger search API effect with debounce (chỉ tìm tên bạn để nhắn tin, không tốn lượt gọi AI)
   useEffect(() => {
     if (!msgSearch.trim()) {
       setMsgSearchResults([]);
@@ -169,8 +139,6 @@ const handleNavClick = (tab: string) => {
     messageUnreadCount,
     searchQuery,
     setSearchQuery,
-    searchResults,
-    searching,
     showSearchResults,
     setShowSearchResults,
     showNotifMenu,

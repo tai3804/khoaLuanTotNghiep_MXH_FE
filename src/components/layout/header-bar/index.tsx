@@ -36,8 +36,6 @@ export const Header: React.FC<HeaderProps> = ({
     messageUnreadCount,
     searchQuery,
     setSearchQuery,
-    searchResults,
-    searching,
     showSearchResults,
     setShowSearchResults,
     showNotifMenu,
@@ -68,13 +66,9 @@ export const Header: React.FC<HeaderProps> = ({
         setSearchQuery={setSearchQuery}
         showSearchResults={showSearchResults}
         setShowSearchResults={setShowSearchResults}
-        searching={searching}
-        searchResults={searchResults}
         language={language}
         t={t}
         onNavClick={handleNavClick}
-        onNavigateProfile={onNavigateProfile}
-        onTabChange={onTabChange}
       />
 
       <HeaderNavigationTabs

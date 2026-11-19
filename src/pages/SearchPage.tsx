@@ -7,6 +7,7 @@ import { userService, postService } from '../services/api';
 import { groupService, GroupResponse } from '../services/groupService';
 import { useGroupMembership } from '../components/groups/useGroupMembership';
 import { Post } from '../types';
+import { readSearchHistory, pushSearchHistory, removeSearchHistoryItem } from '../utils/searchHistory';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -40,6 +41,38 @@ interface SearchPageProps {
 
 type FilterType = 'all' | 'users' | 'groups' | 'posts';
 
+// Kết quả của các từ khoá vừa tìm, giữ trong bộ nhớ trang: quay lại hoặc bấm lại cùng từ khoá không phải tìm (và tốn lượt AI) lần nữa.
+interface SearchSnapshot {
+  users: any[];
+  posts: Post[];
+  groups: GroupResponse[];
+  at: number;
+}
+const RESULT_CACHE_TTL_MS = 2 * 60 * 1000;
+const RESULT_CACHE_MAX = 20;
+const resultCache = new Map<string, SearchSnapshot>();
+
+/** Khung chờ giữ đúng bố cục của kết quả để trang không giật khi dữ liệu về. */
+const SearchSkeleton: React.FC<{ rows?: number }> = ({ rows = 3 }) => (
+  <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
+    <span className="sr-only">Đang tìm kiếm...</span>
+    {Array.from({ length: rows }, (_, i) => i).map((i) => (
+      <div
+        key={i}
+        className="bg-white dark:bg-[#242526] rounded-xl shadow-sm border border-gray-200 dark:border-[#393a3b] p-4 animate-pulse motion-reduce:animate-none"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-[#3a3b3c] shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-1/3 rounded bg-gray-200 dark:bg-[#3a3b3c]" />
+            <div className="h-3 w-1/4 rounded bg-gray-200 dark:bg-[#3a3b3c]" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 export const SearchPage: React.FC<SearchPageProps> = ({
   activeNavTab,
   setActiveNavTab,
@@ -57,7 +90,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [loading, setLoading] = useState(false);
+  // Người, nhóm và bài viết có trạng thái chờ riêng: phần nào xong trước thì hiện trước (tìm theo tên nhanh hơn tìm ngữ nghĩa bài viết)
+  const [pending, setPending] = useState({ users: false, groups: false, posts: false });
+  const anyPending = pending.users || pending.groups || pending.posts;
   const [users, setUsers] = useState<any[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [groups, setGroups] = useState<GroupResponse[]>([]);
@@ -69,73 +104,133 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   }>>({});
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
-  const [history, setHistory] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('search_history') || '[]'); } catch { return []; }
-  });
+  const [history, setHistory] = useState<string[]>(() => readSearchHistory());
 
+  // Tìm theo từ khoá trên URL. Chỉ phụ thuộc vào `query`: đăng nhập xong (currentUser đổi) không được tìm lại, vì mỗi lần tìm
+  // là nhiều request và có thể tốn lượt gọi AI.
   useEffect(() => {
-    const fetchResults = async () => {
-      const trimmed = query.trim();
-      if (!trimmed) return;
-      const isHashtag = trimmed.startsWith('#');
-      if (isHashtag) {
-        setActiveFilter('posts');
-      }
-      setLoading(true);
-      try {
-        const [usersRes, postsRes, hashtagPostsRes, groupsRes] = await Promise.all([
-          !isHashtag ? userService.searchUsers(trimmed).catch(() => []) : Promise.resolve([]),
-          postService.searchPosts ? postService.searchPosts(trimmed, 1, 20).catch(() => []) : Promise.resolve([]),
-          isHashtag && postService.getPostsByHashtag
-            ? postService.getPostsByHashtag(trimmed).catch(() => ({ posts: [] }))
-            : Promise.resolve({ posts: [] }),
-          !isHashtag ? groupService.searchGroups(trimmed).catch(() => []) : Promise.resolve([]),
-        ]);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setUsers([]);
+      setPosts([]);
+      setGroups([]);
+      setPending({ users: false, groups: false, posts: false });
+      return;
+    }
+    const isHashtag = trimmed.startsWith('#');
+    if (isHashtag) {
+      setActiveFilter('posts');
+    }
 
-        const userList = Array.isArray(usersRes) ? usersRes : [];
-        setUsers(userList);
+    // Quay lại trang hoặc bấm lại cùng một từ khoá thì dùng kết quả vừa có, không tìm lại
+    const cacheKey = trimmed.toLocaleLowerCase();
+    const cached = resultCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < RESULT_CACHE_TTL_MS) {
+      setUsers(cached.users);
+      setPosts(cached.posts);
+      setGroups(cached.groups);
+      setPending({ users: false, groups: false, posts: false });
+      return;
+    }
 
-        const hashtagPosts = Array.isArray((hashtagPostsRes as any)?.posts) ? (hashtagPostsRes as any).posts : [];
-        const regularPosts = Array.isArray(postsRes) ? postsRes : [];
-        const combined = [...hashtagPosts, ...regularPosts];
-        const seen = new Set<string>();
-        const dedupedPosts: Post[] = [];
-        for (const p of combined) {
-          if (p?.id && !seen.has(String(p.id))) {
-            seen.add(String(p.id));
-            dedupedPosts.push(p);
-          }
-        }
-        setPosts(dedupedPosts);
-        setGroups(Array.isArray(groupsRes) ? groupsRes : []);
+    // Người dùng tìm từ khoá khác trước khi lượt này xong thì bỏ kết quả của lượt cũ
+    let cancelled = false;
+    setUsers([]);
+    setPosts([]);
+    setGroups([]);
+    setPending({ users: true, groups: true, posts: true });
 
-        // Load connection status for search results
-        if (currentUser?.id) {
-          const statuses: Record<string, any> = {};
-          await Promise.all(
-            userList.map(async (u: any) => {
-              const uid = String(u.userId || u.id);
-              if (uid && uid !== String(currentUser.id)) {
-                try {
-                  const st = await userService.getConnectionStatus(uid);
-                  if (st) {
-                    statuses[uid] = st;
-                  }
-                } catch {}
-              }
-            })
-          );
-          setFriendStatuses(statuses);
-        }
-      } catch (err) {
-        console.error('Search error:', err);
-      } finally {
-        setLoading(false);
+    // Chỉ ghi vào bộ nhớ tạm khi cả ba phần đã xong
+    const done: { users?: any[]; groups?: GroupResponse[]; posts?: Post[] } = {};
+    const rememberWhenComplete = () => {
+      if (cancelled || !done.users || !done.groups || !done.posts) return;
+      resultCache.set(cacheKey, { users: done.users, posts: done.posts, groups: done.groups, at: Date.now() });
+      if (resultCache.size > RESULT_CACHE_MAX) {
+        const oldest = resultCache.keys().next().value;
+        if (oldest !== undefined) resultCache.delete(oldest);
       }
     };
 
-    fetchResults();
-  }, [query, currentUser?.id]);
+    // Mỗi phần tự cập nhật khi xong: người/nhóm (tìm theo tên, ~0,1 giây) hiện ngay, không phải đợi bài viết (tìm ngữ nghĩa)
+    (!isHashtag ? userService.searchUsers(trimmed) : Promise.resolve([]))
+      .catch(() => [])
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res) ? res : [];
+        done.users = list;
+        setUsers(list);
+        setPending((p) => ({ ...p, users: false }));
+        rememberWhenComplete();
+      });
+
+    (!isHashtag ? groupService.searchGroups(trimmed) : Promise.resolve([]))
+      .catch(() => [])
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res) ? res : [];
+        done.groups = list;
+        setGroups(list);
+        setPending((p) => ({ ...p, groups: false }));
+        rememberWhenComplete();
+      });
+
+    Promise.all([
+      // #hashtag đã có API tìm chính xác theo thẻ; không cần tìm ngữ nghĩa (tốn một lần gọi AI cho "#biển")
+      !isHashtag && postService.searchPosts ? postService.searchPosts(trimmed, 1, 20).catch(() => []) : Promise.resolve([]),
+      isHashtag && postService.getPostsByHashtag
+        ? postService.getPostsByHashtag(trimmed).catch(() => ({ posts: [] }))
+        : Promise.resolve({ posts: [] }),
+    ])
+      .catch(() => [[], { posts: [] }] as const)
+      .then(([postsRes, hashtagPostsRes]) => {
+        if (cancelled) return;
+        const hashtagPosts = Array.isArray((hashtagPostsRes as any)?.posts) ? (hashtagPostsRes as any).posts : [];
+        const regularPosts = Array.isArray(postsRes) ? postsRes : [];
+        const seen = new Set<string>();
+        const deduped: Post[] = [];
+        for (const p of [...hashtagPosts, ...regularPosts]) {
+          if (p?.id && !seen.has(String(p.id))) {
+            seen.add(String(p.id));
+            deduped.push(p);
+          }
+        }
+        done.posts = deduped;
+        setPosts(deduped);
+        setPending((p) => ({ ...p, posts: false }));
+        rememberWhenComplete();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
+
+  // Trạng thái kết bạn của từng người trong kết quả. Tải sau khi kết quả đã hiện (không chặn màn hình) và chỉ khi danh sách đổi.
+  useEffect(() => {
+    if (!currentUser?.id || users.length === 0) return;
+    let cancelled = false;
+    const ids = users
+      .map((u: any) => String(u.userId || u.id))
+      .filter((uid) => uid && uid !== String(currentUser.id));
+    Promise.all(
+      ids.map((uid) =>
+        userService
+          .getConnectionStatus(uid)
+          .then((st) => [uid, st] as const)
+          .catch(() => null)
+      )
+    ).then((entries) => {
+      if (cancelled) return;
+      const statuses: Record<string, any> = {};
+      for (const entry of entries) {
+        if (entry && entry[1]) statuses[entry[0]] = entry[1];
+      }
+      setFriendStatuses(statuses);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [users, currentUser?.id]);
 
   useEffect(() => {
     const handleStatusUpdate = () => {
@@ -161,19 +256,11 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   useEffect(() => {
     const keyword = query.trim();
     if (!keyword) return;
-    setHistory((previous) => {
-      const next = [keyword, ...previous.filter((item) => item.toLocaleLowerCase() !== keyword.toLocaleLowerCase())].slice(0, 10);
-      localStorage.setItem('search_history', JSON.stringify(next));
-      return next;
-    });
+    setHistory(pushSearchHistory(keyword));
   }, [query]);
 
   const removeHistoryItem = (keyword: string) => {
-    setHistory((previous) => {
-      const next = previous.filter((item) => item !== keyword);
-      localStorage.setItem('search_history', JSON.stringify(next));
-      return next;
-    });
+    setHistory(removeSearchHistoryItem(keyword));
   };
 
   const handleSendFriendRequest = async (targetId: string) => {
@@ -252,6 +339,18 @@ export const SearchPage: React.FC<SearchPageProps> = ({
   const { busyId: groupBusyId, requestJoin, cancelRequest, respondToInvitation, joinModal } = useGroupMembership((updated, previous) => {
     if (updated) setGroups((prev) => prev.map((g) => (g.id === previous.id ? updated : g)));
   });
+
+  // Tab đang xem còn phần nào đang tìm không, và đã có gì để hiện chưa
+  const waitingForView =
+    activeFilter === 'all' ? anyPending : activeFilter === 'users' ? pending.users : activeFilter === 'groups' ? pending.groups : pending.posts;
+  const countInView =
+    activeFilter === 'all'
+      ? users.length + groups.length + posts.length
+      : activeFilter === 'users'
+        ? users.length
+        : activeFilter === 'groups'
+          ? groups.length
+          : posts.length;
 
   const requireLogin = (action: () => void) => {
     if (!currentUser) {
@@ -663,12 +762,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({
 
         {/* Search Results */}
         <div className="flex-1 max-w-[680px] pt-4 min-h-[calc(100vh-3.5rem)]">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Loader2 className="w-8 h-8 animate-spin text-[#1877f2]" />
-              <p className="text-gray-500 dark:text-[#b0b3b8] font-medium">Đang tìm kiếm...</p>
-            </div>
-          ) : users.length === 0 && posts.length === 0 && groups.length === 0 && query ? (
+          {waitingForView && countInView === 0 ? (
+            <SearchSkeleton />
+          ) : !anyPending && users.length === 0 && posts.length === 0 && groups.length === 0 && query ? (
             <div className="bg-white dark:bg-[#242526] rounded-xl shadow-sm border border-gray-200 dark:border-[#393a3b] p-10 flex flex-col items-center justify-center text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-[#3a3b3c] rounded-full flex items-center justify-center mb-4">
                 <Search className="w-8 h-8 text-gray-400" />
@@ -723,6 +819,8 @@ export const SearchPage: React.FC<SearchPageProps> = ({
                   </div>
                 )
               )}
+              {/* Phần còn lại (thường là bài viết) vẫn đang tìm: giữ chỗ ngay dưới kết quả đã có, không làm nhảy bố cục */}
+              {waitingForView && countInView > 0 && <SearchSkeleton rows={1} />}
             </div>
           )}
         </div>
