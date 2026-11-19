@@ -16,8 +16,6 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
   isCollapsed = false,
   onFilterChange,
 }) => {
-  if (isCollapsed) return null;
-
   const navigate = useNavigate();
   const { t, language } = useLanguage();
   const isEn = language === 'en';
@@ -51,6 +49,9 @@ export const SidebarLeftShortcuts: React.FC<SidebarLeftShortcutsProps> = ({
       window.removeEventListener('community_group_created', handleUpdate);
     };
   }, []);
+
+  // Phải đặt sau mọi hook: gọi hook có điều kiện vi phạm Rules of Hooks (đổi isCollapsed sẽ làm lệch thứ tự hook)
+  if (isCollapsed) return null;
 
   const handleNavigateGroup = (groupId: string) => {
     navigate(`/groups/${groupId}`);

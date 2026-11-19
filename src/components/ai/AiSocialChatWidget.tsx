@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sparkles, Send, X, Minimize2, Maximize2, Copy, Check, Lightbulb, PenTool, Hash, GraduationCap, Trash2 } from 'lucide-react';
 import { aiService } from '../../services/aiService';
+import type { ChatSource } from '../../services/aiService';
+import { AiChatSources } from './AiChatSources';
 import { useAuth } from '../../context/AuthContext';
 
 interface Message {
@@ -9,6 +11,7 @@ interface Message {
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  sources?: ChatSource[];
 }
 
 const QUICK_PROMPTS = [
@@ -73,12 +76,13 @@ export const AiSocialChatWidget: React.FC = () => {
         text: m.text,
       }));
 
-      const reply = await aiService.chatWithAiAssistant(text, historyPayload);
+      const answer = await aiService.chatWithAiAssistantDetailed(text, historyPayload);
 
       const aiMsg: Message = {
         id: 'ai-' + Date.now(),
         sender: 'ai',
-        text: reply,
+        text: answer.reply,
+        sources: answer.sources,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -236,6 +240,8 @@ export const AiSocialChatWidget: React.FC = () => {
                         })}
                       </div>
                     </div>
+
+                    {msg.sender === 'ai' && <AiChatSources sources={msg.sources} />}
 
                     <div className="flex items-center gap-2 mt-1 px-1 text-[10px] text-gray-400">
                       <span>{msg.timestamp}</span>

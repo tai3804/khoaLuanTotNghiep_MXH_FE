@@ -65,8 +65,20 @@ export interface SummarizeMessagesResponse {
   imageCount: number;
 }
 
+export interface ChatSource {
+  postId: string;
+  snippet: string;
+}
+
 export interface ChatResult {
   reply: string;
+  /** Các bài viết trợ lý dùng làm tư liệu (RAG), theo thứ tự số nguồn [1], [2], ... trong câu trả lời. */
+  sources?: ChatSource[];
+}
+
+export interface ChatAnswer {
+  reply: string;
+  sources: ChatSource[];
 }
 
 export interface BioSuggestionRequest {
@@ -189,6 +201,14 @@ export const aiService = {
    * Trò chuyện đa lượt có nhớ ngữ cảnh với Trợ lý AI KLTN
    */
   chatWithAiAssistant: async (message: string, history?: any[]): Promise<string> => {
+    const answer = await aiService.chatWithAiAssistantDetailed(message, history);
+    return answer.reply;
+  },
+
+  /**
+   * Như chatWithAiAssistant nhưng trả thêm danh sách bài viết được dùng làm tư liệu (RAG).
+   */
+  chatWithAiAssistantDetailed: async (message: string, history?: any[]): Promise<ChatAnswer> => {
     try {
       const formattedHistory: ChatHistoryItem[] = (history || []).map((item) => ({
         sender: (item.sender || (item.role === 'user' ? 'user' : 'ai')) as any,
@@ -196,10 +216,13 @@ export const aiService = {
       }));
       const response = await api.post('/ai/assistant/chat', { message, history: formattedHistory });
       const data: ChatResult = response.data?.data || response.data || {};
-      return data?.reply || 'Xin lỗi, hiện tại tôi chưa thể phản hồi. Vui lòng thử lại sau ít phút.';
+      return {
+        reply: data?.reply || 'Xin lỗi, hiện tại tôi chưa thể phản hồi. Vui lòng thử lại sau ít phút.',
+        sources: Array.isArray(data?.sources) ? data.sources : [],
+      };
     } catch (error) {
       console.warn('AI chat failed:', error);
-      return 'Không thể kết nối với Trợ lý AI. Vui lòng thử lại sau.';
+      return { reply: 'Không thể kết nối với Trợ lý AI. Vui lòng thử lại sau.', sources: [] };
     }
   },
 

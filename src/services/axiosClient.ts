@@ -85,9 +85,16 @@ api.interceptors.response.use(
 
       console.log('[axiosClient] 401 Unauthorized encountered. Automatically refreshing access token...');
 
-      const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-
       try {
+        // Phải nằm trong try: nếu lấy dấu vân tay thiết bị ném lỗi mà nằm ngoài, isRefreshing không bao giờ được tắt
+        // (finally không chạy) và mọi request 401 về sau sẽ chờ vô hạn trong failedQueue.
+        let deviceFingerprint = '';
+        try {
+          deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
+        } catch {
+          deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
+        }
+
         const res = await axios.post(
           BASE_URL + '/auth/refresh',
           {},

@@ -65,6 +65,12 @@ interface PostCardHeaderProps {
   onEditDate?: () => void;
 }
 
+/** Mã lý do (relevanceReason) do thuật toán xếp hạng bảng tin trả về -> nhãn hiển thị. */
+const AI_REASON_LABELS: Record<string, string> = {
+  collaborative: 'Gợi ý vì những người có sở thích giống bạn cũng quan tâm bài này',
+  content: 'Gợi ý vì bài này giống những bài bạn từng quan tâm',
+};
+
 export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   post,
   authorName,
@@ -199,6 +205,11 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   const [groupBusy, setGroupBusy] = React.useState(false);
   const showPinnedBadge = inGroupPage ? Boolean(post.groupPinned) : isPinned;
 
+  // Lý do đề xuất do AI: chủ đề vừa tìm (BE trả sẵn câu tiếng Việt) hoặc mã của lọc cộng tác / hồ sơ sở thích
+  const aiReason = post.relevanceReason
+    ? (post.relevanceReason.startsWith('Gợi ý') ? post.relevanceReason : AI_REASON_LABELS[post.relevanceReason])
+    : undefined;
+
   const isGroupPost = Boolean(post.groupId);
   const groupName = groupInfo?.name || post.groupName || 'Nhóm';
   const groupCover = groupInfo?.coverUrl || post.groupAvatar || post.groupCover;
@@ -206,13 +217,13 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
 
   return (
     <div>
-      {/* AI Search Interest Recommendation Badge */}
-      {post.relevanceReason && post.relevanceReason.startsWith('Gợi ý') && (
+      {/* AI Recommendation Badge (search interest / collaborative filtering / interest profile) */}
+      {aiReason && (
         <div className="px-3.5 pt-2.5 pb-0 flex items-center justify-between">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 text-blue-600 dark:text-blue-400 border border-blue-400/30 dark:border-blue-500/30 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0 animate-pulse" />
-            <span className="truncate max-w-[280px] sm:max-w-md" title={post.relevanceReason}>
-              {post.relevanceReason}
+            <span className="truncate max-w-[280px] sm:max-w-md" title={aiReason}>
+              {aiReason}
             </span>
           </div>
         </div>
