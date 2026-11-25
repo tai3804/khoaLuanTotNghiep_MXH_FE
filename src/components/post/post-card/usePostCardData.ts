@@ -3,7 +3,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useToast } from '../../../context/ToastContext';
 import { Comment, Post } from '../../../types';
-import { postService, fetchAuthorProfile, fetchGroupMeta, groupMetaCache } from '../../../services/api';
+import { postService, userService, fetchAuthorProfile, fetchGroupMeta, groupMetaCache } from '../../../services/api';
 import { useNearViewport } from '../../../utils/useNearViewport';
 import { hidePostLocally } from '../../../utils/hiddenPosts';
 import { getApiErrorMessage } from '../../../utils/apiError';
@@ -273,7 +273,32 @@ export const usePostCardData = ({ post, onDeletePost }: UsePostCardDataProps) =>
     if (Array.isArray(post.previewComments) && post.previewComments.length > 0) {
       setComments(post.previewComments);
       setLoadingComments(false);
-      return; // Không cần gọi API getComments nữa!
+
+      // Backend chỉ trả authorId cho bình luận (không có tên, ảnh), nên bình luận xem trước hiện "Thành viên KLTN" nếu không tra hồ sơ.
+      // Tra một lượt hàng loạt (có cache dùng chung với danh sách bình luận) rồi thay tên và ảnh đại diện.
+      const isPlaceholderName = (n?: string) => !n || n === 'Thành viên KLTN' || n === 'Thành viên' || n === 'Người dùng';
+      const authorIds = Array.from(
+        new Set(post.previewComments.filter((c) => c.userId && isPlaceholderName(c.authorName)).map((c) => c.userId))
+      );
+      let cancelled = false;
+      if (authorIds.length > 0) {
+        userService
+          .getProfilesBatch(authorIds)
+          .then((profiles) => {
+            if (cancelled) return;
+            setComments((prev) =>
+              prev.map((c) => {
+                const profile = profiles[c.userId];
+                if (!profile || !isPlaceholderName(c.authorName)) return c;
+                return { ...c, authorName: profile.name, authorAvatar: profile.avatar || c.authorAvatar };
+              })
+            );
+          })
+          .catch(() => {});
+      }
+      return () => {
+        cancelled = true;
+      }; // Không cần gọi API getComments nữa!
     }
 
     if (!nearViewport || !post.id || post.isOptimistic || post.id.startsWith('temp-')) return;
