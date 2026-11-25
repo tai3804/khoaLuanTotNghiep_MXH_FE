@@ -1,3 +1,5 @@
+import { isNativeApp } from './platform';
+
 // Thư viện này khá nặng (~126 KB) và chỉ cần ở lần đăng nhập đầu tiên trên thiết bị, nên được nạp động khi cần
 let fpPromise: Promise<any> | null = null;
 
@@ -10,6 +12,17 @@ export const getDeviceFingerprint = async (): Promise<string> => {
     const cached = localStorage.getItem('deviceFingerprint');
     if (cached && cached.trim()) {
       return cached;
+    }
+
+    // Trong app Android dùng ID thiết bị của hệ điều hành: ổn định hơn dấu vân tay trình duyệt của WebView
+    if (isNativeApp()) {
+      const { Device } = await import('@capacitor/device');
+      const { identifier } = await Device.getId();
+      if (identifier) {
+        const nativeId = 'android-' + identifier;
+        localStorage.setItem('deviceFingerprint', nativeId);
+        return nativeId;
+      }
     }
 
     if (!fpPromise) {
@@ -45,6 +58,13 @@ export const getDeviceFingerprint = async (): Promise<string> => {
  */
 export const getDeviceName = (): string => {
   const ua = navigator.userAgent;
+
+  // App Android: User-Agent của WebView có dạng "(Linux; Android 14; SM-S918B ...)", hiển thị là "App Android (SM-S918B)"
+  if (isNativeApp()) {
+    const model = /Android [\d.]+; ([^;)]+)/.exec(ua)?.[1]?.trim();
+    return model ? `App Android (${model})` : 'App Android';
+  }
+
   let browser = 'Browser';
   let os = 'Unknown OS';
 
@@ -53,11 +73,12 @@ export const getDeviceName = (): string => {
   else if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
 
-  if (ua.includes('Win')) os = 'Windows';
+  // Android và iPhone phải xét trước Windows/Mac/Linux: User-Agent của chúng chứa "Linux" và "Mac OS X"
+  if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Win')) os = 'Windows';
   else if (ua.includes('Mac')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
   return `${browser} on ${os}`;
 };

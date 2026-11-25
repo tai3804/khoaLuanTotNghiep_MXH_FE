@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Màu vùng thanh trạng thái / thanh cử chỉ (nằm ngoài WebView). Trùng màu nền tối của header (#242526):
+         giao diện app mặc định tối và đổi sáng/tối ngay trong app nên vùng native không đổi theo được. -->
+    <color name="appWindowBackground">#242526</color>
+</resources>

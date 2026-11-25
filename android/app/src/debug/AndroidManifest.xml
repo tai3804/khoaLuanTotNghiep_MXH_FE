@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Chỉ gộp vào bản debug: cho gọi API qua http (adb reverse / IP LAN). Bản release giữ mặc định chặn http. -->
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

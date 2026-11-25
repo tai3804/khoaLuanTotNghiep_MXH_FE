@@ -17,9 +17,13 @@ import { SystemConfigProvider } from './context/SystemConfigContext';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { sanitizeLocalStorage } from './utils/storageSanitizer';
+import { initNativeShell } from './utils/nativeShell';
+import { initKeyboardState } from './utils/keyboardState';
 
 // Clean up any obsolete/redundant localStorage keys on startup
 sanitizeLocalStorage();
+initNativeShell();
+initKeyboardState();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

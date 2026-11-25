@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { store } from '../store/store';
 import { setAccessToken, clearAuth } from '../store/slices/authSlice';
-import { getDeviceFingerprint } from '../utils/fingerprint';
+import { isNativeApp } from '../utils/platform';
+import { clearNativeRefreshToken } from '../utils/nativeSession';
+import { requestTokenRefresh } from './tokenRefresh';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
@@ -10,7 +12,8 @@ const ACCOUNT_LOCKED_CODE = 40320;
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
+  // Web dùng cookie refresh token; app Android xác thực bằng header Bearer + refresh token trong body.
+  withCredentials: !isNativeApp(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -86,42 +89,18 @@ api.interceptors.response.use(
       console.log('[axiosClient] 401 Unauthorized encountered. Automatically refreshing access token...');
 
       try {
-        // Phải nằm trong try: nếu lấy dấu vân tay thiết bị ném lỗi mà nằm ngoài, isRefreshing không bao giờ được tắt
-        // (finally không chạy) và mọi request 401 về sau sẽ chờ vô hạn trong failedQueue.
-        let deviceFingerprint = '';
-        try {
-          deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-        } catch {
-          deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
-        }
+        // Phải nằm trong try: nếu bước lấy dấu vân tay/đọc refresh token ném lỗi mà nằm ngoài, isRefreshing không bao giờ
+        // được tắt (finally không chạy) và mọi request 401 về sau sẽ chờ vô hạn trong failedQueue.
+        const newAccessToken = await requestTokenRefresh();
 
-        const res = await axios.post(
-          BASE_URL + '/auth/refresh',
-          {},
-          {
-            withCredentials: true,
-            headers: {
-              'X-Client-Type': 'WEB',
-              'X-Device-Fingerprint': deviceFingerprint,
-            },
-          }
-        );
+        console.log('[axiosClient] Successfully refreshed access token! Retrying original request:', originalRequest.url);
+        store.dispatch(setAccessToken(newAccessToken));
 
-        const data = res.data?.data || res.data?.result || res.data;
-        const newAccessToken = data?.accessToken || data?.token;
+        api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
+        setAuthHeader(originalRequest, newAccessToken);
 
-        if (newAccessToken) {
-          console.log('[axiosClient] Successfully refreshed access token! Retrying original request:', originalRequest.url);
-          store.dispatch(setAccessToken(newAccessToken));
-          
-          api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-          setAuthHeader(originalRequest, newAccessToken);
-
-          processQueue(null, newAccessToken);
-          return api(originalRequest);
-        } else {
-          throw new Error('No access token returned');
-        }
+        processQueue(null, newAccessToken);
+        return api(originalRequest);
       } catch (refreshErr: any) {
         console.warn('[axiosClient] Failed to refresh access token:', refreshErr);
         processQueue(refreshErr, null);
@@ -130,6 +109,7 @@ api.interceptors.response.use(
           store.dispatch(clearAuth());
           localStorage.removeItem('user');
           try { localStorage.removeItem('refreshToken'); } catch {}
+          void clearNativeRefreshToken();
           window.dispatchEvent(new Event('auth_session_expired'));
         }
         return Promise.reject(refreshErr);

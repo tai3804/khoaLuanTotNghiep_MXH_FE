@@ -1,8 +1,17 @@
-import axios from 'axios';
 import { api } from './axiosClient';
+import { requestTokenRefresh } from './tokenRefresh';
 import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
+import { getClientType, isNativeApp } from '../utils/platform';
+import { clearNativeRefreshToken, setNativeRefreshToken } from '../utils/nativeSession';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+/** Trong app Android, lưu refresh token server trả trong body (không có cookie) vào kho bảo mật native. */
+const persistNativeRefreshToken = async (responseBody: any): Promise<void> => {
+  if (!isNativeApp()) return;
+  const result = responseBody?.data || responseBody?.result || responseBody;
+  if (result?.refreshToken) {
+    await setNativeRefreshToken(result.refreshToken);
+  }
+};
 
 let devicesCache: any[] | null = null;
 let lastDevicesFetchTime = 0;
@@ -12,25 +21,8 @@ const DEVICES_CACHE_TTL_MS = 15_000;
 export const authService = {
   refreshToken: async (): Promise<string | null> => {
     try {
-      const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-      const res = await axios.post(
-        BASE_URL + '/auth/refresh',
-        {},
-        {
-          withCredentials: true,
-          headers: {
-            'X-Client-Type': 'WEB',
-            'X-Device-Fingerprint': deviceFingerprint,
-          },
-        }
-      );
-      const data = res.data?.data || res.data?.result || res.data;
-      const newAccessToken = data?.accessToken || data?.token || null;
-
-      if (newAccessToken) {
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-      }
-
+      const newAccessToken = await requestTokenRefresh();
+      api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
       return newAccessToken;
     } catch {
       return null;
@@ -49,10 +41,11 @@ export const authService = {
     };
     const res = await api.post('/auth/login', payload, {
       headers: {
-        'X-Client-Type': 'WEB',
+        'X-Client-Type': getClientType(),
         'X-Device-Fingerprint': deviceFingerprint,
       },
     });
+    await persistNativeRefreshToken(res.data);
     return res.data;
   },
 
@@ -86,7 +79,7 @@ export const authService = {
       const deviceFingerprint = await getDeviceFingerprint();
       await api.post('/auth/logout', { deviceFingerprint }, {
         headers: {
-          'X-Client-Type': 'WEB',
+          'X-Client-Type': getClientType(),
           'X-Device-Fingerprint': deviceFingerprint,
         },
       });
@@ -95,6 +88,7 @@ export const authService = {
     } finally {
       localStorage.removeItem('user');
       localStorage.removeItem('refreshToken');
+      await clearNativeRefreshToken();
     }
   },
 
@@ -152,11 +146,12 @@ export const authService = {
       { mfaToken, otpCode, deviceFingerprint, deviceName },
       {
         headers: {
-          'X-Client-Type': 'WEB',
+          'X-Client-Type': getClientType(),
           'X-Device-Fingerprint': deviceFingerprint,
         },
       }
     );
+    await persistNativeRefreshToken(res.data);
     return res.data;
   },
 
