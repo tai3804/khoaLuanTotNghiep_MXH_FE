@@ -67,7 +67,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 h-14 bg-white/90 dark:bg-[#242526]/90 backdrop-blur-md border-t border-gray-200/80 dark:border-[#393a3b] flex items-center justify-around md:hidden z-40 shadow-lg px-1">
+    <nav
+      aria-label="Điều hướng chính"
+      data-hide-on-kb
+      className="fixed bottom-0 inset-x-0 h-14 bg-white/90 dark:bg-[#242526]/90 backdrop-blur-md border-t border-gray-200/80 dark:border-[#393a3b] flex items-center justify-around md:hidden z-40 shadow-lg px-1"
+    >
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeNavTab === item.id;
@@ -77,6 +81,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             key={item.id}
             type="button"
             onClick={item.action}
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={item.badge !== undefined ? `${item.label}, ${item.badge} lời mời mới` : item.label}
             className={`relative flex flex-col items-center justify-center w-14 h-full transition-all duration-150 cursor-pointer active:scale-90 ${
               isActive
                 ? 'text-[#1877f2] font-bold'
@@ -89,14 +95,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             )}
 
             <div className="relative">
-              <Icon className="w-5 h-5 transition-transform" />
+              <Icon className="w-5 h-5 transition-transform" aria-hidden="true" />
               {item.badge !== undefined && (
-                <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-xs animate-pulse">
+                <span aria-hidden="true" className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-xs animate-pulse">
                   {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
             </div>
-            <span className="text-[10px] tracking-tight mt-0.5">
+            <span className="text-[11px] tracking-tight mt-0.5">
               {item.label}
             </span>
           </button>
@@ -110,6 +116,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           if (onViewProfile) onViewProfile();
           else onTabChange('profile');
         }}
+        aria-current={activeNavTab === 'profile' ? 'page' : undefined}
+        aria-label="Trang cá nhân"
         className={`relative flex flex-col items-center justify-center w-14 h-full transition-all duration-150 cursor-pointer active:scale-90 ${
           activeNavTab === 'profile'
             ? 'text-[#1877f2] font-bold'
@@ -131,9 +139,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }`}
           />
         ) : (
-          <UserIcon className="w-5 h-5" />
+          <UserIcon className="w-5 h-5" aria-hidden="true" />
         )}
-        <span className="text-[10px] tracking-tight mt-0.5">Tôi</span>
+        <span className="text-[11px] tracking-tight mt-0.5">Tôi</span>
       </button>
     </nav>
   );

@@ -5,6 +5,7 @@ import { aiService } from '../../services/aiService';
 import type { ChatSource } from '../../services/aiService';
 import { AiChatSources } from './AiChatSources';
 import { useAuth } from '../../context/AuthContext';
+import { useHideOnScrollDown } from './useHideOnScrollDown';
 
 interface Message {
   id: string;
@@ -25,6 +26,8 @@ export const AiSocialChatWidget: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  // Điện thoại: nút nổi nằm ngay chỗ nút "Thích" của bài viết, nên ẩn khi đang cuộn xuống và hiện lại khi cuộn lên
+  const hiddenByScroll = useHideOnScrollDown();
   const [isMinimized, setIsMinimized] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -131,7 +134,13 @@ export const AiSocialChatWidget: React.FC = () => {
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          className="fixed bottom-20 md:bottom-6 left-6 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#0866ff] via-[#1877f2] to-[#00b2ff] text-white shadow-xl hover:shadow-blue-500/35 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group border border-white/20 dark:border-white/10"
+          data-hide-on-kb
+          data-hide-on-overlay
+          // inert: nút đang ẩn thì không bấm, không focus bằng bàn phím và không đọc ra bằng trình đọc màn hình
+          inert={hiddenByScroll}
+          className={`fixed bottom-20 md:bottom-6 left-6 z-40 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-[#0866ff] via-[#1877f2] to-[#00b2ff] text-white shadow-xl hover:shadow-blue-500/35 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group border border-white/20 dark:border-white/10 ${
+            hiddenByScroll ? 'translate-y-24 opacity-0 pointer-events-none' : ''
+          }`}
           title="Trợ lý AI"
           aria-label="Mở Trợ lý AI"
         >
@@ -145,7 +154,7 @@ export const AiSocialChatWidget: React.FC = () => {
           className={`fixed left-4 md:left-6 z-50 transition-all duration-200 flex flex-col bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-2xl overflow-hidden ${
             isMinimized
               ? 'bottom-20 md:bottom-6 w-72 h-14'
-              : 'bottom-20 md:bottom-6 w-[350px] sm:w-[390px] h-[520px] max-h-[82vh]'
+              : 'bottom-20 md:bottom-6 w-[calc(100vw-2rem)] sm:w-[390px] h-[520px] max-h-[82vh]'
           }`}
         >
           {/* Header */}

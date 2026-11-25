@@ -124,3 +124,54 @@ html, body {
 .animate-fadeIn {
   animation: fadeIn 0.25s ease-out forwards;
 }
+
+/* ===== Điện thoại / app Android ===== */
+
+/* Không hiện lớp xám khi chạm; chạm là nhận ngay, không chờ phân biệt chạm đúp */
+a,
+button,
+[role='button'],
+input,
+textarea,
+select,
+label {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Bàn phím ảo đang mở: ẩn thanh cố định ở đáy và nút nổi để chúng không chen lên trên bàn phím (xem utils/keyboardState.ts) */
+@media (max-width: 767px) {
+  html.kb-open [data-hide-on-kb] {
+    display: none !important;
+  }
+}
+
+/* App Android: tắt hiệu ứng kéo quá đầu trang của WebView; không bôi chọn chữ khi giữ lâu lên nút và thanh điều hướng */
+html.native-app,
+html.native-app body {
+  overscroll-behavior-y: none;
+}
+html.native-app button,
+html.native-app nav,
+html.native-app header {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Người dùng bật "xóa hiệu ứng" của hệ điều hành: tắt chuyển động (giữ vòng xoay tải để vẫn biết đang chờ) */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Đang có hộp thoại/menu toàn màn hình mở (lớp .fixed.inset-0, trừ lớp xuyên chạm như vùng chứa cửa sổ chat): ẩn nút nổi,
+   nếu không nó nằm sáng rõ đè lên trên lớp phủ tối (nút nổi nằm ngoài ngữ cảnh xếp chồng của menu) */
+html:has(.fixed.inset-0:not(.pointer-events-none)) [data-hide-on-overlay] {
+  visibility: hidden;
+}

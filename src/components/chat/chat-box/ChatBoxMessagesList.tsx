@@ -103,7 +103,7 @@ export const ChatBoxMessagesList: React.FC<ChatBoxMessagesListProps> = ({
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="h-[340px] sm:h-[350px] p-2.5 overflow-y-auto overflow-x-hidden space-y-2 bg-gray-50/50 dark:bg-[#18191a]"
+        className="min-h-0 flex-1 md:h-[350px] md:flex-none p-2.5 overflow-y-auto overflow-x-hidden space-y-2 bg-gray-50/50 dark:bg-[#18191a]"
       >
         {loadingOlder && (
           <div className="py-1 text-center text-[10px] text-gray-400">{t('chat.loadingOlder', 'Đang tải tin nhắn cũ...')}</div>

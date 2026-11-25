@@ -53,17 +53,18 @@ export const ProfileMoreOptionsMenu: React.FC<ProfileMoreOptionsMenuProps> = ({
     <>
       {/* Invisible backdrop to dismiss menu when clicking outside */}
       <div
-        className="fixed inset-0 z-40"
+        className="fixed inset-0 z-40 max-sm:bg-black/40"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Floating Menu Popover */}
+      {/* Floating Menu Popover. Điện thoại: nút "..." nằm giữa màn hình nên menu bám mép phải của nút sẽ tràn ra ngoài mép trái;
+          thay vào đó hiện thành tờ sát đáy, trên thanh điều hướng, rộng gần hết màn hình. */}
       <div
         ref={menuRef}
         role="menu"
         aria-orientation="vertical"
-        className="absolute right-0 top-full mt-2 w-80 sm:w-88 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#242526] shadow-2xl border border-gray-200 dark:border-[#393a3b] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 ring-1 ring-black/5 dark:ring-white/10"
+        className="max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[4.5rem] max-sm:top-auto max-sm:mt-0 max-sm:w-auto max-sm:max-w-none absolute right-0 top-full mt-2 w-80 sm:w-88 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#242526] shadow-2xl border border-gray-200 dark:border-[#393a3b] p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 ring-1 ring-black/5 dark:ring-white/10"
       >
         {/* 1. Edit Profile */}
         <button

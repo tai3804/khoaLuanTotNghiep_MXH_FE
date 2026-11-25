@@ -200,7 +200,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
     <>
       <div
         style={customStyle}
-        className={`${positionClass} w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200 shrink-0`}
+        className={`${positionClass} h-full w-full md:h-auto md:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl md:rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200 shrink-0`}
       >
         <ChatBoxHeader
           friend={effectiveFriend}

@@ -47,7 +47,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   return (
     <div
       ref={menuRef}
-      className="absolute right-0 top-12 w-84 sm:w-96 md:w-[410px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[85vh] transition-all"
+      className="absolute right-0 top-12 w-84 sm:w-96 md:w-[410px] max-sm:fixed max-sm:inset-x-3 max-sm:top-[3.75rem] max-sm:w-auto max-sm:max-h-[calc(100vh-8rem)] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[85vh] transition-all"
     >
       <NotificationDropdownHeader
         isEn={isEn}

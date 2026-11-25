@@ -77,19 +77,21 @@ export const HeaderMessengerDropdown: React.FC<HeaderMessengerDropdownProps> = (
           setShowNotifMenu(false);
           setShowUserMenu(false);
         }}
-        className={`relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+        className={`relative w-11 h-11 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
           showMsgMenu
             ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
             : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
         }`}
         title="Messenger"
+        aria-label="Tin nhắn"
+        aria-expanded={showMsgMenu}
       >
         <MessageCircle className="w-5 h-5" />
         {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-extrabold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}
       </button>
 
       {showMsgMenu && (
-        <div className="absolute right-0 top-12 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-3 z-50 space-y-2.5">
+        <div className="absolute right-0 top-12 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 max-sm:fixed max-sm:inset-x-3 max-sm:top-[3.75rem] max-sm:w-auto max-sm:max-w-none bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-2xl p-3 z-50 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <h4 className="font-extrabold text-base text-gray-900 dark:text-[#e4e6eb]">{t('messenger.chats')}</h4>
             <div className="flex items-center gap-2">

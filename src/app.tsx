@@ -58,6 +58,7 @@ export const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isLivePage = location.pathname.startsWith('/live/');
+  const isAuthPage = location.pathname.startsWith('/auth');
 
   const [activeSidebarFilter, setActiveSidebarFilter] = useState<string>('all');
   const [feedCategory, setFeedCategory] = useState<'all' | 'recent' | 'popular'>('all');
@@ -698,7 +699,8 @@ export const App: React.FC = () => {
       </Suspense>
 
       {/* Upgraded Mobile Bottom Navigation Bar */}
-      {!isLivePage && (
+      {/* Trang đăng nhập/đăng ký chưa có tài khoản để điều hướng: không hiện thanh dưới */}
+      {!isLivePage && !isAuthPage && (
         <MobileBottomNav
         activeNavTab={activeNavTab}
         onTabChange={handleTabChange}

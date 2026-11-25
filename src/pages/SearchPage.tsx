@@ -761,7 +761,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
         </div>
 
         {/* Search Results */}
-        <div className="flex-1 max-w-[680px] pt-4 min-h-[calc(100vh-3.5rem)]">
+        <div className="flex-1 min-w-0 max-w-[680px] pt-4 min-h-[calc(100vh-3.5rem)]">
           {waitingForView && countInView === 0 ? (
             <SearchSkeleton />
           ) : !anyPending && users.length === 0 && posts.length === 0 && groups.length === 0 && query ? (

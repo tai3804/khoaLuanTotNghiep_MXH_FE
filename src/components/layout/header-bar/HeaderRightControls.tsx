@@ -78,7 +78,7 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+    <div className="flex items-center space-x-2 shrink-0">
       {/* Menu (Grid) icon */}
       <button
         onClick={() => {
@@ -95,8 +95,9 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
           {/* Call History button */}
           <button
             onClick={() => setIsCallHistoryOpen(true)}
-            className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+            className="relative w-11 h-11 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
             title="Lịch sử cuộc gọi"
+            aria-label="Lịch sử cuộc gọi"
           >
             <Phone className="w-5 h-5" />
             {callState === 'incoming' && <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-red-500 dark:border-[#242526]" />}
@@ -128,12 +129,14 @@ export const HeaderRightControls: React.FC<HeaderRightControlsProps> = ({
                 setShowMsgMenu(false);
                 setShowUserMenu(false);
               }}
-              className={`relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
+              className={`relative w-11 h-11 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition cursor-pointer ${
                 showNotifMenu
                   ? 'bg-[#2d88ff]/20 text-[#2d88ff]'
                   : 'bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb]'
               }`}
               title={language === 'en' ? 'Notifications' : 'Thông báo'}
+              aria-label={language === 'en' ? 'Notifications' : 'Thông báo'}
+              aria-expanded={showNotifMenu}
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (

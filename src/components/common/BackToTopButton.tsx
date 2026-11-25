@@ -44,7 +44,8 @@ export const BackToTopButton: React.FC<BackToTopButtonProps> = ({
       onClick={scrollToTop}
       aria-label="Cuộn lên đầu trang"
       title="Cuộn lên đầu trang"
-      className={`fixed bottom-20 md:bottom-6 right-5 z-40 p-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center border border-white/20 backdrop-blur-xs ${
+      // Điện thoại vuốt là cuộn nhanh được và nút này che chữ trong bài viết, nên chỉ hiện từ màn hình md trở lên
+      className={`fixed bottom-6 right-5 z-40 p-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer hidden md:flex items-center justify-center border border-white/20 backdrop-blur-xs ${
         visible
           ? 'opacity-100 translate-y-0 pointer-events-auto'
           : 'opacity-0 translate-y-4 pointer-events-none'

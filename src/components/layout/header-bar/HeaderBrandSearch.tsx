@@ -1,5 +1,5 @@
-import React, { RefObject, useEffect, useMemo, useState } from 'react';
-import { Hash, History, Search, X } from 'lucide-react';
+import React, { RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Hash, History, Search, X } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Logo } from '../../common/Logo';
 import { readSearchHistory, removeSearchHistoryItem } from '../../../utils/searchHistory';
@@ -37,7 +37,32 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
   const [searchParams] = useSearchParams();
   const [history, setHistory] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Điện thoại: ô tìm kiếm thu thành nút kính lúp, bấm vào thì mở thanh tìm kiếm rộng bằng cả header
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const en = language === 'en';
+
+  const closeMobile = () => {
+    setMobileOpen(false);
+    setShowSearchResults(false);
+  };
+
+  useEffect(() => {
+    if (mobileOpen) inputRef.current?.focus();
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+        setShowSearchResults(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOpen]);
 
   // Đang ở trang kết quả thì giữ từ khoá hiện tại trong ô tìm kiếm (tải lại trang, quay lại, bấm một mục lịch sử).
   const urlQuery = location.pathname === '/search' ? searchParams.get('q') || '' : null;
@@ -68,6 +93,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
     if (!value) return;
     setSearchQuery(value);
     setShowSearchResults(false);
+    setMobileOpen(false);
     setActiveIndex(-1);
     (document.activeElement as HTMLElement | null)?.blur?.();
     navigate(`/search?q=${encodeURIComponent(value)}`);
@@ -104,9 +130,38 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
     <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
       <Logo onClick={() => onNavClick('home')} size="sm" className="max-sm:[&>*:nth-child(2)]:hidden" />
 
-      <div ref={searchRef} className="relative">
-        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500 dark:text-[#b0b3b8] pointer-events-none" />
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label={t('nav.search') || 'Tìm kiếm'}
+        className="sm:hidden flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+      >
+        <Search className="h-5 w-5" />
+      </button>
+
+      <div
+        ref={searchRef}
+        className={`relative ${
+          mobileOpen
+            ? 'max-sm:fixed max-sm:inset-x-0 max-sm:top-0 max-sm:z-[60] max-sm:flex max-sm:h-14 max-sm:items-center max-sm:gap-1 max-sm:bg-white max-sm:px-2 max-sm:dark:bg-[#242526]'
+            : 'max-sm:hidden'
+        }`}
+      >
+        {mobileOpen && (
+          <button
+            type="button"
+            data-back-target
+            onClick={closeMobile}
+            aria-label={en ? 'Close search' : 'Đóng tìm kiếm'}
+            className="sm:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-700 dark:text-[#e4e6eb] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] transition cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+        <div className="relative max-sm:min-w-0 max-sm:flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-[#b0b3b8] pointer-events-none" />
         <input
+          ref={inputRef}
           type="text"
           role="combobox"
           aria-label={t('nav.search') || 'Tìm kiếm'}
@@ -125,14 +180,14 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
           onFocus={openSuggestions}
           onKeyDown={handleKeyDown}
           placeholder={t('nav.search') || 'Tìm kiếm...'}
-          className="w-20 xs:w-28 sm:w-36 md:w-36 lg:w-56 xl:w-60 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] focus:w-36 sm:focus:w-44 md:focus:w-48 lg:focus:w-64 transition-all duration-200"
+          className="w-20 xs:w-28 sm:w-36 md:w-36 lg:w-56 xl:w-60 max-sm:w-full max-sm:focus:w-full max-sm:text-base max-sm:py-2.5 pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-100 dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] placeholder-gray-500 dark:placeholder-[#b0b3b8] rounded-full focus:outline-none focus:ring-1 focus:ring-[#2d88ff] focus:w-36 sm:focus:w-44 md:focus:w-48 lg:focus:w-64 transition-all duration-200"
         />
 
         {hasDropdown && (
           <div
             id={LISTBOX_ID}
             role="listbox"
-            className="absolute top-12 left-0 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto"
+            className="absolute top-12 left-0 w-72 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)] max-sm:fixed max-sm:inset-x-2 max-sm:top-[3.75rem] max-sm:w-auto max-sm:max-w-none bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto"
           >
             {!typed && (
               <div className="px-4 pt-3 pb-1 text-xs font-bold text-gray-500 dark:text-[#b0b3b8] uppercase tracking-wider">
@@ -195,6 +250,7 @@ export const HeaderBrandSearch: React.FC<HeaderBrandSearchProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -96,7 +96,7 @@ export const PostDetailPage: React.FC<PostDetailPageProps> = ({
           onNavigateSettings={onNavigateSettings || (() => {})}
         />
 
-        <main className="flex-1 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 min-w-0 max-w-[680px] mx-auto px-2 sm:px-4 py-4 min-h-[calc(100vh-3.5rem)]">
           <button
             type="button"
             onClick={goBack}
