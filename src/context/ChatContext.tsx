@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { chatService } from '../services/chatService';
 import { userService, fetchAuthorProfile, authorProfileCache } from '../services/userService';
 import { websocketService } from '../services/websocket';
+import { onAppResume } from '../utils/appResume';
 import { ChatUser } from '../components/chat/chat-box/types';
 
 export interface ChatContextType {
@@ -328,6 +329,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
   }, [isAuthenticated, conversations]);
+
+  // App quay lại màn hình hoặc có mạng lại: nối lại kênh chat nếu đã đứt và nạp bù số tin chưa đọc đã bỏ lỡ
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    return onAppResume(() => {
+      void websocketService.connect();
+      void refreshConversations(true);
+    });
+  }, [isAuthenticated, refreshConversations]);
 
   return (
     <ChatContext.Provider

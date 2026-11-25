@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { callService, CallSession, MediaType, WebRtcSignal, CallHistoryItem, CallStatus, ParticipantStatus } from '../services/callService';
 import { callWebSocketService } from '../services/callWebSocket';
+import { onAppResume } from '../utils/appResume';
 import { callAudio } from '../utils/callAudio';
 import { userService } from '../services/userService';
 
@@ -356,6 +357,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     callWebSocketService.connect(user.id);
+    // Quay lại màn hình / có mạng lại: nối lại kênh cuộc gọi nếu đã đứt để không lỡ cuộc gọi đến
+    return onAppResume(() => {
+      void callWebSocketService.connect(user.id);
+    });
   }, [isAuthenticated, user?.id]);
 
   // WebSocket messages are not durable.  If the receiver reconnects while a

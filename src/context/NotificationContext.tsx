@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { NotificationItem, NotificationSetting } from '../types/notification';
 import { notificationService } from '../services/notificationService';
+import { onAppResume } from '../utils/appResume';
 import { store } from '../store/store';
 import { getWebSocketUrl } from '../utils/wsUrl';
 
@@ -137,6 +138,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setSettings(null);
     }
   }, [isAuthenticated, fetchNotifications, fetchSettings]);
+
+  // App quay lại màn hình hoặc có mạng lại: nạp bù thông báo và số chưa đọc đã bỏ lỡ lúc WebView bị tạm dừng / mất kết nối
+  // (sự kiện WebSocket không được phát lại). Nạp ngầm, không bật loading để danh sách đang mở không nháy.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    return onAppResume(() => {
+      Promise.all([notificationService.getNotifications(1, 30), notificationService.getUnreadCount()])
+        .then(([notifData, count]) => {
+          setNotifications(notifData.content);
+          setUnreadCount(count);
+        })
+        .catch(() => {});
+    });
+  }, [isAuthenticated]);
 
   // UC-NO06: Realtime WebSocket connection via STOMP
   useEffect(() => {
