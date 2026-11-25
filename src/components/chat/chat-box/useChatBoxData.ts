@@ -137,14 +137,10 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
   const chatDocInputRef = useRef<HTMLInputElement>(null);
   const memberProfilesRef = useRef<Record<string, { name: string; avatar: string }>>({});
 
+  // Dùng hàm của ChatContext: vừa báo server, vừa đưa số chưa đọc của hội thoại về 0 trong danh sách hội thoại (nguồn của huy hiệu
+  // tin nhắn ở header). Trước đây chỉ gọi server và phát hai sự kiện không ai lắng nghe, nên huy hiệu giữ nguyên số cũ dù đã xem tin.
   const markConversationAsRead = async (convId: string, messageId?: string) => {
-    try {
-      await chatService.markAsRead(convId, messageId);
-      window.dispatchEvent(new CustomEvent('chat_conversation_read', { detail: { conversationId: convId } }));
-      window.dispatchEvent(new Event('chat_unread_changed'));
-    } catch (error) {
-      console.warn('[ChatBox] Unable to mark conversation as read:', error);
-    }
+    await contextMarkAsRead(convId, messageId);
   };
 
   const handleChatFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
