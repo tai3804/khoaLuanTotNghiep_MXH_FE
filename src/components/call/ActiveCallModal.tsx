@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import {
   Mic,
   MicOff,
@@ -10,6 +10,8 @@ import {
   Minimize2,
   Minus,
   Sparkles,
+  Expand,
+  Shrink,
 } from 'lucide-react';
 import { useCall } from '../../context/CallContext';
 import { UserAvatar } from '../common/UserAvatar';
@@ -31,6 +33,41 @@ const CallTile: React.FC<{ stream: MediaStream; name: string; muted?: boolean; v
       <span className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur">{name}</span>
     </div>
   );
+};
+
+// Ô camera của mình kéo thả được; thả ra thì hít vào góc gần nhất. Mép trên chừa chỗ cho thanh tên/nút phía trên.
+type PipCorner = 'tl' | 'tr' | 'bl' | 'br';
+const PIP_CORNER_CLASS: Record<PipCorner, string> = {
+  tl: 'top-20 left-3 md:top-24 md:left-6',
+  tr: 'top-20 right-3 md:top-24 md:right-6',
+  bl: 'bottom-4 left-3 md:bottom-6 md:left-6',
+  br: 'bottom-4 right-3 md:bottom-6 md:right-6',
+};
+
+interface PipDragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  anchorLeft: number;
+  anchorTop: number;
+  width: number;
+  height: number;
+  bounds: { left: number; top: number; right: number; bottom: number };
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
+
+// Đưa ô về đúng vị trí neo CSS của góc hiện tại, nhưng chạy mượt từ vị trí (fromLeft, fromTop) đang thấy trên màn hình.
+const settlePip = (el: HTMLElement, fromLeft: number, fromTop: number) => {
+  el.style.transition = 'none';
+  el.style.transform = 'none';
+  const anchor = el.getBoundingClientRect();
+  el.style.transform = `translate3d(${fromLeft - anchor.left}px, ${fromTop - anchor.top}px, 0)`;
+  void el.offsetWidth; // chốt vị trí xuất phát trước khi bật transition
+  el.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+  el.style.transform = 'translate3d(0, 0, 0)';
 };
 
 const formatDuration = (seconds: number): string => {
@@ -62,10 +99,104 @@ export const ActiveCallModal: React.FC = () => {
   } = useCall();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Trên điện thoại (dọc) video webcam ngang bị "object-contain" thu thành một dải nhỏ giữa nền đen,
+  // nên mặc định lấp đầy khung; người dùng bấm nút ở thanh trên để về "vừa khung" (cần khi người kia chia sẻ màn hình).
+  const [fillOnPhone, setFillOnPhone] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
+  const [pipCorner, setPipCorner] = useState<PipCorner>('tr');
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const pipRef = useRef<HTMLDivElement>(null);
+  const pipDrag = useRef<PipDragState | null>(null);
+  const pipFlip = useRef<{ left: number; top: number } | null>(null);
+
+  // Đổi góc: React đã áp class neo mới, ở đây chỉ làm mượt đoạn trượt từ chỗ vừa thả sang góc mới.
+  useLayoutEffect(() => {
+    const el = pipRef.current;
+    const from = pipFlip.current;
+    if (el && from) settlePip(el, from.left, from.top);
+    pipFlip.current = null;
+  }, [pipCorner]);
+
+  const handlePipPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const el = pipRef.current;
+    const canvas = canvasRef.current;
+    if (!el || !canvas || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const visual = el.getBoundingClientRect(); // có thể đang giữa chừng một đoạn trượt
+    el.style.transition = 'none';
+    el.style.transform = 'none';
+    const anchor = el.getBoundingClientRect();
+    el.style.transform = `translate3d(${visual.left - anchor.left}px, ${visual.top - anchor.top}px, 0)`;
+    const bounds = canvas.getBoundingClientRect();
+    const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? bounds.top;
+    pipDrag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: visual.left,
+      startTop: visual.top,
+      anchorLeft: anchor.left,
+      anchorTop: anchor.top,
+      width: visual.width,
+      height: visual.height,
+      bounds: { left: bounds.left, top: Math.max(bounds.top, headerBottom), right: bounds.right, bottom: bounds.bottom },
+    };
+    el.setPointerCapture(event.pointerId);
+  };
+
+  const handlePipPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const el = pipRef.current;
+    const drag = pipDrag.current;
+    if (!el || !drag || event.pointerId !== drag.pointerId) return;
+    const left = clamp(drag.startLeft + event.clientX - drag.startX, drag.bounds.left, drag.bounds.right - drag.width);
+    const top = clamp(drag.startTop + event.clientY - drag.startY, drag.bounds.top, drag.bounds.bottom - drag.height);
+    el.style.transform = `translate3d(${left - drag.anchorLeft}px, ${top - drag.anchorTop}px, 0)`;
+  };
+
+  const handlePipPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const el = pipRef.current;
+    const drag = pipDrag.current;
+    if (!el || !drag || event.pointerId !== drag.pointerId) return;
+    pipDrag.current = null;
+    if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const midX = (drag.bounds.left + drag.bounds.right) / 2;
+    const midY = (drag.bounds.top + drag.bounds.bottom) / 2;
+    const next = `${centerY < midY ? 't' : 'b'}${centerX < midX ? 'l' : 'r'}` as PipCorner;
+    if (next === pipCorner) {
+      settlePip(el, rect.left, rect.top);
+    } else {
+      pipFlip.current = { left: rect.left, top: rect.top };
+      setPipCorner(next);
+    }
+  };
+
+  // Bàn phím: phím mũi tên chuyển ô camera sang góc kế bên
+  const handlePipKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const el = pipRef.current;
+    if (!el) return;
+    const vertical = pipCorner[0];
+    const horizontal = pipCorner[1];
+    let next: PipCorner;
+    switch (event.key) {
+      case 'ArrowUp': next = `t${horizontal}` as PipCorner; break;
+      case 'ArrowDown': next = `b${horizontal}` as PipCorner; break;
+      case 'ArrowLeft': next = `${vertical}l` as PipCorner; break;
+      case 'ArrowRight': next = `${vertical}r` as PipCorner; break;
+      default: return;
+    }
+    event.preventDefault();
+    if (next === pipCorner) return;
+    const rect = el.getBoundingClientRect();
+    pipFlip.current = { left: rect.left, top: rect.top };
+    setPipCorner(next);
+  };
 
   // Attach local media stream
   useEffect(() => {
@@ -185,14 +316,14 @@ export const ActiveCallModal: React.FC = () => {
 
   // 2. Full Active Call Window
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-6 animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md md:p-6 animate-fade-in">
       <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       <div
         ref={containerRef}
-        className="relative w-full max-w-4xl h-[88vh] bg-gradient-to-b from-gray-900 to-gray-950 rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-800"
+        className="relative w-full h-full md:max-w-4xl md:h-[88vh] bg-gradient-to-b from-gray-900 to-gray-950 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:border border-gray-800"
       >
         {/* Top Header Bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
+        <div ref={headerRef} className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 md:p-6 bg-gradient-to-b from-black/80 via-black/30 to-transparent">
           <div className="flex items-center space-x-3">
             <UserAvatar src={remoteUser?.avatar} alt={remoteUser?.name || 'User'} size="sm" />
             <div>
@@ -213,14 +344,27 @@ export const ActiveCallModal: React.FC = () => {
           <div className="flex items-center space-x-2 text-white/80">
             <button
               onClick={() => setIsMinimized(true)}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer backdrop-blur-md"
+              className="p-3 md:p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer backdrop-blur-md"
               title="Thu nhỏ thành cửa sổ nổi"
+              aria-label="Thu nhỏ thành cửa sổ nổi"
             >
               <Minus className="w-4 h-4" />
             </button>
+            {/* Chỉ trên điện thoại: đổi giữa lấp đầy khung (có thể cắt hai bên) và vừa khung (thấy đủ hình) */}
+            {isVideo && !isGroupCall && (
+              <button
+                onClick={() => setFillOnPhone((v) => !v)}
+                className="md:hidden p-3 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer backdrop-blur-md"
+                title={fillOnPhone ? 'Hiện đủ hình' : 'Lấp đầy màn hình'}
+                aria-label={fillOnPhone ? 'Hiện đủ hình' : 'Lấp đầy màn hình'}
+                aria-pressed={fillOnPhone}
+              >
+                {fillOnPhone ? <Shrink className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
+              </button>
+            )}
             <button
               onClick={handleToggleFullscreen}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer backdrop-blur-md"
+              className="max-md:hidden p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer backdrop-blur-md"
               title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -229,7 +373,7 @@ export const ActiveCallModal: React.FC = () => {
         </div>
 
         {/* Main Video / Audio Canvas */}
-        <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+        <div ref={canvasRef} className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
           {isGroupCall ? (
             <div className={`grid ${gridClass} gap-2 w-full h-full p-3 md:p-5`}>
               <CallTile stream={localStream || new MediaStream()} name="Bạn" muted />
@@ -242,7 +386,7 @@ export const ActiveCallModal: React.FC = () => {
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-full object-contain bg-black"
+              className={`w-full h-full bg-black ${fillOnPhone ? 'object-cover md:object-contain' : 'object-contain'}`}
             />
           ) : (
             // Audio-only or Camera-off Avatar View
@@ -274,9 +418,20 @@ export const ActiveCallModal: React.FC = () => {
             </div>
           )}
 
-          {/* Local Camera Preview (Picture-in-Picture) */}
+          {/* Local Camera Preview (Picture-in-Picture): kéo thả, thả ra hít vào góc gần nhất */}
           {isVideo && !isGroupCall && (
-            <div className="absolute bottom-24 right-4 md:right-6 w-32 md:w-44 aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-gray-900 z-20 backdrop-blur-md transition-all hover:scale-105">
+            <div
+              ref={pipRef}
+              role="group"
+              tabIndex={0}
+              aria-label="Khung camera của bạn. Kéo để di chuyển hoặc dùng phím mũi tên."
+              onPointerDown={handlePipPointerDown}
+              onPointerMove={handlePipPointerMove}
+              onPointerUp={handlePipPointerEnd}
+              onPointerCancel={handlePipPointerEnd}
+              onKeyDown={handlePipKeyDown}
+              className={`absolute ${PIP_CORNER_CLASS[pipCorner]} w-36 aspect-[3/4] md:w-44 md:aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-gray-900 z-20 backdrop-blur-md touch-none select-none cursor-grab active:cursor-grabbing outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
+            >
               {!isVideoMuted && localStream ? (
                 <video
                   ref={localVideoRef}
@@ -284,7 +439,7 @@ export const ActiveCallModal: React.FC = () => {
                   playsInline
                   muted
                   onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})}
-                  className="w-full h-full object-cover scale-x-[-1]"
+                  className="w-full h-full object-cover scale-x-[-1] pointer-events-none"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400 text-xs font-semibold">
