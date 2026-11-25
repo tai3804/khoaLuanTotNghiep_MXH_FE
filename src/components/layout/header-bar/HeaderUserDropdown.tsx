@@ -1,6 +1,6 @@
 import React, { RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Moon, Globe, LogOut, BarChart3 } from 'lucide-react';
+import { Settings, Moon, Globe, LogOut, BarChart3, ShieldCheck, LifeBuoy } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 
 interface HeaderUserDropdownProps {
@@ -37,6 +37,7 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
   onNavigateSettings,
 }) => {
   const navigate = useNavigate();
+  const canModerate = (user?.roles || []).some((r: any) => ['ROLE_MODERATOR', 'MODERATOR', 'ROLE_ADMIN', 'ADMIN'].includes(String(r).toUpperCase()));
 
   return (
     <div ref={userMenuRef} className="relative pl-0.5">
@@ -93,6 +94,31 @@ export const HeaderUserDropdown: React.FC<HeaderUserDropdownProps> = ({
           >
             <Settings className="w-4 h-4 text-[#2d88ff]" />
             <span>{t('userMenu.settings')}</span>
+          </button>
+
+          {/* Thanh bên trái (có "Trung tâm kiểm duyệt" và "Hộp thư hỗ trợ") chỉ hiện từ màn hình lớn; trên điện thoại hai mục này
+              nằm ở đây, nếu không kiểm duyệt viên không có lối vào trang kiểm duyệt (app không có thanh địa chỉ). */}
+          {canModerate && (
+            <button
+              onClick={() => {
+                navigate('/moderation');
+                setShowUserMenu(false);
+              }}
+              className="lg:hidden w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-rose-500" />
+              <span>{t('sidebar.moderationCenter') || 'Trung tâm kiểm duyệt'}</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              navigate('/support-inbox');
+              setShowUserMenu(false);
+            }}
+            className="lg:hidden w-full flex items-center space-x-3 p-2.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] transition cursor-pointer"
+          >
+            <LifeBuoy className="w-4 h-4 text-violet-500" />
+            <span>{t('sidebar.supportInbox') || 'Hộp thư hỗ trợ'}</span>
           </button>
 
           <div className="flex items-center justify-between px-2.5 py-2 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-xl text-xs font-semibold text-gray-700 dark:text-[#e4e6eb] transition">

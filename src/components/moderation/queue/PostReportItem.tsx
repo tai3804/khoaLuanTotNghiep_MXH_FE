@@ -166,7 +166,7 @@ export const PostReportItem: React.FC<PostReportItemProps> = ({
             type="button"
             onClick={() => onProcess(report, 'DELETE_POST', 'Gỡ bỏ bài viết vi phạm tiêu chuẩn cộng đồng')}
             disabled={isProcessing}
-            className="inline-flex items-center gap-1 rounded-lg border border-rose-200/70 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 active:scale-95 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/50 cursor-pointer"
+            className="inline-flex items-center gap-1 max-md:min-h-11 max-md:px-3.5 rounded-lg border border-rose-200/70 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 active:scale-95 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/50 cursor-pointer"
             title="Gỡ vĩnh viễn bài viết"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -177,7 +177,7 @@ export const PostReportItem: React.FC<PostReportItemProps> = ({
             type="button"
             onClick={() => onProcess(report, 'HIDE_POST', post?.isArchived ? 'Bỏ ẩn bài viết' : 'Ẩn bài viết khỏi bảng tin')}
             disabled={isProcessing}
-            className="inline-flex items-center gap-1 rounded-lg border border-amber-200/70 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-50 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50 cursor-pointer"
+            className="inline-flex items-center gap-1 max-md:min-h-11 max-md:px-3.5 rounded-lg border border-amber-200/70 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-50 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50 cursor-pointer"
             title={post?.isArchived ? 'Bỏ ẩn bài viết' : 'Ẩn bài viết'}
           >
             <EyeOff className="h-3.5 w-3.5" />
@@ -188,7 +188,7 @@ export const PostReportItem: React.FC<PostReportItemProps> = ({
             type="button"
             onClick={() => onProcess(report, 'DISMISS', 'Nội dung hợp lệ, bỏ qua báo cáo')}
             disabled={isProcessing}
-            className="inline-flex items-center gap-1 rounded-lg border border-gray-200/70 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-95 disabled:opacity-50 dark:border-[#3a3b3e] dark:bg-[#2b2c2f] dark:text-gray-300 dark:hover:bg-[#343538] cursor-pointer"
+            className="inline-flex items-center gap-1 max-md:min-h-11 max-md:px-3.5 rounded-lg border border-gray-200/70 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-95 disabled:opacity-50 dark:border-[#3a3b3e] dark:bg-[#2b2c2f] dark:text-gray-300 dark:hover:bg-[#343538] cursor-pointer"
             title="Bỏ qua báo cáo"
           >
             <Check className="h-3.5 w-3.5" />
@@ -201,7 +201,7 @@ export const PostReportItem: React.FC<PostReportItemProps> = ({
           type="button"
           onClick={() => onSelect(report)}
           disabled={isProcessing}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-100 active:scale-95 disabled:opacity-50 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/50 cursor-pointer"
+          className="inline-flex items-center gap-1.5 max-md:min-h-11 rounded-lg border border-blue-200/70 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-100 active:scale-95 disabled:opacity-50 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/50 cursor-pointer"
         >
           <Gavel className="h-3.5 w-3.5" />
           <span>Chi tiết</span>

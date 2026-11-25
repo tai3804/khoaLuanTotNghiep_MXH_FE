@@ -754,7 +754,8 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                   onClick={load}
                   disabled={loading}
                   title="Làm mới dữ liệu kiểm duyệt"
-                  className="p-2 rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
+                  aria-label="Làm mới dữ liệu kiểm duyệt"
+                  className="p-2 max-md:h-11 max-md:w-11 max-md:flex max-md:items-center max-md:justify-center rounded-full bg-gray-100 dark:bg-[#3a3b3c] hover:bg-gray-200 dark:hover:bg-[#4e4f50] text-gray-600 dark:text-[#b0b3b8] transition cursor-pointer shrink-0"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
@@ -766,7 +767,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               <button
                 type="button"
                 onClick={() => setTab('queue')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 max-md:min-h-11 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   tab === 'queue'
                     ? 'bg-[#1877f2] text-white shadow-xs font-bold'
                     : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
@@ -784,7 +785,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               <button
                 type="button"
                 onClick={() => setTab('history')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 max-md:min-h-11 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   tab === 'history'
                     ? 'bg-[#1877f2] text-white shadow-xs font-bold'
                     : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
@@ -802,7 +803,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
               <button
                 type="button"
                 onClick={() => setTab('appeals')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 max-md:min-h-11 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer shrink-0 ${
                   tab === 'appeals'
                     ? 'bg-[#1877f2] text-white shadow-xs font-bold'
                     : 'bg-white dark:bg-[#242526] text-gray-700 dark:text-[#b0b3b8] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-200/80 dark:border-[#393a3b]'
@@ -828,7 +829,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setSourceFilter('ALL')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 max-md:min-h-11 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                     sourceFilter === 'ALL'
                       ? 'bg-white dark:bg-[#2e2f30] text-gray-900 dark:text-white shadow-xs'
                       : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
@@ -845,7 +846,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setSourceFilter('USER')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 max-md:min-h-11 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                     sourceFilter === 'USER'
                       ? 'bg-white dark:bg-[#2e2f30] text-gray-900 dark:text-white shadow-xs'
                       : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
@@ -862,7 +863,7 @@ export const ModeratorPage: React.FC<ModeratorPageProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setSourceFilter('AI')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 max-md:min-h-11 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                     sourceFilter === 'AI'
                       ? 'bg-white dark:bg-[#2e2f30] text-purple-600 dark:text-purple-400 shadow-xs'
                       : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
@@ -1654,7 +1655,7 @@ const LogCard: React.FC<{
               type="button"
               onClick={() => onUndo(log.reportId!, log.targetId)}
               disabled={isProcessing}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 disabled:opacity-50 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 max-md:min-h-11 max-md:px-3.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95 disabled:opacity-50 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40 cursor-pointer"
               title="Hoàn tác quyết định và đưa bài viết quay trở lại Hàng chờ xử lý"
             >
               {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
@@ -1887,7 +1888,7 @@ const AppealsPanel: React.FC<{
               <button
                 disabled={isBusy}
                 onClick={() => onReview(appeal.postId, true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 max-md:min-h-11 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
               >
                 {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check size={16} />}
                 Chấp nhận &amp; khôi phục
@@ -1895,7 +1896,7 @@ const AppealsPanel: React.FC<{
               <button
                 disabled={isBusy}
                 onClick={() => onReview(appeal.postId, false)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:scale-95 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 max-md:min-h-11 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:scale-95 disabled:opacity-60"
               >
                 {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X size={16} />}
                 Bác bỏ
