@@ -65,14 +65,20 @@ export interface SummarizeMessagesResponse {
   imageCount: number;
 }
 
+/**
+ * Một nguồn tư liệu của câu trả lời. `POST` là bài viết (có `postId`, bấm để mở bài); `DOC` là một mục của tài liệu hướng dẫn
+ * (có `title` dạng "Tên tài liệu > Mục", không có liên kết). `type` có thể vắng ở dữ liệu cũ: coi như `POST`.
+ */
 export interface ChatSource {
-  postId: string;
+  type?: 'POST' | 'DOC';
+  postId?: string | null;
+  title?: string | null;
   snippet: string;
 }
 
 export interface ChatResult {
   reply: string;
-  /** Các bài viết trợ lý dùng làm tư liệu (RAG), theo thứ tự số nguồn [1], [2], ... trong câu trả lời. */
+  /** Các tư liệu trợ lý dùng (RAG: tài liệu hướng dẫn và bài viết), theo thứ tự số nguồn [1], [2], ... trong câu trả lời. */
   sources?: ChatSource[];
 }
 
