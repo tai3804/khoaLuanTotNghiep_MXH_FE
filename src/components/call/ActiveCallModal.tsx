@@ -57,6 +57,15 @@ interface PipDragState {
   bounds: { left: number; top: number; right: number; bottom: number };
 }
 
+// Gắn luồng vào phần tử <video>/<audio> ngay khi phần tử xuất hiện (dùng làm callback ref).
+// Thu nhỏ <-> phóng to, hay người kia bật/tắt camera, đều tạo phần tử mới mà `remoteStream` không đổi,
+// nên gắn bằng useEffect([stream]) sẽ để phần tử mới không có hình/tiếng.
+const attachStream = (el: HTMLMediaElement | null, stream: MediaStream | null | undefined): void => {
+  if (!el || !stream) return;
+  if (el.srcObject !== stream) el.srcObject = stream;
+  if (el.paused) el.play().catch(() => {});
+};
+
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
 
 // Đưa ô về đúng vị trí neo CSS của góc hiện tại, nhưng chạy mượt từ vị trí (fromLeft, fromTop) đang thấy trên màn hình.
@@ -103,9 +112,6 @@ export const ActiveCallModal: React.FC = () => {
   // nên mặc định lấp đầy khung; người dùng bấm nút ở thanh trên để về "vừa khung" (cần khi người kia chia sẻ màn hình).
   const [fillOnPhone, setFillOnPhone] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   const [pipCorner, setPipCorner] = useState<PipCorner>('tr');
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -198,26 +204,6 @@ export const ActiveCallModal: React.FC = () => {
     setPipCorner(next);
   };
 
-  // Attach local media stream
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch(() => {});
-    }
-  }, [localStream, isVideoMuted, isScreenSharing]);
-
-  // Attach remote media stream
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
-    }
-    if (remoteAudioRef.current && remoteStream) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(() => {});
-    }
-  }, [remoteStream]);
-
   // Toggle browser native fullscreen
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -244,6 +230,8 @@ export const ActiveCallModal: React.FC = () => {
   if (isMinimized) {
     return (
       <div className="fixed bottom-6 right-6 z-[100] w-72 bg-gray-900/95 border border-gray-700/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-fade-in text-white transition-all duration-200">
+        {/* Âm thanh cuộc gọi phải sống cả khi thu nhỏ; <video> bên dưới tắt tiếng để không bị tiếng đôi */}
+        <audio ref={(el) => attachStream(el, remoteStream)} autoPlay playsInline className="hidden" />
         <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
           {isGroupCall ? (
             <div className={`grid ${gridClass} gap-2 w-full h-full p-3 md:p-5`}>
@@ -254,9 +242,10 @@ export const ActiveCallModal: React.FC = () => {
             </div>
           ) : isVideo && hasRemoteVideo && !remoteVideoMuted ? (
             <video
-              ref={remoteVideoRef}
+              ref={(el) => attachStream(el, remoteStream)}
               autoPlay
               playsInline
+              muted
               onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})}
               className="w-full h-full object-cover"
             />
@@ -317,7 +306,7 @@ export const ActiveCallModal: React.FC = () => {
   // 2. Full Active Call Window
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md md:p-6 animate-fade-in">
-      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+      <audio ref={(el) => attachStream(el, remoteStream)} autoPlay playsInline className="hidden" />
       <div
         ref={containerRef}
         className="relative w-full h-full md:max-w-4xl md:h-[88vh] bg-gradient-to-b from-gray-900 to-gray-950 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:border border-gray-800"
@@ -383,9 +372,11 @@ export const ActiveCallModal: React.FC = () => {
             </div>
           ) : isVideo && hasRemoteVideo && !remoteVideoMuted ? (
             <video
-              ref={remoteVideoRef}
+              ref={(el) => attachStream(el, remoteStream)}
               autoPlay
               playsInline
+              muted
+              onLoadedMetadata={(event) => event.currentTarget.play().catch(() => {})}
               className={`w-full h-full bg-black ${fillOnPhone ? 'object-cover md:object-contain' : 'object-contain'}`}
             />
           ) : (
@@ -434,7 +425,7 @@ export const ActiveCallModal: React.FC = () => {
             >
               {!isVideoMuted && localStream ? (
                 <video
-                  ref={localVideoRef}
+                  ref={(el) => attachStream(el, localStream)}
                   autoPlay
                   playsInline
                   muted
