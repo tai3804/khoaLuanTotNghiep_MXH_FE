@@ -176,7 +176,7 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
     return moderatedItems.filter(
       (item) =>
         item.content?.toLowerCase().includes(q) ||
-        item.moderationReason?.toLowerCase().includes(q) ||
+        item.reason?.toLowerCase().includes(q) ||
         item.appealMessage?.toLowerCase().includes(q) ||
         item.postId?.toLowerCase().includes(q)
     );
@@ -369,7 +369,7 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                            {actionLabel(item.moderationAction)}
+                            {actionLabel(item.action)}
                           </h3>
                           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                             item.appealStatus === 'ACCEPTED'
@@ -382,7 +382,7 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-gray-600 dark:text-[#b0b3b8]">
-                          Lý do: {item.moderationReason || 'Nội dung đã bị kiểm duyệt'}
+                          Lý do: {item.reason || 'Nội dung đã bị kiểm duyệt'}
                         </p>
                         {item.updatedAt && (
                           <p className="mt-0.5 text-[11px] text-gray-400">
@@ -402,9 +402,9 @@ export const SupportInboxPage: React.FC<SupportInboxPageProps> = ({
                             Lý do bạn đã gửi: {item.appealMessage}
                           </p>
                         )}
-                        {item.appealReviewNote && (
+                        {item.reviewNote && (
                           <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                            Phản hồi kiểm duyệt: {item.appealReviewNote}
+                            Phản hồi kiểm duyệt: {item.reviewNote}
                           </p>
                         )}
                         {!item.appealStatus && (
