@@ -6,6 +6,7 @@ import { postService } from '../services/api';
 import { callService } from '../services/callService';
 import { liveStreamWebSocketService } from '../services/liveStreamWebSocket';
 import { liveWebRtcService } from '../services/liveWebRtcService';
+import { onAppResume } from '../utils/appResume';
 import {
   HostLiveSession,
   clearHostLiveSession,
@@ -222,6 +223,28 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.warn('[LiveStreamContext] loadPostComments warning:', err);
     }
   }, []);
+
+  // Kênh live rớt rồi nối lại (hoặc app vừa quay lại từ nền): bình luận phát trong lúc đó không được gửi lại,
+  // nên nạp bù từ REST cho mọi phòng đang theo dõi. Việc đăng ký lại phòng do liveStreamWebSocketService tự làm.
+  useEffect(() => {
+    const backfill = (rooms: string[]) => {
+      rooms.forEach((roomId) => {
+        void loadPostComments(roomId);
+      });
+    };
+    const handleReconnected = (event: Event) => {
+      backfill((event as CustomEvent<{ rooms?: string[] }>).detail?.rooms ?? []);
+    };
+    window.addEventListener('kltn_live_ws_reconnected', handleReconnected);
+    const offResume = onAppResume(() => {
+      liveStreamWebSocketService.ensureConnected();
+      backfill(liveStreamWebSocketService.getSubscribedRooms());
+    });
+    return () => {
+      window.removeEventListener('kltn_live_ws_reconnected', handleReconnected);
+      offResume();
+    };
+  }, [loadPostComments]);
 
   // Auto-subscribe to WebSocket room whenever an active broadcast exists
   useEffect(() => {
