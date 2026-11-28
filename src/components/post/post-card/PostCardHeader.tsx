@@ -205,10 +205,9 @@ export const PostCardHeader: React.FC<PostCardHeaderProps> = ({
   const [groupBusy, setGroupBusy] = React.useState(false);
   const showPinnedBadge = inGroupPage ? Boolean(post.groupPinned) : isPinned;
 
-  // Lý do đề xuất do AI: chủ đề vừa tìm (BE trả sẵn câu tiếng Việt) hoặc mã của lọc cộng tác / hồ sơ sở thích
-  const aiReason = post.relevanceReason
-    ? (post.relevanceReason.startsWith('Gợi ý') ? post.relevanceReason : AI_REASON_LABELS[post.relevanceReason])
-    : undefined;
+  // Lý do đề xuất do AI: chỉ hiện nhãn lọc cộng tác / hồ sơ sở thích.
+  // Nhãn "Gợi ý theo chủ đề bạn vừa tìm: ..." (BE trả sẵn câu) không hiển thị nữa; bài vẫn được ưu tiên như cũ.
+  const aiReason = post.relevanceReason ? AI_REASON_LABELS[post.relevanceReason] : undefined;
 
   const isGroupPost = Boolean(post.groupId);
   const groupName = groupInfo?.name || post.groupName || 'Nhóm';

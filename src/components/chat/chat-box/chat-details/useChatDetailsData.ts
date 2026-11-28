@@ -1,40 +1,20 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Message } from '../useChatBoxData';
-import { ChatUser } from '../types';
 import { SharedMediaItem, SharedFileItem, SharedLinkItem, ChatDetailsTab } from './types';
 import { chatService } from '../../../../services/chatService';
+import { attachmentName, classifyAttachment, fileExt } from '../chatAttachment';
 
 interface UseChatDetailsDataProps {
   messages: Message[];
   conversationId?: string | null;
-  friend: ChatUser;
 }
 
-export const useChatDetailsData = ({ messages, conversationId, friend }: UseChatDetailsDataProps) => {
+export const useChatDetailsData = ({ messages, conversationId }: UseChatDetailsDataProps) => {
   const [activeTab, setActiveTab] = useState<ChatDetailsTab>('MEDIA');
   const [selectedMedia, setSelectedMedia] = useState<SharedMediaItem | null>(null);
   const [extraMessages, setExtraMessages] = useState<Message[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasLoadedFullHistory, setHasLoadedFullHistory] = useState(false);
-
-  // Quick Emoji customization saved per conversation
-  const emojiStorageKey = conversationId ? `chat_emoji_${conversationId}` : `chat_emoji_${friend.id}`;
-  const [quickEmoji, setQuickEmojiState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(emojiStorageKey) || '👍';
-    }
-    return '👍';
-  });
-
-  const setQuickEmoji = useCallback((emoji: string) => {
-    setQuickEmojiState(emoji);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(emojiStorageKey, emoji);
-      window.dispatchEvent(new CustomEvent('chat_quick_emoji_changed', {
-        detail: { conversationId, emoji }
-      }));
-    }
-  }, [emojiStorageKey, conversationId]);
 
   // Combined messages list (current loaded messages + any deep scanned messages)
   const allMessages = useMemo(() => {
@@ -48,57 +28,43 @@ export const useChatDetailsData = ({ messages, conversationId, friend }: UseChat
     return Array.from(map.values());
   }, [messages, extraMessages]);
 
-  // 1. Shared Media (Photos & Videos)
+  // 1. Shared Media (Photos & Videos) và 2. Shared Files: cùng cách phân loại với khung chat
   const sharedMedia = useMemo<SharedMediaItem[]>(() => {
     const list: SharedMediaItem[] = [];
-    const mediaRegex = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov|quicktime)($|\?)/i;
-
     for (const m of allMessages) {
       if (m.deleted) continue;
-      const url = m.mediaUrl || (m.text && m.text.startsWith('http') && mediaRegex.test(m.text) ? m.text : null);
+      const kind = classifyAttachment(m);
+      if (kind !== 'image' && kind !== 'video') continue;
+      const url = m.mediaUrl || m.text;
       if (!url) continue;
-
-      const isVideo = m.type === 'VIDEO' || /\.(mp4|webm|mov)($|\?)/i.test(url);
-      const isImage = m.type === 'IMAGE' || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(url);
-
-      if (isVideo || isImage || (!m.type?.includes('FILE') && !m.type?.includes('AUDIO'))) {
-        list.push({
-          id: m.id,
-          url,
-          type: isVideo ? 'VIDEO' : 'IMAGE',
-          time: m.time,
-          senderName: m.senderName,
-          fileName: m.fileName,
-        });
-      }
+      list.push({
+        id: m.id,
+        url,
+        type: kind === 'video' ? 'VIDEO' : 'IMAGE',
+        time: m.time,
+        senderName: m.senderName,
+        fileName: m.fileName,
+      });
     }
     return list;
   }, [allMessages]);
 
-  // 2. Shared Files (Documents, Archives, Spreadsheets)
   const sharedFiles = useMemo<SharedFileItem[]>(() => {
     const list: SharedFileItem[] = [];
-    const docRegex = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|7z|tar|gz|csv)($|\?)/i;
-
     for (const m of allMessages) {
-      if (m.deleted) continue;
-      const url = m.mediaUrl || (m.text && m.text.startsWith('http') && docRegex.test(m.text) ? m.text : null);
-      const isExplicitFile = m.type === 'FILE' || (url && docRegex.test(url)) || Boolean(m.fileName && docRegex.test(m.fileName));
-
-      if (isExplicitFile && url) {
-        const inferredName = m.fileName || url.split('/').pop()?.split('?')[0] || 'Attachment';
-        const ext = inferredName.includes('.') ? inferredName.split('.').pop()?.toUpperCase() || 'FILE' : 'FILE';
-
-        list.push({
-          id: m.id,
-          url,
-          fileName: inferredName,
-          fileSize: m.fileSize,
-          time: m.time,
-          senderName: m.senderName,
-          extension: ext,
-        });
-      }
+      if (m.deleted || classifyAttachment(m) !== 'file') continue;
+      const url = m.mediaUrl || m.text;
+      if (!url) continue;
+      const fileName = attachmentName(m) || 'Tệp đính kèm';
+      list.push({
+        id: m.id,
+        url,
+        fileName,
+        fileSize: m.fileSize,
+        time: m.time,
+        senderName: m.senderName,
+        extension: (fileExt(fileName) || fileExt(url) || 'file').toUpperCase(),
+      });
     }
     return list;
   }, [allMessages]);
@@ -167,8 +133,6 @@ export const useChatDetailsData = ({ messages, conversationId, friend }: UseChat
     sharedLinks,
     selectedMedia,
     setSelectedMedia,
-    quickEmoji,
-    setQuickEmoji,
     loadDeeperHistory,
     isLoadingMore,
     hasLoadedFullHistory,

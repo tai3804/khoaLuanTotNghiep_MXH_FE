@@ -112,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const token = await authService.refreshToken();
           if (token) {
-            dispatch(setAccessToken(token));
             setIsGuest(false);
             if (!user) {
               const payload = parseTokenPayload(token);
@@ -199,7 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[AuthContext] Triggering proactive background token refresh...');
         const newToken = await authService.refreshToken();
         if (newToken) {
-          dispatch(setAccessToken(newToken));
           console.log('[AuthContext] Proactive background token refresh succeeded!');
         }
       } catch (err) {
@@ -229,7 +227,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('[AuthContext] Focus/Visibility token renewal triggered...');
           const newToken = await authService.refreshToken();
           if (newToken) {
-            dispatch(setAccessToken(newToken));
             console.log('[AuthContext] Focus token renewal succeeded!');
           }
         } catch (err) {

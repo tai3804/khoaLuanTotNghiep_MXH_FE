@@ -1,6 +1,7 @@
 import React from 'react';
-import { Send, Reply, X } from 'lucide-react';
+import { Send, Reply, X, Clock } from 'lucide-react';
 import { LiveComment } from '../../../../context/LiveStreamContext';
+import { useFadingComments } from './useFadingComments';
 
 interface LiveStreamViewerOverlayProps {
   comments: LiveComment[];
@@ -13,6 +14,11 @@ interface LiveStreamViewerOverlayProps {
   onCancelReply?: () => void;
   onSendComment: (e: React.FormEvent) => void;
   onSendReaction: (emoji: string) => void;
+  /** Chế độ chậm: câu báo cho chính người gửi, có đang bị chặn gửi không, còn mấy giây */
+  slowModeNotice?: string | null;
+  slowModeWarned?: boolean;
+  slowModeRemaining?: number;
+  reactionsEnabled?: boolean;
 }
 
 const QUICK_REACTION_EMOJIS = ['❤️', '👍', '🔥', '😂', '🎉'];
@@ -28,7 +34,12 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
   onCancelReply,
   onSendComment,
   onSendReaction,
+  slowModeNotice,
+  slowModeWarned = false,
+  slowModeRemaining = 0,
+  reactionsEnabled = true,
 }) => {
+  const bubbles = useFadingComments(comments);
   return (
     <div
       className={`absolute inset-x-3 flex flex-col justify-end pointer-events-none z-30 ${
@@ -37,7 +48,7 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
     >
       {/* Real Live Chat Bubbles (Max 4 visible) with reply on click */}
       <div className="space-y-1.5 mb-2 max-w-xs sm:max-w-sm pointer-events-auto">
-        {comments.slice(-4).map((c) => {
+        {bubbles.map(({ comment: c, fading }) => {
           const isHostComment = c.authorName.includes('Admin') || c.authorName.includes('Host');
           const targetReplyUser = c.replyToAuthor;
 
@@ -45,7 +56,9 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
             <div
               key={c.id}
               onClick={() => onStartReply?.(c)}
-              className="group/bubble backdrop-blur-md rounded-xl p-2 text-white shadow-lg animate-fadeIn text-xs flex items-start space-x-2 cursor-pointer transition-all bg-black/80 hover:bg-black/90 border border-white/10 hover:border-blue-500/40"
+              className={`group/bubble backdrop-blur-md rounded-xl p-2 text-white shadow-lg animate-fadeIn text-xs flex items-start space-x-2 cursor-pointer transition-all duration-700 bg-black/80 hover:bg-black/90 border border-white/10 hover:border-blue-500/40 ${
+                fading ? 'opacity-0 -translate-y-1' : 'opacity-100'
+              }`}
               title="Nhấn để trả lời bình luận này"
             >
               <div className="flex-1 min-w-0">
@@ -109,6 +122,20 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
             </div>
           )}
 
+          {slowModeNotice && (
+            <div
+              role="status"
+              className={`flex items-center gap-1.5 w-fit max-w-md px-2.5 py-1 rounded-lg backdrop-blur-md text-[11px] font-medium border animate-fadeIn ${
+                slowModeWarned
+                  ? 'bg-amber-500/90 text-black border-amber-300'
+                  : 'bg-black/70 text-gray-200 border-white/15'
+              }`}
+            >
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>{slowModeNotice}</span>
+            </div>
+          )}
+
           <div className="flex items-center space-x-2">
             <form
               onSubmit={onSendComment}
@@ -125,14 +152,15 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
               <button
                 type="submit"
                 disabled={!commentInput.trim()}
-                className="text-blue-400 hover:text-blue-300 disabled:opacity-30 cursor-pointer transition p-1"
+                className="text-blue-400 hover:text-blue-300 disabled:opacity-30 cursor-pointer transition p-1 min-w-[22px] text-[11px] font-bold"
+                title={slowModeRemaining > 0 ? `Gửi tiếp sau ${slowModeRemaining} giây` : 'Gửi'}
               >
-                <Send className="w-3.5 h-3.5" />
+                {slowModeRemaining > 0 ? `${slowModeRemaining}s` : <Send className="w-3.5 h-3.5" />}
               </button>
             </form>
 
-            {/* Quick Reaction Emojis */}
-            <div className="flex items-center space-x-1 bg-black/70 backdrop-blur-md p-1 rounded-full border border-white/20">
+            {/* Quick Reaction Emojis (chủ phòng có thể tắt) */}
+            {reactionsEnabled && <div className="flex items-center space-x-1 bg-black/70 backdrop-blur-md p-1 rounded-full border border-white/20">
               {QUICK_REACTION_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
@@ -143,7 +171,7 @@ export const LiveStreamViewerOverlay: React.FC<LiveStreamViewerOverlayProps> = (
                   {emoji}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
         </div>
       )}

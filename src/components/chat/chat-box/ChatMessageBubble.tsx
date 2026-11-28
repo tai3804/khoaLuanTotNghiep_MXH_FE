@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, Undo2, Edit2, Trash2, Eye, Check, CheckCheck } from 'lucide-react';
+import { MoreHorizontal, Undo2, Edit2, Trash2, Check, CheckCheck } from 'lucide-react';
 import { UserAvatar } from '../../common/UserAvatar';
 import { Message } from './useChatBoxData';
 import { ChatFileAttachment } from './ChatFileAttachment';
@@ -8,6 +8,7 @@ import { ChatSharedPostCard } from './ChatSharedPostCard';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { mediaService } from '../../../services/mediaService';
 import { useLanguage } from '../../../context/LanguageContext';
+import { attachmentName, classifyAttachment } from './chatAttachment';
 
 interface ChatMessageBubbleProps {
   msg: Message;
@@ -19,6 +20,34 @@ interface ChatMessageBubbleProps {
   onDeleteForMe: (messageId: string) => Promise<void>;
   onMediaLoad?: () => void;
 }
+
+/** Lớp phủ khi ảnh/video đang được tải lên và xử lý. */
+const UploadOverlay: React.FC<{ progress: number; isEn: boolean }> = ({ progress, isEn }) => {
+  const r = 15;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="absolute inset-0 rounded-2xl bg-black/35 flex flex-col items-center justify-center gap-1 text-white pointer-events-none">
+      <svg viewBox="0 0 36 36" className="w-9 h-9 -rotate-90">
+        <circle cx="18" cy="18" r={r} fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="3" />
+        <circle
+          cx="18"
+          cy="18"
+          r={r}
+          fill="none"
+          stroke="white"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - Math.max(0.04, progress / 100))}
+          className="transition-[stroke-dashoffset] duration-200"
+        />
+      </svg>
+      <span className="text-[10px] font-semibold drop-shadow">
+        {isEn ? 'Processing…' : 'Đang xử lý…'}
+      </span>
+    </div>
+  );
+};
 
 const POST_URL_REGEX = /(?:https?:\/\/[^\s/]+)?\/posts?\/([a-zA-Z0-9_-]+)/;
 
@@ -51,22 +80,6 @@ const renderOnlyText = (text: string, isMe: boolean) => {
   );
 };
 
-const isMediaExtension = (url: string) => {
-  return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url);
-};
-
-const isDocumentExtension = (url: string) => {
-  return /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|csv)(\?.*)?$/i.test(url);
-};
-
-const isVideoExtension = (url: string) => {
-  return /\.(mp4|webm|ogg|mov|m4v|mkv)(\?.*)?$/i.test(url);
-};
-
-const isAudioExtension = (url: string) => {
-  return /\.(mp3|wav|ogg|webm|m4a|aac|opus)(\?.*)?$/i.test(url);
-};
-
 export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   msg,
   isMe,
@@ -96,35 +109,16 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
   const textWithoutPostUrl = postMatch ? rawText.replace(postMatch[0], '').trim() : rawText;
   const isSolelyPostUrl = Boolean(sharedPostId && !textWithoutPostUrl);
 
-  // Detect type accurately
-  const isAudio =
-    msg.type === 'AUDIO' ||
-    (isUrl && isAudioExtension(rawText)) ||
-    (Boolean(mediaUrl) && isAudioExtension(mediaUrl));
-  const isVideo =
-    !isAudio &&
-    (msg.type === 'VIDEO' ||
-    (isUrl && isVideoExtension(rawText)) ||
-    (Boolean(mediaUrl) && isVideoExtension(mediaUrl)));
-  const isImage =
-    !isAudio &&
-    !isVideo &&
-    (msg.type === 'IMAGE' ||
-    (isUrl && isMediaExtension(rawText)) ||
-    (Boolean(mediaUrl) && isMediaExtension(mediaUrl)) ||
-    (Boolean(mediaUrl) && !isDocumentExtension(mediaUrl) && !isDocumentExtension(rawText) && (
-      rawText.length === 36 ||
-      mediaUrl.includes('/chats/') ||
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(rawText) ||
-      /\/chats\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(mediaUrl)
-    )));
-  const isFile =
-    !isAudio &&
-    !isVideo &&
-    !isImage &&
-    (msg.type === 'FILE' ||
-    isDocumentExtension(mediaUrl) ||
-    (isUrl && /\.[a-z0-9]{2,5}(\?.*)?$/i.test(rawText)));
+  // Phân loại theo loại tin nhắn từ server + phần mở rộng tên tệp (ảnh gửi qua nút đính kèm vẫn là ảnh)
+  const kind = isRecalled ? null : classifyAttachment(msg);
+  const isAudio = kind === 'audio';
+  const isVideo = kind === 'video';
+  const isImage = kind === 'image' && !imageError;
+  const isFile = kind === 'file' || (kind === 'image' && imageError);
+  const fileName = attachmentName(msg);
+  // Đang tải lên: hiển thị ngay bản xem trước trên máy, kèm tiến độ "Đang xử lý"
+  const displayUrl = msg.previewUrl || mediaUrl;
+  const processing = msg.uploadProgress !== undefined;
 
   const handleSaveEdit = async (newContent: string) => {
     await onEdit(msg.id, newContent);
@@ -199,43 +193,38 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           /* Voice Audio Message Player */
           <VoiceMessagePlayer audioUrl={mediaUrl || msg.text} isMe={isMe} />
         ) : isImage ? (
-          /* Image Preview with graceful preview */
-          imageError ? (
-            <div
-              onClick={() => window.open(mediaUrl, '_blank')}
-              className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-gray-100 dark:bg-[#3a3b3c] border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:opacity-90 transition my-0.5"
-              title={isEn ? 'Click to view original photo' : 'Bấm để xem ảnh gốc'}
-            >
-              <Eye className="w-4 h-4 text-[#1877f2]" />
-              <span className="font-medium underline">{isEn ? 'View attached photo' : 'Xem hình ảnh đính kèm'}</span>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-xs max-w-full my-0.5 bg-black/5 dark:bg-white/5">
-              <img
-                src={mediaUrl}
-                alt={isEn ? 'Attached photo' : 'Ảnh đính kèm'}
-                onError={() => setImageError(true)}
-                onLoad={onMediaLoad}
-                className="max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block cursor-pointer hover:opacity-95 transition"
-                onClick={() => window.open(mediaUrl, '_blank')}
-                title={isEn ? 'Click to view original image' : 'Bấm để xem ảnh gốc'}
-              />
-            </div>
-          )
+          <div className="relative overflow-hidden rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-xs max-w-full my-0.5 bg-black/5 dark:bg-white/5">
+            <img
+              src={displayUrl}
+              alt={fileName || (isEn ? 'Photo' : 'Ảnh')}
+              onError={() => setImageError(true)}
+              onLoad={onMediaLoad}
+              className={`max-w-full max-h-48 sm:max-h-52 object-contain rounded-2xl block transition ${
+                processing ? 'opacity-70' : 'cursor-pointer hover:opacity-95'
+              }`}
+              onClick={() => !processing && window.open(mediaUrl, '_blank')}
+              title={processing ? undefined : isEn ? 'Click to view original image' : 'Bấm để xem ảnh gốc'}
+            />
+            {processing && <UploadOverlay progress={msg.uploadProgress!} isEn={isEn} />}
+          </div>
         ) : isVideo ? (
-          /* Video Player */
-          <video
-            src={mediaUrl}
-            controls
-            className="max-w-full max-h-52 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs my-0.5"
-          />
+          <div className="relative my-0.5">
+            <video
+              src={displayUrl}
+              controls={!processing}
+              muted={processing}
+              onLoadedData={onMediaLoad}
+              className="max-w-full max-h-52 rounded-2xl border border-gray-200 dark:border-[#393a3b] shadow-xs block"
+            />
+            {processing && <UploadOverlay progress={msg.uploadProgress!} isEn={isEn} />}
+          </div>
         ) : isFile ? (
-          /* File Attachment (PDF, Word, Excel, ZIP) */
           <ChatFileAttachment
             fileUrl={mediaUrl}
-            fileName={msg.fileName || (!isUrl ? msg.text : undefined)}
+            fileName={fileName}
             fileSize={msg.fileSize}
             isMe={isMe}
+            progress={msg.uploadProgress}
           />
         ) : isSolelyPostUrl ? (
           /* Pure Shared Post (No outer speech bubble, direct rich card) */
@@ -246,7 +235,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
             <div
               className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs break-words break-all ${
                 isMe
-                  ? 'bg-[#1877f2] text-white rounded-br-none'
+                  ? 'bg-[var(--chat-accent,#1877f2)] text-white rounded-br-none'
                   : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
               }`}
             >
@@ -259,7 +248,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
           <div
             className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs break-words break-all ${
               isMe
-                ? 'bg-[#1877f2] text-white rounded-br-none'
+                ? 'bg-[var(--chat-accent,#1877f2)] text-white rounded-br-none'
                 : 'bg-white dark:bg-[#3a3b3c] text-gray-900 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#4e4f50] rounded-bl-none'
             }`}
           >

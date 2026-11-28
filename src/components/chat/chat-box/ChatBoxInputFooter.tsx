@@ -58,6 +58,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         ref={chatFileInputRef}
         onChange={onChatFileSelect}
         accept="image/*,video/*"
+        multiple
         className="hidden"
       />
 
@@ -66,7 +67,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         type="file"
         ref={chatDocInputRef}
         onChange={onChatDocSelect || onChatFileSelect}
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.tar,.gz,.csv,application/*,text/*"
+        multiple
         className="hidden"
       />
 
@@ -75,7 +76,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         <button
           type="button"
           onClick={() => setShowMoreTools(true)}
-          className="shrink-0 p-1.5 text-[#1877f2] dark:text-[#4599ff] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
+          className="shrink-0 p-1.5 text-[var(--chat-accent,#1877f2)] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer"
           title={isEn ? 'More actions' : 'Thêm tác vụ'}
         >
           <Plus className="w-4 h-4" />
@@ -114,7 +115,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
             onClick={() => (chatDocInputRef?.current ? chatDocInputRef.current.click() : chatFileInputRef.current?.click())}
             disabled={uploading}
             className="shrink-0 p-1.5 text-gray-400 hover:text-[#1877f2] dark:hover:text-[#4599ff] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer disabled:opacity-50"
-            title={t('chat.sendDocument', isEn ? 'Send document (PDF, Word, Excel, ZIP...)' : 'Gửi tập tin tài liệu (PDF, Word, Excel, ZIP...)')}
+            title={t('chat.sendDocument', isEn ? 'Attach files' : 'Đính kèm tệp')}
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -161,7 +162,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
       {hasText ? (
         <button
           type="submit"
-          className="shrink-0 w-7 h-7 bg-[#1877f2] hover:bg-[#166fe5] active:bg-[#1464d2] text-white rounded-full flex items-center justify-center transition shadow-xs cursor-pointer"
+          className="shrink-0 w-7 h-7 bg-[var(--chat-accent,#1877f2)] hover:brightness-95 active:brightness-90 text-white rounded-full flex items-center justify-center transition shadow-xs cursor-pointer"
           title={t('chat.send', isEn ? 'Send message' : 'Gửi tin nhắn')}
         >
           <Send className="w-3.5 h-3.5 ml-0.5" />
@@ -170,7 +171,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         <button
           type="button"
           onClick={onQuickReaction}
-          className="shrink-0 w-7 h-7 text-[#1877f2] hover:text-[#166fe5] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full flex items-center justify-center transition cursor-pointer text-sm"
+          className="shrink-0 w-7 h-7 text-[var(--chat-accent,#1877f2)] hover:brightness-90 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full flex items-center justify-center transition cursor-pointer text-sm"
           title={isEn ? `Send ${quickEmoji}` : `Gửi biểu tượng ${quickEmoji}`}
         >
           {quickEmoji === '👍' ? (
@@ -183,7 +184,7 @@ export const ChatBoxInputFooter: React.FC<ChatBoxInputFooterProps> = ({
         <button
           type="submit"
           disabled
-          className="shrink-0 w-7 h-7 bg-[#1877f2] text-white rounded-full flex items-center justify-center opacity-40 cursor-not-allowed"
+          className="shrink-0 w-7 h-7 bg-[var(--chat-accent,#1877f2)] text-white rounded-full flex items-center justify-center opacity-40 cursor-not-allowed"
           title={t('chat.send', isEn ? 'Send message' : 'Gửi tin nhắn')}
         >
           <Send className="w-3.5 h-3.5 ml-0.5" />

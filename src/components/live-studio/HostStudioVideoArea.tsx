@@ -3,6 +3,7 @@ import { Mic, MicOff, Video, VideoOff, Reply } from 'lucide-react';
 import { UserAvatar } from '../common/UserAvatar';
 import { LiveComment, LiveReaction } from '../../context/LiveStreamContext';
 import { LiveStreamFloatingReactions } from '../post/post-card/live-stream/LiveStreamFloatingReactions';
+import { useFadingComments } from '../post/post-card/live-stream/useFadingComments';
 
 interface HostStudioVideoAreaProps {
   stream: MediaStream | null;
@@ -23,6 +24,8 @@ export const HostStudioVideoArea: React.FC<HostStudioVideoAreaProps> = ({
   comments,
   reactions,
 }) => {
+  // Bình luận nổi trên video tự ẩn sau vài giây; danh sách đầy đủ ở khung trò chuyện bên phải
+  const bubbles = useFadingComments(comments);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -74,7 +77,7 @@ export const HostStudioVideoArea: React.FC<HostStudioVideoAreaProps> = ({
       {/* 3. Real-time Live Comments Speech Bubbles on Host Screen */}
       <div className="absolute inset-x-3 bottom-3 flex flex-col justify-end pointer-events-none z-30">
         <div className="space-y-1.5 max-w-xs sm:max-w-sm pointer-events-auto">
-          {comments.slice(-4).map((c) => {
+          {bubbles.map(({ comment: c, fading }) => {
             const isHostComment =
               Boolean(userName && c.authorName === userName) ||
               c.authorName.includes('Admin') ||
@@ -84,7 +87,9 @@ export const HostStudioVideoArea: React.FC<HostStudioVideoAreaProps> = ({
             return (
               <div
                 key={c.id}
-                className="backdrop-blur-md rounded-xl p-2 text-white shadow-lg animate-fadeIn text-xs bg-black/80 border border-white/10"
+                className={`backdrop-blur-md rounded-xl p-2 text-white shadow-lg animate-fadeIn text-xs bg-black/80 border border-white/10 transition-all duration-700 ${
+                  fading ? 'opacity-0 -translate-y-1' : 'opacity-100'
+                }`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-1.5 truncate">

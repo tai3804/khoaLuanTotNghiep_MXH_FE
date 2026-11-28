@@ -1,6 +1,6 @@
 import { api } from './axiosClient';
-import { requestTokenRefresh } from './tokenRefresh';
 import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
+import { refreshAccessToken } from './tokenRefresh';
 import { getClientType, isNativeApp } from '../utils/platform';
 import { clearNativeRefreshToken, setNativeRefreshToken } from '../utils/nativeSession';
 
@@ -19,15 +19,8 @@ let inFlightDevicesPromise: Promise<any> | null = null;
 const DEVICES_CACHE_TTL_MS = 15_000;
 
 export const authService = {
-  refreshToken: async (): Promise<string | null> => {
-    try {
-      const newAccessToken = await requestTokenRefresh();
-      api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-      return newAccessToken;
-    } catch {
-      return null;
-    }
-  },
+  /** Làm mới access token qua điểm duy nhất tokenRefresh (không gửi trùng); trả null nếu không làm mới được. */
+  refreshToken: (): Promise<string | null> => refreshAccessToken().catch(() => null),
 
   login: async (data: any) => {
     const deviceFingerprint = await getDeviceFingerprint();

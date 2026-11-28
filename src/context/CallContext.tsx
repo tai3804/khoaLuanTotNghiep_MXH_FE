@@ -6,6 +6,7 @@ import { callWebSocketService } from '../services/callWebSocket';
 import { onAppResume } from '../utils/appResume';
 import { callAudio } from '../utils/callAudio';
 import { userService } from '../services/userService';
+import { getIceConfig, loadIceConfig, clearIceConfig } from '../services/iceServers';
 
 export type CallState = 'idle' | 'calling' | 'incoming' | 'connected' | 'ended';
 
@@ -53,14 +54,6 @@ interface CallContextType {
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ],
-};
-
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const toast = useToast();
@@ -101,6 +94,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const durationTimerRef = useRef<any>(null);
   const timeoutTimerRef = useRef<any>(null);
   const callSessionRef = useRef<CallSession | null>(null);
+  /** Đang tự kết thúc cuộc gọi (bấm nút tắt): bỏ qua tín hiệu END_CALL/LEAVE dội về để modal không đóng rồi mở lại. */
+  const endingLocallyRef = useRef(false);
   const remoteUserRef = useRef<CallUserInfo | null>(null);
 
   callSessionRef.current = callSession;
@@ -272,6 +267,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     [isAuthenticated, user?.id]
   );
+
+  // Tải trước cấu hình ICE (STUN + tài khoản TURN tạm thời) ngay khi đăng nhập để cuộc gọi và live dùng được TURN
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadIceConfig();
+    } else {
+      clearIceConfig();
+    }
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -465,7 +469,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const existing = peerConnectionsRef.current.get(targetUserId);
     if (existing) return existing;
 
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+    const pc = new RTCPeerConnection(getIceConfig());
     peerConnectionsRef.current.set(targetUserId, pc);
     pcRef.current = pc;
 
@@ -809,6 +813,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!currentId || !incomingId || String(currentId).toLowerCase() !== String(incomingId).toLowerCase()) {
             return;
           }
+          // Máy chủ phát END_CALL/LEAVE lên phòng /topic/call/{id} mà chính người bấm tắt cũng đăng ký: bỏ qua tín hiệu
+          // của chính mình và mọi tín hiệu đến trong lúc đang tự kết thúc, endCall() đã tự dọn trạng thái.
+          if (endingLocallyRef.current || (signal.senderId && signal.senderId === user?.id)) {
+            return;
+          }
           if (signal.signalType === 'LEAVE' && callSessionRef.current?.channelType === 'GROUP') {
             const peer = signal.senderId ? peerConnectionsRef.current.get(signal.senderId) : null;
             if (peer) {
@@ -1141,6 +1150,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // End active call
   const endCall = async () => {
+    if (endingLocallyRef.current) return;
+    endingLocallyRef.current = true;
     callAudio.playCallEndedTone();
     const dur = callStartTimeRef.current ? Math.max(0, Math.round((Date.now() - callStartTimeRef.current) / 1000)) : callDuration;
     recordCallToHistory('ENDED', 'LEFT', dur);
@@ -1150,16 +1161,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (callSession?.hostUserId !== user?.id ? callSession?.hostUserId : null) ||
       null;
 
+    // Hiện "Cuộc gọi kết thúc" ngay rồi mới báo máy chủ, để tín hiệu kết thúc dội về không làm modal đóng rồi mở lại
+    setCallState('ended');
     if (sessionId && callSession) {
       await endSession(callSession, targetId);
     }
 
-    setCallState('ended');
     setTimeout(() => {
       cleanupCall();
       setCallState('idle');
       setCallSession(null);
       setRemoteUser(null);
+      endingLocallyRef.current = false;
     }, 800);
   };
 

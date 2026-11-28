@@ -1,5 +1,5 @@
 import React from 'react';
-import { Send, Reply, X } from 'lucide-react';
+import { Send, Reply, X, Clock } from 'lucide-react';
 import { LiveComment } from '../../../context/LiveStreamContext';
 import { useLanguage } from '../../../context/LanguageContext';
 
@@ -13,6 +13,12 @@ interface HostStudioChatInputProps {
   onCancelReply: () => void;
   onSendComment: (e: React.FormEvent) => void;
   onSendReaction: (emoji: string) => void;
+  /** Chế độ chậm (chỉ phía người xem): câu báo cho chính người gửi */
+  slowModeNotice?: string | null;
+  slowModeWarned?: boolean;
+  slowModeRemaining?: number;
+  reactionsEnabled?: boolean;
+  placeholder?: string;
 }
 
 export const HostStudioChatInput: React.FC<HostStudioChatInputProps> = ({
@@ -23,13 +29,18 @@ export const HostStudioChatInput: React.FC<HostStudioChatInputProps> = ({
   onCancelReply,
   onSendComment,
   onSendReaction,
+  slowModeNotice,
+  slowModeWarned = false,
+  slowModeRemaining = 0,
+  reactionsEnabled = true,
+  placeholder,
 }) => {
   const { t } = useLanguage();
 
   return (
     <div className="flex flex-col bg-white dark:bg-zinc-950 border-t border-gray-200 dark:border-zinc-800 shrink-0">
-      {/* 1. Quick Emoji Reactions Bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50/80 dark:bg-zinc-950/60 border-b border-gray-200/50 dark:border-zinc-800/80">
+      {/* 1. Quick Emoji Reactions Bar (chủ phòng có thể tắt) */}
+      {reactionsEnabled && <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50/80 dark:bg-zinc-950/60 border-b border-gray-200/50 dark:border-zinc-800/80">
         <span className="text-[10px] text-gray-500 dark:text-zinc-500 font-medium">
           {t('live.chat.quickReactions', 'Thả cảm xúc nhanh:')}
         </span>
@@ -45,7 +56,22 @@ export const HostStudioChatInput: React.FC<HostStudioChatInputProps> = ({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
+
+      {/* Chế độ chậm: báo ngay ở phía người gửi */}
+      {slowModeNotice && (
+        <div
+          role="status"
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium border-b ${
+            slowModeWarned
+              ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
+              : 'bg-gray-50 text-gray-600 border-gray-200/60 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800'
+          }`}
+        >
+          <Clock className="w-3 h-3 shrink-0" />
+          <span>{slowModeNotice}</span>
+        </div>
+      )}
 
       {/* 2. Replying-to Active Context Banner */}
       {replyingTo && (
@@ -80,16 +106,17 @@ export const HostStudioChatInput: React.FC<HostStudioChatInputProps> = ({
           placeholder={
             replyingTo
               ? `${t('live.chat.reply', 'Trả lời')} @${replyingTo.authorName}...`
-              : t('live.chat.placeholder', 'Nhập phản hồi trực tiếp cho người xem...')
+              : placeholder || t('live.chat.placeholder', 'Nhập phản hồi trực tiếp cho người xem...')
           }
           className="flex-1 bg-gray-100 dark:bg-zinc-800/80 hover:bg-gray-100/90 dark:hover:bg-zinc-800 text-gray-900 dark:text-white text-xs px-3 py-2 rounded-lg outline-none placeholder-gray-400 dark:placeholder-zinc-500 border border-gray-300/80 dark:border-zinc-700/60 focus:border-blue-500 dark:focus:border-blue-500 transition"
         />
         <button
           type="submit"
           disabled={!commentInput.trim()}
-          className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 disabled:hover:bg-blue-600 transition cursor-pointer shrink-0 shadow-sm"
+          title={slowModeRemaining > 0 ? `Gửi tiếp sau ${slowModeRemaining} giây` : 'Gửi'}
+          className="p-2 min-w-[32px] bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 disabled:hover:bg-blue-600 transition cursor-pointer shrink-0 shadow-sm text-[11px] font-bold"
         >
-          <Send className="w-4 h-4" />
+          {slowModeRemaining > 0 ? `${slowModeRemaining}s` : <Send className="w-4 h-4" />}
         </button>
       </form>
     </div>

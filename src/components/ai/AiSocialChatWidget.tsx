@@ -6,6 +6,7 @@ import type { ChatSource } from '../../services/aiService';
 import { AiChatSources } from './AiChatSources';
 import { useAuth } from '../../context/AuthContext';
 import { useHideOnScrollDown } from './useHideOnScrollDown';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface Message {
   id: string;
@@ -13,6 +14,8 @@ interface Message {
   text: string;
   timestamp: string;
   sources?: ChatSource[];
+  /** Tin báo lỗi từ máy chủ, không phải câu trả lời của AI (không gửi lại vào lịch sử hội thoại). */
+  isError?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -74,7 +77,7 @@ export const AiSocialChatWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      const historyPayload = messages.slice(-10).map((m) => ({
+      const historyPayload = messages.filter((m) => !m.isError).slice(-10).map((m) => ({
         sender: m.sender === 'user' ? ('user' as const) : ('ai' as const),
         text: m.text,
       }));
@@ -91,10 +94,13 @@ export const AiSocialChatWidget: React.FC = () => {
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error('AI chat widget error:', err);
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const detail = getApiErrorMessage(err, err instanceof Error && err.message ? err.message : 'Không gửi được yêu cầu tới máy chủ.');
       const errorMsg: Message = {
         id: 'ai-err-' + Date.now(),
         sender: 'ai',
-        text: 'Xin lỗi, tôi gặp sự cố kết nối. Vui lòng thử lại sau ít phút.',
+        isError: true,
+        text: status ? `Lỗi ${status}: ${detail}` : `Lỗi: ${detail}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -224,6 +230,8 @@ export const AiSocialChatWidget: React.FC = () => {
                         className={`p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
                           msg.sender === 'user'
                             ? 'bg-[#1877f2] text-white rounded-br-xs'
+                            : msg.isError
+                            ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 shadow-xs rounded-bl-xs'
                             : 'bg-white dark:bg-[#242526] text-gray-800 dark:text-[#e4e6eb] border border-gray-200 dark:border-[#393a3b] shadow-xs rounded-bl-xs'
                         }`}
                       >

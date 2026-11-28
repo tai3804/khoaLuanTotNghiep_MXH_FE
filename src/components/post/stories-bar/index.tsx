@@ -67,17 +67,7 @@ export const StoriesBar: React.FC = () => {
       </button>
 
       {/* Modals */}
-      <CreateStoryModal
-        isOpen={data.showCreateModal}
-        onClose={() => data.setShowCreateModal(false)}
-        imageUrl={data.imageUrl}
-        setImageUrl={data.setImageUrl}
-        creating={data.creating}
-        uploadingMedia={data.uploadingMedia}
-        storyFileInputRef={data.storyFileInputRef}
-        handleStoryFileSelect={data.handleStoryFileSelect}
-        handleCreateStorySubmit={data.handleCreateStorySubmit}
-      />
+      <CreateStoryModal isOpen={data.showCreateModal} onClose={() => data.setShowCreateModal(false)} />
 
       {data.selectedStory && (
         <StoryViewerModal
@@ -98,8 +88,7 @@ export * from './types';
 export * from './storyAudioPresets';
 export * from './StoryMusicBadge';
 export * from './StoryAudioPickerModal';
-export * from './StoryImageEditor';
-export * from './StoryPrivacySelector';
-export * from './StoryCropControls';
-export * from './StoryDraggableTextControls';
+export * from './StoryPrivacyDialog';
+export * from './StoryPreview';
+export * from './storyCanvas';
 

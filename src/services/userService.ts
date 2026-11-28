@@ -866,7 +866,8 @@ export const userService = {
     return res.data;
   },
 
-  getBlockedUsers: async (page = 0, size = 20) => {
+  // /users/blocks đánh số trang từ 1 (page >= 1)
+  getBlockedUsers: async (page = 1, size = 20) => {
     try {
       const res = await api.get('/users/blocks', { params: { page, size } });
       return res.data?.data || res.data?.result || res.data;

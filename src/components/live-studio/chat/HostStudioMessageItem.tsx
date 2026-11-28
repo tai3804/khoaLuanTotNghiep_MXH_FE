@@ -127,12 +127,12 @@ export const HostStudioMessageItem: React.FC<HostStudioMessageItemProps> = ({
         </button>
 
         {/* 5. Ban Viewer from Room */}
-        {!isHostComment && onBanViewer && (
+        {!isHostComment && onBanViewer && comment.authorId && (
           <button
             type="button"
-            onClick={() => onBanViewer(comment.id, comment.authorName)}
+            onClick={() => onBanViewer(comment.authorId!, comment.authorName)}
             className="p-1 rounded text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-            title={t('live.audience.ban', 'Cấm khỏi phòng')}
+            title="Mời ra khỏi buổi phát"
           >
             <Ban className="w-3 h-3" />
           </button>

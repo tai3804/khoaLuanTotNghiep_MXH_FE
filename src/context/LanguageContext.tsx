@@ -224,8 +224,8 @@ const translations = {
     'live.settings.slowModeOff': 'Tắt',
     'live.settings.slowMode5s': '5 giây',
     'live.settings.slowMode10s': '10 giây',
-    'live.settings.floatingReactions': 'Hiệu ứng cảm xúc nổi',
-    'live.settings.floatingReactionsDesc': 'Hiển thị tim bay và biểu tượng cảm xúc trên màn hình',
+    'live.settings.floatingReactions': 'Thả cảm xúc',
+    'live.settings.floatingReactionsDesc': 'Cho phép người xem thả tim và cảm xúc bay trên video',
   },
   en: {
     'nav.search': 'Search...',
@@ -450,7 +450,7 @@ const translations = {
     'live.settings.slowMode5s': '5 seconds',
     'live.settings.slowMode10s': '10 seconds',
     'live.settings.floatingReactions': 'Floating Reactions',
-    'live.settings.floatingReactionsDesc': 'Display floating hearts and emojis across the screen',
+    'live.settings.floatingReactionsDesc': 'Let viewers send floating hearts and emojis',
   },
 };
 

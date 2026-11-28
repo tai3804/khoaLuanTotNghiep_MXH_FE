@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { aiService, AiEvaluationResult, PostAnalysisResult } from '../../../../services/aiService';
 import { AiTab, CreatePostAiAssistantProps, UseCreatePostAiReturn } from './types';
+import { useToast } from '../../../../context/ToastContext';
+import { formatAiError } from '../../../../utils/apiError';
 
 export const useCreatePostAi = ({
   currentContent,
   onApplyContent,
 }: Pick<CreatePostAiAssistantProps, 'currentContent' | 'onApplyContent'>): UseCreatePostAiReturn => {
+  const toast = useToast();
   const [tab, setTab] = useState<AiTab>('suggest');
 
   // Suggestion state
@@ -47,6 +50,9 @@ export const useCreatePostAi = ({
     try {
       const items = await aiService.suggestCaption(inputTopic, tone);
       setSuggestions(items);
+    } catch (err) {
+      setSuggestions([]);
+      toast.showError(formatAiError(err));
     } finally {
       setIsSuggesting(false);
     }
@@ -60,6 +66,9 @@ export const useCreatePostAi = ({
     try {
       const items = await aiService.suggestHashtags(text, 6);
       setHashtags(items);
+    } catch (err) {
+      setHashtags([]);
+      toast.showError(formatAiError(err));
     } finally {
       setIsGeneratingHashtags(false);
     }
@@ -73,6 +82,9 @@ export const useCreatePostAi = ({
     try {
       const text = await aiService.enhanceText(textToEnhance, style);
       setEnhancedText(text);
+    } catch (err) {
+      setEnhancedText('');
+      toast.showError(formatAiError(err));
     } finally {
       setIsEnhancing(false);
     }
@@ -85,6 +97,9 @@ export const useCreatePostAi = ({
     try {
       const res = await aiService.evaluateContent(currentContent.trim());
       setCheckResult(res);
+    } catch (err) {
+      setCheckResult(null);
+      toast.showError(formatAiError(err));
     } finally {
       setIsChecking(false);
     }
@@ -98,6 +113,9 @@ export const useCreatePostAi = ({
     try {
       const res = await aiService.analyzePost(textToAnalyze);
       setAnalysisResult(res);
+    } catch (err) {
+      setAnalysisResult(null);
+      toast.showError(formatAiError(err));
     } finally {
       setIsAnalyzing(false);
     }

@@ -7,6 +7,7 @@ import { callService } from '../services/callService';
 import { liveStreamWebSocketService } from '../services/liveStreamWebSocket';
 import { liveWebRtcService } from '../services/liveWebRtcService';
 import { onAppResume } from '../utils/appResume';
+import { registerHostedRoom } from '../services/liveRoomSettings';
 import {
   HostLiveSession,
   clearHostLiveSession,
@@ -30,6 +31,8 @@ export interface LiveBroadcastState {
 
 export interface LiveComment {
   id: string;
+  /** id người bình luận, để chủ phòng mời đúng người ra khỏi phòng */
+  authorId?: string;
   authorName: string;
   authorAvatar?: string;
   content: string;
@@ -180,6 +183,7 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           }
           return {
             id: String(c.id),
+            authorId: (c as any).userId && (c as any).userId !== 'user' ? String((c as any).userId) : undefined,
             authorName: c.authorName || 'Người dùng',
             authorAvatar: c.authorAvatar,
             content: cleanContent,
@@ -323,6 +327,7 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         const validComment: LiveComment = {
           id: String(comment.id || ('lc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6))),
+          authorId: comment.authorId ? String(comment.authorId) : comment.senderId ? String(comment.senderId) : undefined,
           authorName: String(comment.authorName || comment.author?.fullName || 'Người xem'),
           authorAvatar: comment.authorAvatar || comment.author?.avatarUrl,
           content: content.trim(),
@@ -642,6 +647,13 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   }, [activeBroadcast, user?.id]);
 
+  // Chủ phòng giữ quyền phát cài đặt phòng (chế độ chậm, thả cảm xúc) cho người xem
+  useEffect(() => {
+    if (activeBroadcast.isBroadcasting && activeBroadcast.postId && user?.id) {
+      registerHostedRoom(activeBroadcast.postId, user.id);
+    }
+  }, [activeBroadcast.isBroadcasting, activeBroadcast.postId, user?.id]);
+
   // Chủ phòng phải luôn được đăng ký để trả lời người xem trong suốt buổi phát, kể cả khi thẻ bài không còn trên màn hình
   // (đang ở trang khác hoặc vừa tải lại trang). Thẻ bài cũng đăng ký cùng luồng này, phiên WebRTC được dùng chung.
   useEffect(() => {
@@ -780,6 +792,7 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (!content.trim()) return;
       const newComment: LiveComment = {
         id: 'lc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        authorId: user?.id,
         authorName: user?.fullName || user?.username || 'Người xem',
         authorAvatar: user?.avatar,
         content: content.trim(),
@@ -801,33 +814,35 @@ export const LiveStreamProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         };
       });
 
-      // 2. Broadcast to other browsers and devices via WebSocket
-      try {
-        liveStreamWebSocketService.sendSignal(
-          postId,
-          user?.id || 'viewer_' + Date.now(),
-          null,
-          'LIVE_COMMENT',
-          { payload: newComment }
-        );
-      } catch (err) {
-        console.warn('[LiveStreamContext] sendLiveComment WS error:', err);
-      }
-
-      // 3. Broadcast to same browser tabs via BroadcastChannel
-      try {
-        const ch = new BroadcastChannel(`kltn_live_channel_${postId}`);
-        ch.postMessage({ type: 'LIVE_COMMENT', postId, comment: newComment, payload: newComment });
-        setTimeout(() => ch.close(), 100);
-      } catch {}
-
-      // 4. Persist comment to backend post-service database
+      // 2. Lưu vào máy chủ trước (máy chủ có thể từ chối: điểm uy tín thấp, giãn cách, hết lượt trong ngày...),
+      //    lưu được mới phát cho mọi người; bị từ chối thì gỡ bình luận và báo lý do cho chính người gửi.
       const dbContent = replyTo?.authorName ? `@[${replyTo.authorName}] ${content.trim()}` : content.trim();
-      postService.addComment(postId, dbContent).catch((err) => {
-        console.warn('[LiveStreamContext] Background postService.addComment notice:', err);
-      });
+      postService
+        .addComment(postId, dbContent)
+        .then(() => {
+          try {
+            liveStreamWebSocketService.sendSignal(postId, user?.id || 'viewer_' + Date.now(), null, 'LIVE_COMMENT', {
+              payload: newComment,
+            });
+          } catch (err) {
+            console.warn('[LiveStreamContext] sendLiveComment WS error:', err);
+          }
+          try {
+            const ch = new BroadcastChannel(`kltn_live_channel_${postId}`);
+            ch.postMessage({ type: 'LIVE_COMMENT', postId, comment: newComment, payload: newComment });
+            setTimeout(() => ch.close(), 100);
+          } catch {}
+        })
+        .catch((err: any) => {
+          setLiveCommentsMap((prev) => ({
+            ...prev,
+            [postId]: (prev[postId] || []).filter((c) => c.id !== newComment.id),
+          }));
+          const reason = err?.response?.data?.message || err?.message;
+          toast.showError(reason ? `Bình luận chưa được gửi: ${reason}` : 'Bình luận chưa được gửi, vui lòng thử lại.');
+        });
     },
-    [user]
+    [user, toast]
   );
 
   const sendLiveReaction = useCallback(

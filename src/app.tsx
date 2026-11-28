@@ -34,6 +34,7 @@ const GroupDetailPage = lazy(() => import('./pages/GroupDetailPage').then((m) =>
 const ModeratorPage = lazy(() => import('./pages/ModeratorPage').then((m) => ({ default: m.ModeratorPage })));
 const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage').then((m) => ({ default: m.SupportInboxPage })));
 const SavedPage = lazy(() => import('./pages/SavedPage').then((m) => ({ default: m.SavedPage })));
+const InterestMapPage = lazy(() => import('./pages/InterestMapPage').then((m) => ({ default: m.InterestMapPage })));
 const PostDetailPage = lazy(() => import('./pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 const LiveStreamPage = lazy(() => import('./pages/LiveStreamPage').then((m) => ({ default: m.LiveStreamPage })));
 const RateLimitTestPage = lazy(() => import('./pages/RateLimitTestPage').then((m) => ({ default: m.RateLimitTestPage })));
@@ -163,6 +164,7 @@ export const App: React.FC = () => {
   else if (path.startsWith('/watch')) activeNavTab = 'watch';
   else if (path.startsWith('/groups')) activeNavTab = 'groups';
   else if (path.startsWith('/saved')) activeNavTab = 'saved';
+  else if (path.startsWith('/interest-map')) activeNavTab = 'interest-map';
   else if (path.startsWith('/moderation') || path.startsWith('/admin')) activeNavTab = 'moderation';
   else if (path.startsWith('/support-inbox')) activeNavTab = 'support';
 
@@ -173,6 +175,7 @@ export const App: React.FC = () => {
     else if (path.startsWith('/groups')) setActiveSidebarFilter('groups');
     else if (path.startsWith('/watch')) setActiveSidebarFilter('watch');
     else if (path.startsWith('/saved')) setActiveSidebarFilter('saved');
+    else if (path.startsWith('/interest-map')) setActiveSidebarFilter('interest-map');
     else if (path.startsWith('/support-inbox')) setActiveSidebarFilter('support');
     else if (path.startsWith('/moderation') || path.startsWith('/admin')) setActiveSidebarFilter('moderation');
     else if (path.startsWith('/settings')) setActiveSidebarFilter('settings');
@@ -368,6 +371,7 @@ export const App: React.FC = () => {
     watch: '/watch',
     groups: '/groups',
     saved: '/saved',
+    'interest-map': '/interest-map',
     moderation: '/moderation',
     'moderation-appeals': '/moderation/appeals',
     support: '/support-inbox',
@@ -689,6 +693,21 @@ export const App: React.FC = () => {
               onNavigateProfile={(uid) => handleViewProfile(uid)}
               onNavigateAuth={() => navigate('/auth')}
               activeChatUser={activeChatUser}
+              setActiveChatUser={setActiveChatUser}
+            />
+          }
+        />
+        <Route
+          path="/interest-map"
+          element={
+            <InterestMapPage
+              activeNavTab="interest-map"
+              setActiveNavTab={handleTabChange}
+              activeSidebarFilter={activeSidebarFilter}
+              setActiveSidebarFilter={setActiveSidebarFilter}
+              onNavigateSettings={() => navigate('/settings/profile')}
+              onNavigateAuth={() => navigate('/auth')}
+              onViewProfile={handleViewProfile}
               setActiveChatUser={setActiveChatUser}
             />
           }

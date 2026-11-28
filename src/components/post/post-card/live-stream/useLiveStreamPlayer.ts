@@ -5,6 +5,7 @@ import { useLiveStream, LiveComment } from '../../../../context/LiveStreamContex
 import { useLiveViewerStream } from './useLiveViewerStream';
 import { liveStreamWebSocketService } from '../../../../services/liveStreamWebSocket';
 import { formatElapsed } from '../../../../utils/timeAgo';
+import { useLiveRoomSettings, useSlowMode } from '../../../../services/liveRoomSettings';
 
 export const useLiveStreamPlayer = (post: Post) => {
   const { user } = useAuth();
@@ -63,6 +64,10 @@ export const useLiveStreamPlayer = (post: Post) => {
     loadPostComments(post.id);
   }, [post.id, isLive, loadPostComments]);
 
+  // Cài đặt phòng do chủ phòng chọn: chế độ chậm áp lên người xem, báo ngay ở phía người gửi
+  const roomSettings = useLiveRoomSettings(post.id);
+  const slowMode = useSlowMode(post.id, !isHost);
+
   const comments = liveCommentsMap[post.id] || [];
   const reactions = liveReactionsMap[post.id] || [];
 
@@ -94,6 +99,7 @@ export const useLiveStreamPlayer = (post: Post) => {
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentInput.trim()) return;
+    if (!slowMode.trySend()) return;
     sendLiveComment(
       post.id,
       commentInput,
@@ -149,6 +155,8 @@ export const useLiveStreamPlayer = (post: Post) => {
     handleCancelReply,
     handleSendComment,
     handleToggleFullscreen,
+    slowMode,
+    reactionsEnabled: isHost || roomSettings.reactionsEnabled,
     stopBroadcast,
     toggleCamera,
     toggleMic,

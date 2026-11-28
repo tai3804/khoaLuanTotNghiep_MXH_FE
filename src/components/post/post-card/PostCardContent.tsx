@@ -5,6 +5,7 @@ import { aiService } from '../../../services/aiService';
 import { LiveStreamPlayer } from './live-stream';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
 import { useToast } from '../../../context/ToastContext';
+import { formatAiError } from '../../../utils/apiError';
 import { useLanguage } from '../../../context/LanguageContext';
 import { needsTranslation } from '../../../utils/languageDetect';
 import { PostPollView } from '../PostPollView';
@@ -68,13 +69,10 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
     setIsSummarizing(true);
     try {
       const res = await aiService.summarizePost(post.content);
-      // aiService trả lại nguyên văn bài viết khi gọi lỗi, không coi đó là bản tóm tắt
-      if (res && res.trim() && res.trim() !== post.content.trim()) {
-        setOnDemandSummary(res);
-        setSummaryOpen(true);
-      } else {
-        toast.showError('Không thể tóm tắt bài viết lúc này. Vui lòng thử lại sau.');
-      }
+      setOnDemandSummary(res);
+      setSummaryOpen(true);
+    } catch (err) {
+      toast.showError(formatAiError(err));
     } finally {
       setIsSummarizing(false);
     }
@@ -89,12 +87,9 @@ export const PostCardContent: React.FC<PostCardContentProps> = ({
     setIsTranslating(true);
     try {
       const res = await aiService.translatePost(post.content, viewerLang);
-      // aiService trả lại nguyên văn bài viết khi gọi lỗi, không coi đó là bản dịch
-      if (res && res.trim() && res.trim() !== post.content.trim()) {
-        setTranslatedText(res);
-      } else {
-        toast.showError('Không thể dịch bài viết lúc này. Vui lòng thử lại sau.');
-      }
+      setTranslatedText(res);
+    } catch (err) {
+      toast.showError(formatAiError(err));
     } finally {
       setIsTranslating(false);
     }

@@ -1,4 +1,5 @@
 import { liveStreamWebSocketService, LiveWebRtcSignal } from './liveStreamWebSocket';
+import { getIceConfig } from './iceServers';
 
 export interface LiveSignalPayload {
   type:
@@ -11,7 +12,8 @@ export interface LiveSignalPayload {
   | 'VIEWER_COUNT'
   | 'LIVE_COMMENT'
   | 'LIVE_REACTION'
-  | 'KICK_PARTICIPANT';
+  | 'KICK_PARTICIPANT'
+  | 'LIVE_SETTINGS';
   postId: string;
   senderId: string;
   targetId?: string;
@@ -20,16 +22,6 @@ export interface LiveSignalPayload {
   viewerCount?: number;
   payload?: any;
 }
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-  ],
-};
 
 /** 'disconnected' thường chỉ là mạng chập chờn và tự hồi phục; chỉ coi là mất kết nối nếu quá lâu không nối lại được. */
 const DISCONNECT_GRACE_MS = 4000;
@@ -47,6 +39,10 @@ class LiveWebRtcService {
       stream: MediaStream;
       peers: Map<string, RTCPeerConnection>;
       candidateQueues: Map<string, RTCIceCandidateInit[]>;
+      /** Mã phiên xem (joinId) ứng với kết nối hiện tại của từng người xem. */
+      joinIds: Map<string, string>;
+      /** Người xem đã bị mời ra: bỏ qua yêu cầu xem của họ cho tới khi được bỏ chặn */
+      kicked: Set<string>;
       onViewerCountChange?: (count: number) => void;
       /** Số nơi đang cùng dùng phiên này (toàn app + thẻ bài); chỉ dỡ phiên khi không còn ai dùng. */
       refs: number;
@@ -139,6 +135,7 @@ class LiveWebRtcService {
         sdp: signal.sdp,
         candidate: signal.candidate,
         viewerCount: signal.viewerCount,
+        payload: signal.payload,
       });
     });
 
@@ -147,6 +144,8 @@ class LiveWebRtcService {
       stream,
       peers: new Map<string, RTCPeerConnection>(),
       candidateQueues: new Map<string, RTCIceCandidateInit[]>(),
+      joinIds: new Map<string, string>(),
+      kicked: new Set<string>(),
       onViewerCountChange,
       refs: 1,
       unsubWs,
@@ -227,9 +226,13 @@ class LiveWebRtcService {
 
     let disposed = false;
     let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
-    const peer = new RTCPeerConnection(ICE_SERVERS);
+    const peer = new RTCPeerConnection(getIceConfig());
     const candidateQueue: RTCIceCandidateInit[] = [];
     const inboundStream = new MediaStream();
+    // Mã của lần vào xem này: chủ phòng dùng để phân biệt "gửi lại yêu cầu" với "người xem vừa vào lại (tải lại trang)"
+    const joinId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     peer.ontrack = (event) => {
       console.log(`[LiveWebRtc] Viewer received live remote track [${event.track.kind}]`);
@@ -312,28 +315,27 @@ class LiveWebRtcService {
     });
     this.wsUnsubMap.set(`viewer_${postId}`, unsubWs);
 
-    // Send Join Live request to host
-    this.sendSignal({
+    // Gửi yêu cầu xem tới chủ phòng
+    const requestJoin = () => this.sendSignal({
       type: 'ACCEPT',
       postId,
       senderId: viewerUserId,
+      payload: { joinId },
     });
+    requestJoin();
 
-    // Auto-retry request if not connected within 1.5s
-    const retryTimer = setTimeout(() => {
-      if (this.viewerSessions.has(postId) && peer.connectionState !== 'connected') {
-        this.sendSignal({
-          type: 'ACCEPT',
-          postId,
-          senderId: viewerUserId,
-        });
-      }
-    }, 1500);
+    // Chỉ gửi lại khi CHƯA nhận được OFFER (tín hiệu bị mất). Không gửi lại chỉ vì ICE chưa kết nối xong: giữa hai máy khác
+    // nhau ICE thường mất vài giây, gửi lại lúc đó khiến chủ phòng dựng kết nối mới trong khi người xem vẫn giữ kết nối cũ
+    // (đã bị đóng) nên chỉ thấy màn hình đen.
+    // Thử lại thưa dần tới ~45 giây: chủ phòng có thể đang kết nối lại socket (vd vừa làm mới token)
+    const retryTimers = [3000, 7000, 12000, 20000, 30000, 45000].map((delay) => setTimeout(() => {
+      if (!disposed && this.viewerSessions.has(postId) && !peer.remoteDescription) requestJoin();
+    }, delay));
 
     return () => {
       disposed = true;
       clearTimeout(disconnectTimer);
-      clearTimeout(retryTimer);
+      retryTimers.forEach(clearTimeout);
 
       this.sendSignal({
         type: 'LEAVE',
@@ -350,6 +352,11 @@ class LiveWebRtcService {
         this.wsUnsubMap.delete(`viewer_${postId}`);
       }
     };
+  }
+
+  /** Chủ phòng bỏ chặn người xem: lần sau họ vào xem lại được. */
+  public allowViewer(postId: string, viewerId: string) {
+    this.hostSessions.get(postId)?.kicked.delete(viewerId);
   }
 
   // --- SIGNAL ROUTER & NEGOTIATION ---
@@ -376,15 +383,33 @@ class LiveWebRtcService {
       if (msg.type === 'ACCEPT') {
         const viewerId = msg.senderId;
         if (viewerId === host.hostUserId) return; // Ignore own message
+        if (host.kicked.has(viewerId)) return; // đã bị mời ra khỏi phòng
+
+        const joinId = typeof msg.payload?.joinId === 'string' ? msg.payload.joinId : '';
+        let peer = host.peers.get(viewerId);
+        const sameJoin = Boolean(peer) && joinId !== '' && host.joinIds.get(viewerId) === joinId;
+        if (peer && sameJoin && peer.connectionState !== 'failed' && peer.connectionState !== 'closed') {
+          // Cùng một lần vào xem gửi lại yêu cầu (vd OFFER bị mất): gửi lại OFFER đang chờ, không đóng kết nối đang thương lượng
+          if (peer.signalingState === 'have-local-offer' && peer.localDescription) {
+            this.sendSignal({
+              type: 'OFFER',
+              postId: msg.postId,
+              senderId: host.hostUserId,
+              targetId: viewerId,
+              sdp: peer.localDescription,
+            });
+          }
+          return;
+        }
 
         console.log(`[LiveWebRtc] Host creating WebRTC Offer for viewer: ${viewerId}`);
-
-        let peer = host.peers.get(viewerId);
         if (peer) {
           try { peer.close(); } catch { }
         }
+        host.joinIds.set(viewerId, joinId);
 
-        peer = new RTCPeerConnection(ICE_SERVERS);
+        // Cấu hình ICE (có TURN) đã được tải sẵn khi đăng nhập; tạo kết nối đồng bộ để hai yêu cầu đến sát nhau không dựng trùng
+        peer = new RTCPeerConnection(getIceConfig());
         const hostQueue: RTCIceCandidateInit[] = [];
         host.candidateQueues.set(viewerId, hostQueue);
 
@@ -478,8 +503,10 @@ class LiveWebRtcService {
         return;
       }
 
-      if (msg.type === 'LEAVE') {
-        const viewerId = msg.senderId;
+      if (msg.type === 'LEAVE' || msg.type === 'KICK_PARTICIPANT') {
+        // Người xem rời đi, hoặc bị chủ phòng mời ra (máy chủ gửi KICK kèm id người bị mời): ngắt luồng tới họ
+        const viewerId = msg.type === 'KICK_PARTICIPANT' ? msg.targetId || '' : msg.senderId;
+        if (msg.type === 'KICK_PARTICIPANT' && viewerId) host.kicked.add(viewerId);
         const peer = host.peers.get(viewerId);
         if (peer) {
           try { peer.close(); } catch { }
@@ -505,7 +532,8 @@ class LiveWebRtcService {
           return;
         }
 
-        // Avoid invalid state if offer is processed twice
+        // OFFER đến nhiều lần (WebSocket + BroadcastChannel, hoặc chủ phòng gửi lại): chỉ áp dụng một lần
+        if (viewer.peer.remoteDescription?.sdp === msg.sdp.sdp) return;
         if (viewer.peer.signalingState === 'stable' && viewer.peer.remoteDescription) {
           return;
         }
@@ -534,6 +562,7 @@ class LiveWebRtcService {
       }
 
       if (msg.type === 'ICE_CANDIDATE' && msg.candidate) {
+        if (msg.targetId !== viewer.viewerUserId) return;
         if (viewer.peer.remoteDescription) {
           try { await viewer.peer.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch { }
         } else {

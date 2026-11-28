@@ -43,6 +43,8 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
     handleCancelReply,
     handleSendComment,
     handleToggleFullscreen,
+    slowMode,
+    reactionsEnabled,
     stopBroadcast,
     toggleCamera,
     toggleMic,
@@ -144,6 +146,10 @@ export const LiveStreamPlayer: React.FC<LiveStreamPlayerProps> = ({ post }) => {
         onCancelReply={handleCancelReply}
         onSendComment={handleSendComment}
         onSendReaction={(emoji) => sendLiveReaction(post.id, emoji)}
+        slowModeNotice={slowMode.notice}
+        slowModeWarned={slowMode.warned}
+        slowModeRemaining={slowMode.remaining}
+        reactionsEnabled={reactionsEnabled}
       />
 
       {/* Host Controls Overlay */}

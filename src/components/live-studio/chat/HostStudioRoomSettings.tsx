@@ -75,13 +75,13 @@ export const HostStudioRoomSettings: React.FC<HostStudioRoomSettingsProps> = ({
 
         {/* Slow Mode selector */}
         <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-950/60 border border-gray-200 dark:border-zinc-800 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
             <div className="flex items-center space-x-1.5 text-gray-800 dark:text-zinc-200 font-semibold">
               <Clock className="w-3.5 h-3.5 text-blue-500" />
               <span>{t('live.settings.slowMode', 'Chế độ chậm')}</span>
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-zinc-400 font-medium">
-              Giãn cách gửi bình luận
+            <span className="block text-[10px] text-gray-500 dark:text-zinc-400 font-medium leading-snug">
+              Mỗi người xem chỉ gửi 1 bình luận trong khoảng này; người gửi nhanh sẽ tự thấy thông báo chờ
             </span>
           </div>
 

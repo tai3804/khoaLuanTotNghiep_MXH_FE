@@ -5,6 +5,7 @@ import { userService, fetchAuthorProfile, authorProfileCache } from '../services
 import { websocketService } from '../services/websocket';
 import { onAppResume } from '../utils/appResume';
 import { ChatUser } from '../components/chat/chat-box/types';
+import { setChatOpen } from '../components/chat/chat-box/chatPrefs';
 
 export interface ChatContextType {
   conversations: ChatUser[];
@@ -38,10 +39,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const registerActiveChat = useCallback((convId: string) => {
     if (convId) activeChatIdsRef.current.add(String(convId));
+    if (convId) setChatOpen(String(convId), true);
   }, []);
 
   const unregisterActiveChat = useCallback((convId: string) => {
     if (convId) activeChatIdsRef.current.delete(String(convId));
+    if (convId) setChatOpen(String(convId), false);
   }, []);
 
   // Total unread count across all conversations

@@ -233,6 +233,7 @@ export const useSidebarLeftData = ({
     mainExpanded.push(watchItem, friendsItem, groupsItem);
 
     primaryItems = mainExpanded;
+    // Sơ đồ xu hướng cá nhân (/interest-map) không có mục trên thanh bên: chỉ vào được khi nhập đúng URL
     secondaryItems = [savedItem];
     if (!canModerate) {
       secondaryItems.push(supportItem);

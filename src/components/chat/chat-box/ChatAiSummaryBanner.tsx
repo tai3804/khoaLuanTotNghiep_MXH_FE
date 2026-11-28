@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, CheckSquare, Image as ImageIcon, Copy, Check, ChevronDown, ChevronUp, X, Loader2 } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Sparkles, ListChecks, Image as ImageIcon, Copy, Check, RotateCw, X, Loader2 } from 'lucide-react';
 import { SummarizeMessagesResponse } from '../../../services/aiService';
 import { useLanguage } from '../../../context/LanguageContext';
 
@@ -9,141 +9,132 @@ interface ChatAiSummaryBannerProps {
   onClose: () => void;
   onRefresh?: () => void;
   isUnreadSummary?: boolean;
-  unreadCount?: number;
 }
 
+/**
+ * Bảng tóm tắt AI nằm ngoài khung chat, ngay phía trên và rộng bằng khung chat (không đè lên khung chat bên cạnh),
+ * dùng cùng màu nền, viền, chữ và màu nhấn với khung chat.
+ */
 export const ChatAiSummaryBanner: React.FC<ChatAiSummaryBannerProps> = ({
   summaryData,
   loading,
   onClose,
   onRefresh,
   isUnreadSummary,
-  unreadCount,
 }) => {
   const { language } = useLanguage();
   const isEn = language === 'en';
-  const [isExpanded, setIsExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number>();
+
+  // Bảng nằm ngay trên khung chat: chiều cao tối đa = khoảng trống từ mép trên khung chat tới mép trên màn hình
+  useLayoutEffect(() => {
+    const anchor = panelRef.current?.parentElement;
+    if (!anchor) return;
+    const update = () => setMaxHeight(Math.max(160, anchor.getBoundingClientRect().top - 16));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [loading, summaryData]);
 
   if (!loading && !summaryData) return null;
 
+  const title = isUnreadSummary
+    ? isEn ? 'Unread messages summary' : 'Tóm tắt tin chưa đọc'
+    : isEn ? 'Conversation summary' : 'Tóm tắt cuộc trò chuyện';
+
   const handleCopy = () => {
     if (!summaryData) return;
-    const title = isUnreadSummary
-      ? isEn ? '✨ [AI UNREAD MESSAGES SUMMARY]' : '✨ [TÓM TẮT TIN NHẮN CHƯA ĐỌC AI]'
-      : isEn ? '✨ [AI CONVERSATION SUMMARY]' : '✨ [TÓM TẮT CUỘC TRÒ CHUYỆN AI]';
-    const mediaLabel = isEn ? '🖼️ Media' : '🖼️ Phương tiện';
-    const actionLabel = isEn ? '✅ Action Items' : '✅ Việc cần làm';
-    const textToCopy = `${title}\n${summaryData.summary}\n\n${mediaLabel}: ${summaryData.mediaDescription}\n\n${actionLabel}:\n${summaryData.actionItems.map((item) => `- ${item}`).join('\n')}`;
-    navigator.clipboard.writeText(textToCopy);
+    const lines = [title, summaryData.summary];
+    if (summaryData.imageCount > 0 && summaryData.mediaDescription) {
+      lines.push('', `${isEn ? 'Photos' : 'Hình ảnh'}: ${summaryData.mediaDescription}`);
+    }
+    if (summaryData.actionItems?.length) {
+      lines.push('', `${isEn ? 'Highlights' : 'Nội dung chính'}:`, ...summaryData.actionItems.map((item) => `- ${item}`));
+    }
+    navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const iconButton = 'p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
+
   return (
-    <div className="mx-2.5 my-2 rounded-xl bg-gradient-to-r from-blue-50/95 via-indigo-50/95 to-purple-50/95 dark:from-[#1e2330] dark:via-[#212433] dark:to-[#251f33] border border-blue-200/80 dark:border-indigo-500/30 shadow-sm overflow-hidden text-xs transition-all duration-300">
-      {/* Banner Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-white/70 dark:bg-black/20 border-b border-blue-100/60 dark:border-indigo-500/20">
-        <div className="flex items-center gap-1.5 font-bold text-indigo-700 dark:text-indigo-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin-slow shrink-0" />
-          <span className="truncate">
-            {isUnreadSummary
-              ? isEn ? 'AI Unread Summary' : 'AI Tóm tắt tin chưa đọc'
-              : isEn ? 'AI Message Summary' : 'AI Tóm tắt tin nhắn'}
+    <div
+      ref={panelRef}
+      style={{ maxHeight }}
+      className="absolute inset-x-0 bottom-full mb-2 flex flex-col bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-gray-200 dark:border-[#393a3b] shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-7 h-7 rounded-full bg-[#1877f2]/10 dark:bg-[#4599ff]/15 text-[#1877f2] dark:text-[#4599ff] flex items-center justify-center shrink-0">
+            <Sparkles className="w-3.5 h-3.5" />
           </span>
-          {summaryData && (
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                isUnreadSummary
-                  ? 'bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-900/50'
-                  : 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300'
-              }`}
-            >
-              {isUnreadSummary && <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block shrink-0" />}
-              {summaryData.messageCount} {isEn ? 'messages' : 'tin'}{summaryData.imageCount > 0 ? ` • ${summaryData.imageCount} ${isEn ? 'photos' : 'ảnh'}` : ''}
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold text-gray-900 dark:text-[#e4e6eb] leading-tight truncate">{title}</h4>
+            <span className="text-[10px] text-gray-500 dark:text-[#b0b3b8] block truncate">
+              {loading || !summaryData
+                ? isEn ? 'Generated by AI' : 'Tạo bởi AI'
+                : `${summaryData.messageCount} ${isEn ? 'messages' : 'tin nhắn'}${summaryData.imageCount > 0 ? ` · ${summaryData.imageCount} ${isEn ? 'photos' : 'ảnh'}` : ''}`}
             </span>
-          )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-          {summaryData && (
-            <button
-              onClick={handleCopy}
-              className="p-1 hover:text-indigo-600 dark:hover:text-indigo-300 transition cursor-pointer"
-              title={isEn ? 'Copy summary' : 'Sao chép tóm tắt'}
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+        <div className="flex items-center space-x-0.5 text-[#1877f2] dark:text-[#4599ff] shrink-0">
+          {onRefresh && (
+            <button onClick={onRefresh} disabled={loading} className={iconButton} title={isEn ? 'Summarize again' : 'Tóm tắt lại'}>
+              <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           )}
-
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:text-indigo-600 dark:hover:text-indigo-300 transition cursor-pointer"
-            title={isExpanded ? (isEn ? 'Collapse' : 'Thu gọn') : (isEn ? 'Expand' : 'Mở rộng')}
-          >
-            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          <button onClick={handleCopy} disabled={!summaryData || loading} className={iconButton} title={isEn ? 'Copy summary' : 'Sao chép tóm tắt'}>
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
           </button>
-
           <button
             onClick={onClose}
-            className="p-1 hover:text-red-500 transition cursor-pointer"
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#3a3b3c] rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-[#e4e6eb] transition cursor-pointer"
             title={isEn ? 'Close summary' : 'Đóng tóm tắt'}
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Content */}
-      {isExpanded && (
-        <div className="p-3 space-y-2.5">
-          {loading ? (
-            <div className="flex items-center justify-center py-4 space-x-2 text-indigo-600 dark:text-indigo-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="font-medium animate-pulse">
-                {isEn ? 'AI is reading messages and analyzing attached photos...' : 'AI đang đọc tin nhắn và phân tích hình ảnh đính kèm...'}
-              </span>
-            </div>
-          ) : summaryData ? (
-            <>
-              {/* Summary Paragraph */}
-              <div className="text-gray-800 dark:text-gray-200 leading-relaxed font-normal">
-                {summaryData.summary}
+      <div className="p-3 space-y-2.5 overflow-y-auto text-[13px]">
+        {loading ? (
+          <div className="flex items-center gap-2 py-3 text-gray-500 dark:text-[#b0b3b8] text-xs">
+            <Loader2 className="w-4 h-4 animate-spin text-[#1877f2] dark:text-[#4599ff] shrink-0" />
+            <span>{isEn ? 'AI is reading the messages…' : 'AI đang đọc các tin nhắn…'}</span>
+          </div>
+        ) : summaryData ? (
+          <>
+            <p className="text-gray-900 dark:text-[#e4e6eb] leading-relaxed whitespace-pre-line">{summaryData.summary}</p>
+
+            {summaryData.imageCount > 0 && summaryData.mediaDescription && (
+              <div className="p-2.5 rounded-xl bg-gray-100 dark:bg-[#3a3b3c] flex items-start gap-2 text-xs">
+                <ImageIcon className="w-4 h-4 text-[#1877f2] dark:text-[#4599ff] shrink-0 mt-0.5" />
+                <p className="text-gray-700 dark:text-[#e4e6eb] leading-snug">
+                  <span className="font-semibold">{isEn ? 'Photos: ' : 'Hình ảnh: '}</span>
+                  {summaryData.mediaDescription}
+                </p>
               </div>
+            )}
 
-              {/* Media Breakdown */}
-              {summaryData.imageCount > 0 && (
-                <div className="p-2 rounded-lg bg-white/80 dark:bg-white/5 border border-indigo-100 dark:border-indigo-900/40 flex items-start gap-2">
-                  <ImageIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                  <div className="text-[11px] text-gray-700 dark:text-gray-300 leading-snug">
-                    <span className="font-semibold text-purple-700 dark:text-purple-300">
-                      {isEn ? `Image analysis (${summaryData.imageCount} photos): ` : `Phân tích hình ảnh (${summaryData.imageCount} ảnh): `}
-                    </span>
-                    {summaryData.mediaDescription}
-                  </div>
+            {summaryData.actionItems?.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-gray-100 dark:bg-[#3a3b3c] text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-[#e4e6eb] mb-1">
+                  <ListChecks className="w-4 h-4 text-[#1877f2] dark:text-[#4599ff]" />
+                  <span>{isEn ? 'Highlights' : 'Nội dung chính'}</span>
                 </div>
-              )}
-
-              {/* Action Items */}
-              {summaryData.actionItems && summaryData.actionItems.length > 0 && (
-                <div className="p-2 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-800/40">
-                  <div className="flex items-center gap-1.5 font-semibold text-emerald-800 dark:text-emerald-300 mb-1 text-[11px]">
-                    <CheckSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>{isEn ? 'Key Action Items / Highlights:' : 'Nội dung chính / Việc cần làm:'}</span>
-                  </div>
-                  <ul className="space-y-1 pl-4 list-disc text-[11px] text-gray-700 dark:text-gray-300">
-                    {summaryData.actionItems.map((item, idx) => (
-                      <li key={idx} className="leading-snug">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          ) : null}
-        </div>
-      )}
+                <ul className="space-y-1 pl-5 list-disc text-gray-700 dark:text-[#b0b3b8]">
+                  {summaryData.actionItems.map((item, idx) => (
+                    <li key={idx} className="leading-snug">{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 };

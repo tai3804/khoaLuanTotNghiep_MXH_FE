@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Sparkles, RefreshCw, X } from 'lucide-react';
 import { aiService } from '../../../services/aiService';
+import { useToast } from '../../../context/ToastContext';
+import { formatAiError } from '../../../utils/apiError';
 
 interface CommentAiSuggestionsProps {
   postContent?: string;
@@ -17,6 +19,8 @@ export const CommentAiSuggestions: React.FC<CommentAiSuggestionsProps> = ({
   const [replies, setReplies] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const toast = useToast();
+
   const handleToggle = async () => {
     if (show) {
       setShow(false);
@@ -29,6 +33,8 @@ export const CommentAiSuggestions: React.FC<CommentAiSuggestionsProps> = ({
         const context = replyingToName ? `Phản hồi cho ${replyingToName}` : postContent;
         const res = await aiService.suggestReplies(context);
         setReplies(res);
+      } catch (err) {
+        toast.showError(formatAiError(err));
       } finally {
         setLoading(false);
       }
@@ -41,6 +47,8 @@ export const CommentAiSuggestions: React.FC<CommentAiSuggestionsProps> = ({
       const context = replyingToName ? `Phản hồi cho ${replyingToName}` : postContent;
       const res = await aiService.suggestReplies(context);
       setReplies(res);
+    } catch (err) {
+      toast.showError(formatAiError(err));
     } finally {
       setLoading(false);
     }
