@@ -1,8 +1,6 @@
-import axios from 'axios';
 import { api } from './axiosClient';
 import { getDeviceFingerprint, getDeviceName } from '../utils/fingerprint';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+import { refreshAccessToken } from './tokenRefresh';
 
 let devicesCache: any[] | null = null;
 let lastDevicesFetchTime = 0;
@@ -10,32 +8,8 @@ let inFlightDevicesPromise: Promise<any> | null = null;
 const DEVICES_CACHE_TTL_MS = 15_000;
 
 export const authService = {
-  refreshToken: async (): Promise<string | null> => {
-    try {
-      const deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-      const res = await axios.post(
-        BASE_URL + '/auth/refresh',
-        {},
-        {
-          withCredentials: true,
-          headers: {
-            'X-Client-Type': 'WEB',
-            'X-Device-Fingerprint': deviceFingerprint,
-          },
-        }
-      );
-      const data = res.data?.data || res.data?.result || res.data;
-      const newAccessToken = data?.accessToken || data?.token || null;
-
-      if (newAccessToken) {
-        api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-      }
-
-      return newAccessToken;
-    } catch {
-      return null;
-    }
-  },
+  /** Làm mới access token qua điểm duy nhất tokenRefresh (không gửi trùng); trả null nếu không làm mới được. */
+  refreshToken: (): Promise<string | null> => refreshAccessToken().catch(() => null),
 
   login: async (data: any) => {
     const deviceFingerprint = await getDeviceFingerprint();

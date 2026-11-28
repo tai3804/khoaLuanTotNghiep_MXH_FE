@@ -18,6 +18,7 @@ interface ChatBoxHeaderProps {
   showDetails?: boolean;
   onTriggerSummary?: () => void;
   isSummarizing?: boolean;
+  isSummaryOpen?: boolean;
   unreadCount?: number;
 }
 
@@ -33,6 +34,7 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
   showDetails,
   onTriggerSummary,
   isSummarizing,
+  isSummaryOpen,
   unreadCount,
 }) => {
   const { startCall, startGroupCall } = useCall();
@@ -93,14 +95,16 @@ export const ChatBoxHeader: React.FC<ChatBoxHeaderProps> = ({
             onClick={onTriggerSummary}
             disabled={isSummarizing}
             className={`relative p-1.5 rounded-full transition cursor-pointer disabled:opacity-50 ${
-              unreadCount && unreadCount > 0
-                ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 ring-1 ring-indigo-400/40'
-                : 'hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400'
+              isSummaryOpen
+                ? 'bg-[#1877f2]/10 dark:bg-[#4599ff]/20 ring-1 ring-[#1877f2]/30'
+                : 'hover:bg-gray-100 dark:hover:bg-[#3a3b3c]'
             }`}
             title={
-              unreadCount && unreadCount > 0
-                ? `✨ AI Tóm tắt ${unreadCount} tin nhắn chưa đọc (kèm ảnh)`
-                : '✨ AI Tóm tắt tin nhắn (kèm ảnh)'
+              isSummaryOpen
+                ? isEn ? 'Close AI summary' : 'Đóng tóm tắt AI'
+                : unreadCount && unreadCount > 0
+                ? isEn ? `Summarize ${unreadCount} unread messages with AI` : `Tóm tắt ${unreadCount} tin nhắn chưa đọc bằng AI`
+                : isEn ? 'Summarize conversation with AI' : 'Tóm tắt cuộc trò chuyện bằng AI'
             }
           >
             <Sparkles className={`w-4 h-4 ${isSummarizing ? 'animate-spin' : ''}`} />

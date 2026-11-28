@@ -19,6 +19,7 @@ import { useLiveViewerStream } from '../components/post/post-card/live-stream/us
 import { HostStudioChatInput } from '../components/live-studio/chat/HostStudioChatInput';
 import { HostStudioPinnedComment } from '../components/live-studio/chat/HostStudioPinnedComment';
 import { formatElapsed } from '../utils/timeAgo';
+import { useLiveRoomSettings, useSlowMode } from '../services/liveRoomSettings';
 
 export const LiveStreamPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -97,6 +98,9 @@ export const LiveStreamPage: React.FC = () => {
     post?.userId,
     post?.content
   );
+  // Cài đặt phòng của chủ phòng: chế độ chậm áp lên người xem, báo ngay ở phía người gửi
+  const roomSettings = useLiveRoomSettings(postId);
+  const slowMode = useSlowMode(postId, !isHost);
 
   const comments = useMemo(() => {
     return postId ? liveCommentsMap[postId] || [] : [];
@@ -156,6 +160,7 @@ export const LiveStreamPage: React.FC = () => {
   const handleSendViewerComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!postId || !viewerCommentInput.trim()) return;
+    if (!slowMode.trySend()) return;
     sendLiveComment(
       postId,
       viewerCommentInput,
@@ -493,6 +498,11 @@ export const LiveStreamPage: React.FC = () => {
           {/* Viewer Chat Input */}
           {!viewerStream.isBanned && (
             <HostStudioChatInput
+              placeholder="Bình luận trực tiếp..."
+              slowModeNotice={slowMode.notice}
+              slowModeWarned={slowMode.warned}
+              slowModeRemaining={slowMode.remaining}
+              reactionsEnabled={roomSettings.reactionsEnabled}
               commentInput={viewerCommentInput}
               replyingTo={replyingTo}
               inputRef={inputRef}

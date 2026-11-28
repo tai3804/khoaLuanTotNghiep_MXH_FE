@@ -1122,7 +1122,8 @@ export const postService = {
     }
   },
 
-  getPostsByHashtag: async (hashtag: string, page = 0, size = 20): Promise<PagedPostsResponse> => {
+  // post-service đánh số trang từ 1 (page >= 1); gửi 0 bị lỗi 400 và trang hashtag luôn rỗng
+  getPostsByHashtag: async (hashtag: string, page = 1, size = 20): Promise<PagedPostsResponse> => {
     try {
       const cleanTag = hashtag.replace(/^#/, '').trim().toLowerCase();
       const res = await api.get(`/posts/hashtag/${encodeURIComponent(cleanTag)}`, {

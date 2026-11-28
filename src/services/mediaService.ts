@@ -34,7 +34,7 @@ export const mediaService = {
   /**
    * Upload single media file (image/video) to S3 via media-service
    */
-  uploadMedia: async (file: File, folder: string = 'uploads'): Promise<MediaItem> => {
+  uploadMedia: async (file: File, folder: string = 'uploads', onProgress?: (percent: number) => void): Promise<MediaItem> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder', folder);
@@ -43,6 +43,9 @@ export const mediaService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: onProgress
+        ? (e) => onProgress(Math.round(((e.loaded || 0) / (e.total || file.size || 1)) * 100))
+        : undefined,
     });
 
     return res.data?.data || res.data;

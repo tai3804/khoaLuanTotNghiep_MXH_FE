@@ -3,6 +3,8 @@ import { CornerDownRight, Smile, Send, Sparkles } from 'lucide-react';
 import { Comment } from '../../../types';
 import { UserAvatar } from '../../common/UserAvatar';
 import { aiService } from '../../../services/aiService';
+import { useToast } from '../../../context/ToastContext';
+import { formatAiError } from '../../../utils/apiError';
 import { TopFanBadge } from '../common/TopFanBadge';
 import { TimeAgo } from '../../common/TimeAgo';
 import { RichContentRenderer } from '../../common/RichContentRenderer';
@@ -126,6 +128,8 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
   const hasMoreRootComments = totalRoot > displayedComments.length;
   const remainingRootCount = Math.max(0, totalRoot - displayedComments.length);
 
+  const toast = useToast();
+
   const handleFetchSmartReplies = async () => {
     if (showReplies && smartReplies.length > 0) {
       setShowReplies(false);
@@ -138,6 +142,9 @@ export const PostCardCommentsPreview: React.FC<PostCardCommentsPreviewProps> = (
         const latestComment = displayedComments[0]?.content || '';
         const replies = await aiService.suggestReplies('Bài viết trên mạng xã hội', latestComment);
         setSmartReplies(replies);
+      } catch (err) {
+        setShowReplies(false);
+        toast.showError(formatAiError(err));
       } finally {
         setLoadingReplies(false);
       }

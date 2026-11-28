@@ -6,7 +6,8 @@ import { useToast } from './ToastContext';
 import { NotificationItem, NotificationSetting } from '../types/notification';
 import { notificationService } from '../services/notificationService';
 import { store } from '../store/store';
-import { getWebSocketUrl } from '../utils/wsUrl';
+import { getWebSocketUrl } from '../utils/wsUrl';
+import { isChatOpen, isConversationMuted } from '../components/chat/chat-box/chatPrefs';
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -208,7 +209,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               (newNotif.type === 'COMMENT_POST' || newNotif.type === 'REPLY_COMMENT');
 
             // Only play chime & show popup toast if not streaming live comments
-            if (!isLiveStreamComment) {
+            // Tin nhắn mới: không kêu, không bật thông báo nổi nếu cuộc trò chuyện đã tắt chuông hoặc đang mở sẵn trong khung chat
+            const isMutedChat =
+              newNotif.type === 'NEW_MESSAGE' && (isConversationMuted(newNotif.targetId) || isChatOpen(newNotif.targetId));
+
+            if (!isLiveStreamComment && !isMutedChat) {
               playNotificationSound();
               showInfo(newNotif.title ? `${newNotif.title}: ${newNotif.content}` : newNotif.content);
             }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Check, RefreshCw, User, Briefcase, Heart } from 'lucide-react';
 import { aiService } from '../../../services/aiService';
+import { useToast } from '../../../context/ToastContext';
+import { formatAiError } from '../../../utils/apiError';
 
 interface ProfileBioAiModalProps {
   isOpen: boolean;
@@ -26,6 +28,7 @@ export const ProfileBioAiModal: React.FC<ProfileBioAiModalProps> = ({
   const [tone, setTone] = useState(TONES[0]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   if (!isOpen) return null;
 
@@ -39,6 +42,8 @@ export const ProfileBioAiModal: React.FC<ProfileBioAiModalProps> = ({
         tone,
       });
       setSuggestions(items);
+    } catch (err) {
+      toast.showError(formatAiError(err));
     } finally {
       setLoading(false);
     }

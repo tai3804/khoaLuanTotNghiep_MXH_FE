@@ -6,6 +6,7 @@ import { chatService, websocketService } from '../../../services/api';
 import { userService, fetchAuthorProfile, authorProfileCache } from '../../../services/userService';
 import { mediaService } from '../../../services/mediaService';
 import { ChatUser } from './types';
+import { messageTypeForFile } from './chatAttachment';
 
 export interface Message {
   id: string;
@@ -21,6 +22,10 @@ export interface Message {
   deleted?: boolean;
   fileName?: string;
   fileSize?: number;
+  /** Ảnh/video trên máy (blob:) để hiển thị ngay khi đang tải lên */
+  previewUrl?: string;
+  /** 0-100 khi tệp đang được tải lên và xử lý */
+  uploadProgress?: number;
 }
 
 // Messenger-style timestamp: keep a compact clock for the last 24 hours;
@@ -69,7 +74,11 @@ const getStoredMessages = (key: string): Message[] | null => {
 const storeMessages = (key: string, msgs: Message[]) => {
   try {
     chatMessagesMemoryCache.set(key, msgs);
-    const slice = msgs.slice(-30);
+    // bỏ tin đang tải lên và bản xem trước blob: (mất hiệu lực sau khi tải lại trang)
+    const slice = msgs
+      .filter((m) => m.uploadProgress === undefined)
+      .slice(-30)
+      .map(({ previewUrl: _p, ...m }) => m);
     sessionStorage.setItem(`chat_cache_${key}`, JSON.stringify(slice));
   } catch {}
 };
@@ -147,60 +156,72 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
     }
   };
 
-  const handleChatFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !conversationId) return;
+  // Gửi tệp như Messenger: tin nhắn hiện ngay với bản xem trước + tiến độ "Đang xử lý", không cần chờ hay thông báo nổi
+  const sendOneFile = async (file: File, convId: string) => {
+    const msgType = messageTypeForFile(file);
+    const tempId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const previewUrl = msgType === 'FILE' ? undefined : URL.createObjectURL(file);
+    const patch = (fields: Partial<Message>) =>
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, ...fields } : m)));
 
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const msgType: 'IMAGE' | 'VIDEO' | 'FILE' = isImage ? 'IMAGE' : isVideo ? 'VIDEO' : 'FILE';
-
-    setUploading(true);
-    toast.showInfo(`Đang tải ${isImage ? 'hình ảnh' : isVideo ? 'video' : 'tập tin'} lên AWS S3...`);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        senderId: user?.id || 'me',
+        senderName: 'Bạn',
+        senderAvatar: user?.avatar,
+        text: file.name,
+        mediaUrl: null,
+        previewUrl,
+        type: msgType,
+        fileName: file.name,
+        fileSize: file.size,
+        time: formatMessageTime(new Date()),
+        status: 'SENDING',
+        uploadProgress: 0,
+      },
+    ]);
 
     try {
-      const uploaded = await mediaService.uploadMedia(file, 'chats');
-      if (uploaded && uploaded.fileUrl) {
-        const fileUrl = uploaded.fileUrl;
-        const tempId = 'msg-' + Date.now();
-        const optimisticMsg: Message = {
-          id: tempId,
-          senderId: user?.id || 'me',
-          senderName: 'Bạn',
-          senderAvatar: user?.avatar,
-          text: file.name || fileUrl,
-          mediaUrl: fileUrl,
-          type: msgType,
-          fileName: file.name,
-          fileSize: file.size,
-          time: formatMessageTime(new Date()),
-          status: 'SENDING',
-        };
+      let lastPct = -1;
+      const uploaded = await mediaService.uploadMedia(file, 'chats', (pct) => {
+        // tối đa 95% cho tới khi máy chủ xử lý xong và tin nhắn được lưu
+        const shown = Math.min(95, pct);
+        if (shown - lastPct >= 5) {
+          lastPct = shown;
+          patch({ uploadProgress: shown });
+        }
+      });
+      if (!uploaded?.fileUrl) throw new Error('Không nhận được đường dẫn tệp');
+      patch({ uploadProgress: 100, mediaUrl: uploaded.fileUrl });
 
-        // 1. Add optimistic message immediately
-        setMessages((prev) => [...prev, optimisticMsg]);
-
-        // 2. Send via chatService REST API with correct message type and mediaUrl
-        const res = await chatService.sendFileMessage(conversationId, fileUrl, file.name, msgType);
-        const actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
-
-        // 3. Reconcile temporary message with server message ID
-        setMessages((prev) => {
-          if (actualId && prev.some((m) => m.id === actualId)) {
-            return prev.filter((m) => m.id !== tempId);
-          }
-          return prev.map((m) => (m.id === tempId ? { ...m, id: actualId || m.id, status: 'SENT' } : m));
-        });
-
-        toast.showSuccess(isImage ? 'Đã gửi hình ảnh!' : isVideo ? 'Đã gửi video!' : 'Đã gửi tập tin thành công!');
-      }
+      const res = await chatService.sendFileMessage(convId, uploaded.fileUrl, file.name, msgType);
+      const actualId = res && (res.messageId || res.id) ? String(res.messageId || res.id) : null;
+      setMessages((prev) => {
+        // Tin từ WebSocket có thể đến trước: giữ bản xem trước để ảnh không nháy lại
+        if (actualId && prev.some((m) => m.id === actualId)) {
+          return prev
+            .filter((m) => m.id !== tempId)
+            .map((m) => (m.id === actualId ? { ...m, previewUrl, fileSize: file.size, fileName: file.name } : m));
+        }
+        return prev.map((m) =>
+          m.id === tempId ? { ...m, id: actualId || m.id, status: 'SENT', uploadProgress: undefined } : m,
+        );
+      });
     } catch (err: any) {
-      toast.showError('Gửi tập tin thất bại: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setUploading(false);
-      // Reset input value so user can re-select the same file if needed
-      e.target.value = '';
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      toast.showError(`Không gửi được "${file.name}": ${err.response?.data?.message || err.message}`);
     }
+  };
+
+  const handleChatFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    // cho phép chọn lại cùng tệp
+    e.target.value = '';
+    if (!files.length || !conversationId) return;
+    files.forEach((file) => void sendOneFile(file, conversationId));
   };
 
   const handleSendVoice = async (audioBlob: Blob) => {
@@ -606,7 +627,13 @@ export const useChatBoxData = ({ friend }: UseChatBoxDataProps) => {
 
               if (matchIdx >= 0) {
                 const updated = [...prev];
-                updated[matchIdx] = formatted;
+                // giữ bản xem trước + dung lượng của tin gửi tạm để ảnh không nháy lại
+                updated[matchIdx] = {
+                  ...formatted,
+                  previewUrl: prev[matchIdx].previewUrl,
+                  fileSize: prev[matchIdx].fileSize ?? formatted.fileSize,
+                  fileName: prev[matchIdx].fileName ?? formatted.fileName,
+                };
                 return updated.filter((m, idx) => idx === matchIdx || !(m.id.startsWith('msg-') && m.text === incomingContent));
               }
 

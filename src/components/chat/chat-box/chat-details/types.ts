@@ -28,9 +28,3 @@ export interface SharedLinkItem {
 
 export type ChatDetailsTab = 'MEDIA' | 'FILES' | 'LINKS' | 'CUSTOMIZE';
 
-export interface ChatTheme {
-  id: string;
-  name: string;
-  colorHex: string;
-  gradientClass?: string;
-}

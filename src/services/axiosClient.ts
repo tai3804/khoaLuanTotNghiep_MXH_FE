@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { store } from '../store/store';
-import { setAccessToken, clearAuth } from '../store/slices/authSlice';
-import { getDeviceFingerprint } from '../utils/fingerprint';
+import { clearAuth } from '../store/slices/authSlice';
+import { refreshAccessToken } from './tokenRefresh';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
@@ -16,20 +16,6 @@ export const api: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token!);
-    }
-  });
-  failedQueue = [];
-};
 
 const setAuthHeader = (config: any, token: string) => {
   if (!config.headers) {
@@ -63,78 +49,33 @@ api.interceptors.response.use(
       window.dispatchEvent(new CustomEvent('account_locked'));
     }
 
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    // Máy chủ đang bảo trì (quản trị viên vừa bật): báo cho giao diện chuyển sang màn hình bảo trì ngay
+    if (error.response?.status === 503 && error.response?.data?.maintenance) {
+      window.dispatchEvent(new CustomEvent('system_maintenance'));
+    }
+
+    if (error.response && error.response.status === 401 && originalRequest && !originalRequest._retry) {
       if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/login')) {
         return Promise.reject(error);
       }
-
-      if (isRefreshing) {
-        originalRequest._retry = true;
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            setAuthHeader(originalRequest, token);
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
-
-      console.log('[axiosClient] 401 Unauthorized encountered. Automatically refreshing access token...');
 
       try {
-        // Phải nằm trong try: nếu lấy dấu vân tay thiết bị ném lỗi mà nằm ngoài, isRefreshing không bao giờ được tắt
-        // (finally không chạy) và mọi request 401 về sau sẽ chờ vô hạn trong failedQueue.
-        let deviceFingerprint = '';
-        try {
-          deviceFingerprint = (await getDeviceFingerprint()) || localStorage.getItem('deviceFingerprint') || '';
-        } catch {
-          deviceFingerprint = localStorage.getItem('deviceFingerprint') || '';
-        }
-
-        const res = await axios.post(
-          BASE_URL + '/auth/refresh',
-          {},
-          {
-            withCredentials: true,
-            headers: {
-              'X-Client-Type': 'WEB',
-              'X-Device-Fingerprint': deviceFingerprint,
-            },
-          }
-        );
-
-        const data = res.data?.data || res.data?.result || res.data;
-        const newAccessToken = data?.accessToken || data?.token;
-
-        if (newAccessToken) {
-          console.log('[axiosClient] Successfully refreshed access token! Retrying original request:', originalRequest.url);
-          store.dispatch(setAccessToken(newAccessToken));
-          
-          api.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-          setAuthHeader(originalRequest, newAccessToken);
-
-          processQueue(null, newAccessToken);
-          return api(originalRequest);
-        } else {
-          throw new Error('No access token returned');
-        }
+        // Nhiều request 401 cùng lúc chỉ tạo một lần làm mới (tokenRefresh dùng chung một promise)
+        const newAccessToken = await refreshAccessToken();
+        setAuthHeader(originalRequest, newAccessToken);
+        return api(originalRequest);
       } catch (refreshErr: any) {
         console.warn('[axiosClient] Failed to refresh access token:', refreshErr);
-        processQueue(refreshErr, null);
-        // Only trigger session expiration when refresh token is explicitly rejected (401 or 403)
-        if (refreshErr?.response && (refreshErr.response.status === 401 || refreshErr.response.status === 403)) {
+        // Chỉ kết thúc phiên khi refresh token bị từ chối rõ ràng (401/403), và chỉ một lần dù nhiều request cùng lỗi
+        const rejected = refreshErr?.response && (refreshErr.response.status === 401 || refreshErr.response.status === 403);
+        if (rejected && store.getState().auth.accessToken) {
           store.dispatch(clearAuth());
           localStorage.removeItem('user');
           try { localStorage.removeItem('refreshToken'); } catch {}
           window.dispatchEvent(new Event('auth_session_expired'));
         }
         return Promise.reject(refreshErr);
-      } finally {
-        isRefreshing = false;
       }
     }
     return Promise.reject(error);

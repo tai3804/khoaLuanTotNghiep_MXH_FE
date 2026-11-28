@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { LiveComment } from '../../context/LiveStreamContext';
 import {
   useHostStudioChat,
@@ -57,6 +58,7 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
     setIsReactionsEnabled,
     copiedCommentId,
     bannedUsers,
+    viewers,
     visibleComments,
     handlePinComment,
     handleUnpinComment,
@@ -65,6 +67,10 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
     handleBanViewer,
     handleUnbanViewer,
   } = useHostStudioChat(comments, hostName, postId);
+
+  // Mời người xem ra (từ tin nhắn hoặc danh sách khán giả) luôn qua bước xác nhận
+  const [kickTarget, setKickTarget] = useState<{ id: string; name: string } | null>(null);
+  const requestKick = (id: string, name?: string) => setKickTarget({ id, name: name || 'người xem này' });
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-lg">
@@ -98,7 +104,7 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
               onPinComment={handlePinComment}
               onCopyComment={handleCopyComment}
               onDeleteComment={handleDeleteComment}
-              onBanViewer={handleBanViewer}
+              onBanViewer={requestKick}
             />
 
             {/* Input bar (only in Chat tab) */}
@@ -122,9 +128,10 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
             hostName={hostName}
             hostAvatar={hostAvatar}
             searchQuery={searchAudience}
+            viewers={viewers}
             bannedUsers={bannedUsers}
             onSearchChange={setSearchAudience}
-            onBanViewer={handleBanViewer}
+            onKickViewer={requestKick}
             onUnbanViewer={handleUnbanViewer}
           />
         )}
@@ -138,6 +145,48 @@ export const HostStudioChatPanel: React.FC<HostStudioChatPanelProps> = ({
           />
         )}
       </div>
+
+      {kickTarget && (
+        <div
+          role="dialog"
+          aria-label="Mời người xem ra khỏi buổi phát"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn"
+          onClick={() => setKickTarget(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 shadow-2xl space-y-3"
+          >
+            <div className="flex items-center space-x-2.5 text-red-600 dark:text-red-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="font-bold text-sm">Mời người xem ra khỏi buổi phát?</h3>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-zinc-400 leading-relaxed">
+              <strong className="text-gray-900 dark:text-white">{kickTarget.name}</strong> sẽ bị ngắt khỏi buổi phát ngay, không xem
+              hay bình luận được nữa. Bạn có thể bỏ chặn trong tab Khán giả.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setKickTarget(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleBanViewer(kickTarget.id, kickTarget.name);
+                  setKickTarget(null);
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition cursor-pointer"
+              >
+                Mời ra
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

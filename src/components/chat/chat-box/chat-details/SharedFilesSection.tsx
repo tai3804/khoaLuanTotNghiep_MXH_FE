@@ -1,5 +1,7 @@
 import React from 'react';
-import { FileText, FileArchive, FileSpreadsheet, FileCode, File, Download, Loader2, RefreshCw } from 'lucide-react';
+import { File, Download, Loader2, RefreshCw } from 'lucide-react';
+import { FileTypeIcon } from '../ChatFileAttachment';
+import { fileCategory } from '../chatAttachment';
 import { SharedFileItem } from './types';
 
 interface SharedFilesSectionProps {
@@ -14,26 +16,6 @@ const formatFileSize = (bytes?: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const getFileIcon = (extension: string) => {
-  const ext = extension.toUpperCase();
-  if (ext === 'PDF') {
-    return <FileText className="w-6 h-6 text-red-500" />;
-  }
-  if (['DOC', 'DOCX'].includes(ext)) {
-    return <FileText className="w-6 h-6 text-blue-500" />;
-  }
-  if (['XLS', 'XLSX', 'CSV'].includes(ext)) {
-    return <FileSpreadsheet className="w-6 h-6 text-emerald-500" />;
-  }
-  if (['ZIP', 'RAR', '7Z', 'TAR', 'GZ'].includes(ext)) {
-    return <FileArchive className="w-6 h-6 text-amber-500" />;
-  }
-  if (['JSON', 'JS', 'TS', 'HTML', 'CSS', 'PY', 'JAVA'].includes(ext)) {
-    return <FileCode className="w-6 h-6 text-indigo-500" />;
-  }
-  return <File className="w-6 h-6 text-gray-500 dark:text-gray-400" />;
 };
 
 export const SharedFilesSection: React.FC<SharedFilesSectionProps> = ({
@@ -52,7 +34,7 @@ export const SharedFilesSection: React.FC<SharedFilesSectionProps> = ({
           Chưa có file tài liệu nào
         </p>
         <p className="text-xs text-gray-500 dark:text-[#b0b3b8] max-w-xs">
-          Các tài liệu như PDF, Word, Excel, ZIP... được chia sẻ trong đoạn chat sẽ hiển thị ở đây.
+          Các tệp như PDF, Word, Excel, ZIP, sơ đồ... được chia sẻ trong đoạn chat sẽ hiển thị ở đây.
         </p>
 
         {onLoadMoreHistory && !hasLoadedFull && (
@@ -98,15 +80,13 @@ export const SharedFilesSection: React.FC<SharedFilesSectionProps> = ({
             className="group flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#2d2e30] hover:bg-gray-100 dark:hover:bg-[#3a3b3c] border border-gray-100 dark:border-white/5 shadow-2xs hover:shadow-xs transition"
           >
             <div className="flex items-center space-x-3 min-w-0 pr-3">
-              <div className="shrink-0 p-2.5 rounded-lg bg-white dark:bg-[#1e1f20] shadow-xs">
-                {getFileIcon(item.extension)}
-              </div>
+              <FileTypeIcon ext={item.extension} />
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-[#e4e6eb] truncate" title={item.fileName}>
                   {item.fileName}
                 </p>
                 <div className="flex items-center space-x-2 text-[11px] text-gray-500 dark:text-[#b0b3b8] mt-0.5">
-                  <span className="font-medium text-gray-600 dark:text-gray-300">{formatFileSize(item.fileSize)}</span>
+                  <span className="font-medium text-gray-600 dark:text-gray-300">{item.fileSize ? formatFileSize(item.fileSize) : fileCategory(item.extension.toLowerCase()).label}</span>
                   <span>•</span>
                   <span>{item.time}</span>
                   {item.senderName && (

@@ -46,6 +46,18 @@ export const SystemConfigProvider: React.FC<{ children: React.ReactNode }> = ({ 
     refreshConfigs();
   }, [refreshConfigs]);
 
+  // API trả 503 "bảo trì" (axiosClient phát sự kiện): tải lại cấu hình bỏ qua bộ nhớ đệm để hiện màn hình bảo trì ngay
+  useEffect(() => {
+    const onMaintenance = () => {
+      systemConfigService
+        .getPublicConfigs(true)
+        .then(setConfigs)
+        .catch(() => setConfigs((prev) => ({ ...prev, maintenance_mode: true })));
+    };
+    window.addEventListener('system_maintenance', onMaintenance);
+    return () => window.removeEventListener('system_maintenance', onMaintenance);
+  }, []);
+
   const isAnnouncementDismissed = configs.system_announcement
     ? dismissedAnnouncements.includes(configs.system_announcement)
     : true;

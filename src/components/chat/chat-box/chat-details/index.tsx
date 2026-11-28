@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, FileText, Link2, Settings2 } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { Message } from '../useChatBoxData';
 import { ChatUser } from '../types';
+import { chatPrefId, DEFAULT_EMOJI, DEFAULT_THEME, themeColor, useChatPref } from '../chatPrefs';
 import { useChatDetailsData } from './useChatDetailsData';
 import { ChatDetailsHeader } from './ChatDetailsHeader';
 import { SharedMediaSection } from './SharedMediaSection';
@@ -30,15 +30,19 @@ export const ChatDetailsModal: React.FC<ChatDetailsModalProps> = ({
   memberCount,
   onNavigateProfile,
 }) => {
-  const [isMuted, setIsMuted] = useState(false);
+  const prefId = chatPrefId(friend);
+  const [muted, setMuted] = useChatPref('muted', prefId, '0');
+  const [quickEmoji, setQuickEmoji] = useChatPref('emoji', prefId, DEFAULT_EMOJI);
+  const [themeId, setThemeId] = useChatPref('theme', prefId, DEFAULT_THEME.id);
+  const isMuted = muted === '1';
+  const toggleMute = () => setMuted(isMuted ? '0' : '1');
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
@@ -50,97 +54,67 @@ export const ChatDetailsModal: React.FC<ChatDetailsModalProps> = ({
     sharedLinks,
     selectedMedia,
     setSelectedMedia,
-    quickEmoji,
-    setQuickEmoji,
     loadDeeperHistory,
     isLoadingMore,
     hasLoadedFullHistory,
     totalMediaCount,
     totalFilesCount,
     totalLinksCount,
-  } = useChatDetailsData({ messages, conversationId, friend });
+  } = useChatDetailsData({ messages, conversationId });
 
   if (!isOpen) return null;
 
-  const tabs: { key: ChatDetailsTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    {
-      key: 'MEDIA',
-      label: 'Ảnh & Video',
-      icon: <ImageIcon className="w-4 h-4" />,
-      badge: totalMediaCount,
-    },
-    {
-      key: 'FILES',
-      label: 'File tài liệu',
-      icon: <FileText className="w-4 h-4" />,
-      badge: totalFilesCount,
-    },
-    {
-      key: 'LINKS',
-      label: 'Liên kết',
-      icon: <Link2 className="w-4 h-4" />,
-      badge: totalLinksCount,
-    },
-    {
-      key: 'CUSTOMIZE',
-      label: 'Tùy chỉnh',
-      icon: <Settings2 className="w-4 h-4" />,
-    },
+  const tabs: { key: ChatDetailsTab; label: string; count?: number }[] = [
+    { key: 'MEDIA', label: 'Ảnh & Video', count: totalMediaCount },
+    { key: 'FILES', label: 'File', count: totalFilesCount },
+    { key: 'LINKS', label: 'Liên kết', count: totalLinksCount },
+    { key: 'CUSTOMIZE', label: 'Tùy chỉnh' },
   ];
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 overflow-hidden">
-      {/* Dark backdrop blur */}
-      <div
-        className="absolute inset-0 bg-black/65 dark:bg-black/80 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6">
+      <div className="absolute inset-0 bg-black/60 dark:bg-black/75" onClick={onClose} />
 
-      {/* Main Spacious Modal Window */}
-      <div className="relative bg-white dark:bg-[#242526] w-full max-w-2xl lg:max-w-3xl rounded-2xl shadow-2xl border border-gray-200 dark:border-[#393a3b] flex flex-col h-[85vh] max-h-[720px] overflow-hidden z-10 animate-scaleIn">
-        {/* 1. Profile Overview Header */}
+      <div
+        role="dialog"
+        aria-label="Thông tin cuộc trò chuyện"
+        style={{ '--chat-accent': themeColor(themeId) } as React.CSSProperties}
+        className="relative w-full max-w-2xl h-[min(80vh,620px)] flex flex-col bg-white dark:bg-[#242526] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#393a3b] overflow-hidden animate-scaleIn"
+      >
         <ChatDetailsHeader
           friend={friend}
           memberCount={memberCount}
           onClose={onClose}
           onNavigateProfile={onNavigateProfile}
           isMuted={isMuted}
-          onToggleMute={() => setIsMuted((prev) => !prev)}
+          onToggleMute={toggleMute}
         />
 
-        {/* 2. Spacious Messenger-style Tabs */}
-        <div className="flex items-center px-4 py-2 bg-gray-50 dark:bg-[#1e1f20] border-b border-gray-200 dark:border-[#393a3b] gap-2 shrink-0 overflow-x-auto no-scrollbar">
+        {/* Tab dạng gạch chân như Messenger */}
+        <div role="tablist" className="flex px-3 border-b border-gray-200 dark:border-[#393a3b] shrink-0 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
-            const isActive = activeTab === tab.key;
+            const active = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 min-w-[110px] py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer ${
-                  isActive
-                    ? 'bg-white dark:bg-[#3a3b3c] text-[#1877f2] dark:text-[#4599ff] shadow-sm'
-                    : 'text-gray-600 dark:text-[#b0b3b8] hover:text-gray-900 dark:hover:text-[#e4e6eb] hover:bg-gray-200/60 dark:hover:bg-[#2d2e30]'
+                className={`relative flex-1 min-w-[96px] py-3 px-2 text-sm font-semibold whitespace-nowrap transition cursor-pointer ${
+                  active
+                    ? 'text-[var(--chat-accent)]'
+                    : 'text-gray-500 dark:text-[#b0b3b8] hover:text-gray-900 dark:hover:text-[#e4e6eb]'
                 }`}
               >
-                <span>{tab.icon}</span>
-                <span className="truncate">{tab.label}</span>
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      isActive
-                        ? 'bg-[#1877f2]/10 text-[#1877f2] dark:bg-[#4599ff]/20 dark:text-[#4599ff]'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {tab.badge}
-                  </span>
-                )}
+                {tab.label}
+                {tab.count ? <span className="ml-1.5 text-xs font-medium opacity-70">{tab.count}</span> : null}
+                {active && <span className="absolute left-2 right-2 -bottom-px h-[3px] rounded-full bg-[var(--chat-accent)]" />}
               </button>
             );
           })}
         </div>
 
-        {/* 3. Tab Contents with smooth scrolling */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {activeTab === 'MEDIA' && (
             <SharedMediaSection
@@ -172,20 +146,18 @@ export const ChatDetailsModal: React.FC<ChatDetailsModalProps> = ({
 
           {activeTab === 'CUSTOMIZE' && (
             <ChatCustomizationSection
+              themeId={themeId}
+              onSelectTheme={setThemeId}
               quickEmoji={quickEmoji}
               onSelectQuickEmoji={setQuickEmoji}
               isMuted={isMuted}
-              onToggleMute={() => setIsMuted((prev) => !prev)}
+              onToggleMute={toggleMute}
             />
           )}
         </div>
       </div>
 
-      {/* 4. Full size Lightbox Modal when viewing photo/video */}
-      <MediaLightboxModal
-        media={selectedMedia}
-        onClose={() => setSelectedMedia(null)}
-      />
+      <MediaLightboxModal media={selectedMedia} onClose={() => setSelectedMedia(null)} />
     </div>
   );
 };

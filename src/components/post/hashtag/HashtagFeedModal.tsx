@@ -15,7 +15,7 @@ export const HashtagFeedModal: React.FC = () => {
     if (!tag) return;
     setLoading(true);
     try {
-      const data = await postService.getPostsByHashtag(tag, 0, 30);
+      const data = await postService.getPostsByHashtag(tag, 1, 30);
       setPosts(data.posts);
       setTotalElements(data.totalElements);
     } catch {

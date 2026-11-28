@@ -8,8 +8,11 @@ import { ChatAiSummaryBanner } from './ChatAiSummaryBanner';
 import { ChatDetailsPanel } from './chat-details';
 import { GroupInfoModal } from '../GroupInfoModal';
 import { ChatUser } from './types';
+import { chatPrefId, DEFAULT_EMOJI, DEFAULT_THEME, rememberDirectConversation, themeColor, useChatPref } from './chatPrefs';
 import { aiService, SummarizeMessagesResponse, ChatMessageItemDto } from '../../../services/aiService';
 import { useToast } from '../../../context/ToastContext';
+import { formatAiError } from '../../../utils/apiError';
+import { classifyAttachment } from './chatAttachment';
 
 export type { ChatUser };
 export { ChatVoiceRecorder } from './ChatVoiceRecorder';
@@ -67,24 +70,13 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
     handleSendVoice,
   } = useChatBoxData({ friend: currentFriend });
 
-  // Quick reaction emoji (defaults to 👍 like Facebook Messenger)
-  const emojiKey = conversationId ? `chat_emoji_${conversationId}` : `chat_emoji_${friend.id}`;
-  const [quickEmoji, setQuickEmoji] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(emojiKey) || '👍';
-    }
-    return '👍';
-  });
-
+  // Emoji gửi nhanh và màu chủ đề riêng từng cuộc trò chuyện (chỉnh trong Thông tin cuộc trò chuyện > Tùy chỉnh)
+  const prefId = chatPrefId(friend);
   useEffect(() => {
-    const handleEmojiChange = (e: any) => {
-      if ((e.detail?.conversationId === conversationId || !conversationId) && e.detail?.emoji) {
-        setQuickEmoji(e.detail.emoji);
-      }
-    };
-    window.addEventListener('chat_quick_emoji_changed', handleEmojiChange);
-    return () => window.removeEventListener('chat_quick_emoji_changed', handleEmojiChange);
-  }, [conversationId]);
+    if (conversationId && !friend.isGroup) rememberDirectConversation(conversationId, friend.userId || friend.id);
+  }, [conversationId, friend.isGroup, friend.userId, friend.id]);
+  const [quickEmoji] = useChatPref('emoji', prefId, DEFAULT_EMOJI);
+  const [themeId] = useChatPref('theme', prefId, DEFAULT_THEME.id);
 
   const isSendingQuickEmojiRef = React.useRef(false);
   const handleQuickReaction = () => {
@@ -154,7 +146,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
 
         const isUrl = m.text?.startsWith('http://') || m.text?.startsWith('https://');
         const mediaUrl = m.mediaUrl || (isUrl ? m.text : undefined);
-        const isImage = m.type === 'IMAGE' || (mediaUrl && /\.(jpg|jpeg|png|webp|gif)/i.test(mediaUrl)) || Boolean(m.mediaUrl && !m.type?.includes('FILE'));
+        const isImage = classifyAttachment(m) === 'image';
 
         let textContent = m.text;
         if (isImage) {
@@ -179,29 +171,45 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
         messages: messageItems,
       });
 
-      if (res) {
-        setSummaryData(res);
-      } else {
-        toast.showError('Không thể tạo tóm tắt vào lúc này');
-        setShowSummary(false);
-      }
-    } catch {
-      toast.showError('Lỗi khi phân tích tóm tắt tin nhắn');
+      setSummaryData(res);
+    } catch (err) {
+      toast.showError(formatAiError(err));
       setShowSummary(false);
     } finally {
       setSummaryLoading(false);
     }
   };
 
-  const customStyle = offsetRight !== undefined ? { right: `${offsetRight}px` } : undefined;
-  const positionClass = offsetRight !== undefined ? 'fixed bottom-0 z-50' : 'relative z-50';
+  // Nút AI trên header: bấm lần nữa khi bảng tóm tắt đang mở thì đóng lại, không gọi AI thêm
+  const handleToggleSummary = () => {
+    if (showSummary) {
+      setShowSummary(false);
+      return;
+    }
+    handleTriggerSummary();
+  };
+
+  const customStyle = {
+    ...(offsetRight !== undefined ? { right: `${offsetRight}px` } : {}),
+    '--chat-accent': themeColor(themeId),
+  } as React.CSSProperties;
+  // Bảng tóm tắt nằm ngoài khung chat nên phải nổi trên các khung chat bên cạnh
+  const positionClass = `${offsetRight !== undefined ? 'fixed bottom-0' : 'relative'} ${showSummary ? 'z-[60]' : 'z-50'}`;
 
   return (
     <>
-      <div
-        style={customStyle}
-        className={`${positionClass} w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200 shrink-0`}
-      >
+      <div style={customStyle} className={`${positionClass} shrink-0`}>
+        {showSummary && (
+          <ChatAiSummaryBanner
+            summaryData={summaryData}
+            loading={summaryLoading}
+            onClose={() => setShowSummary(false)}
+            onRefresh={handleTriggerSummary}
+            isUnreadSummary={isUnreadSummary}
+          />
+        )}
+
+      <div className="w-[325px] sm:w-[338px] bg-white dark:bg-[#242526] border border-gray-200 dark:border-[#393a3b] shadow-2xl rounded-t-2xl flex flex-col overflow-hidden transition-all duration-200">
         <ChatBoxHeader
           friend={effectiveFriend}
           memberCount={groupDetail?.members?.length}
@@ -212,21 +220,11 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
           onOpenGroupInfo={currentFriend.isGroup ? () => setShowGroupInfo(true) : undefined}
           onToggleDetails={() => setShowDetails((prev) => !prev)}
           showDetails={showDetails}
-          onTriggerSummary={handleTriggerSummary}
+          onTriggerSummary={handleToggleSummary}
           isSummarizing={summaryLoading}
+          isSummaryOpen={showSummary}
           unreadCount={unreadCount}
         />
-
-        {showSummary && (
-          <ChatAiSummaryBanner
-            summaryData={summaryData}
-            loading={summaryLoading}
-            onClose={() => setShowSummary(false)}
-            onRefresh={handleTriggerSummary}
-            isUnreadSummary={isUnreadSummary}
-            unreadCount={unreadCount}
-          />
-        )}
 
         <ChatBoxMessagesList
           friend={effectiveFriend}
@@ -259,6 +257,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({ friend, onClose, onNavigatePro
           onQuickReaction={handleQuickReaction}
           quickEmoji={quickEmoji}
         />
+      </div>
       </div>
 
       {/* Full screen modal overlay for Chat Details, Media & Files */}
